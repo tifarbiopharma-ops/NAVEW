@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import storeAuth from "../context/storeAuth";
 import useFetch from "../hooks/useFetch";
 import { getAuthClaims } from "../utils/authClaims";
+import { ChevronRight, ClipboardList, FileCheck2, LogOut, Menu, PanelLeftClose, PanelLeftOpen, QrCode, Users, X } from "lucide-react";
 
 const Dashboard = () => {
   const location = useLocation();
@@ -86,87 +87,63 @@ const Dashboard = () => {
     };
   }, []);
 
-  const bgColorsByRole = {
-    solicitante: "from-white via-white to-white",
-    jefe: "from-white via-white to-white",
-    supervisor: "from-white via-white to-white",
-    administrador: "from-slate-50 via-slate-50 to-slate-50",
-  };
-
-  const menuClassesByRole = {
-    solicitante: {
-      active: "bg-gradient-to-r from-[#274C77] via-[#3b5f85] to-[#1F3F5B] text-white",
-      inactive: "text-slate-800 hover:bg-gradient-to-r hover:from-[#274C77] hover:via-[#3b5f85] hover:to-[#1F3F5B] hover:text-white"
-    },
-    jefe: {
-      active: "bg-gradient-to-r from-[#274C77] via-[#3b5f85] to-[#1F3F5B] text-white",
-      inactive: "text-slate-800 hover:bg-gradient-to-r hover:from-[#274C77] hover:via-[#3b5f85] hover:to-[#1F3F5B] hover:text-white"
-    },
-    supervisor: {
-      active: "bg-gradient-to-r from-[#274C77] via-[#3b5f85] to-[#1F3F5B] text-white",
-      inactive: "text-slate-800 hover:bg-gradient-to-r hover:from-[#274C77] hover:via-[#3b5f85] hover:to-[#1F3F5B] hover:text-white"
-    },
-    administrador: {
-      active: "bg-zinc-200 text-zinc-800",
-      inactive: "text-slate-800 hover:bg-zinc-200"
-    }
-  };
-
-  const currentBg = bgColorsByRole[userRole] || bgColorsByRole.solicitante;
+  const isRouteActive = (path, query) => urlActual === path && (!query || location.search.includes(query));
+  const navItemClass = (active) => `group flex items-center gap-3 rounded-md px-3 py-3 text-sm transition ${
+    active ? "bg-[#285789] font-bold text-white" : "text-[#aab8cf] hover:bg-[#1d3558] hover:text-white"
+  } ${isCollapsed ? "justify-center" : ""}`;
 
   return (
-    <div className="flex h-screen font-sans flex-col md:flex-row bg-gray-50" style={{ fontFamily: "Gowun Batang, serif" }}>
+    <div className="flex h-screen flex-col bg-[#f4f7fa] font-sans text-[#17243d] md:flex-row">
       
       {/* HEADER MÓVIL */}
-      <div className="md:hidden flex items-center justify-between bg-gray-100 border-b border-gray-300 px-4 py-2 shrink-0">
-        <img 
-          src="/logo.png" 
-          alt="Farbiopharma" 
-          className="h-8 w-auto object-contain" 
-        />
+      <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:hidden">
+        <div className="text-lg font-black tracking-tight text-[#17243d]">NA<span className="text-[#3970a8]">WE</span>W</div>
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center hover:bg-[#17243D] hover:text-white transition duration-200"
+          aria-label={mobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
+          className="flex h-10 w-10 items-center justify-center rounded-md bg-slate-100 text-[#17243d] transition hover:bg-[#17243d] hover:text-white"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-6 h-6">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
+          {mobileMenuOpen ? <X size={21} /> : <Menu size={21} />}
         </button>
       </div>
 
       {/* SIDEBAR */}
       <aside
-        className={`fixed md:relative z-40 transition-all duration-300 ease-in-out bg-white border-r border-slate-200 flex flex-col h-full
+        className={`fixed md:relative z-40 transition-all duration-300 ease-in-out bg-[#142744] flex flex-col h-full
           ${mobileMenuOpen ? "left-0" : "-left-full"} md:left-0 
-          ${isCollapsed ? "md:w-20" : "md:w-64"} w-64`}
+          ${isCollapsed ? "md:w-20" : "md:w-[202px]"} w-64`}
       >
-        <div className="p-4 flex flex-col h-full">
+        <div className="flex h-full flex-col px-3 py-6">
+          <div className={`mb-8 px-3 ${isCollapsed ? "text-center" : ""}`}>
+            <div className="text-xl font-black tracking-tight text-white">NA<span className="text-[#77a8d2]">WE</span>W</div>
+            {!isCollapsed && <p className="mt-1 text-[9px] font-medium tracking-[0.08em] text-[#9aacbf]">Farbiopharma</p>}
+          </div>
+
           {/* Botón Colapsar (Desktop) */}
           <button
             onClick={toggleSidebar}
-            className="hidden md:flex h-10 w-10 bg-gray-200 rounded-full items-center justify-center hover:bg-gray-300 transition mb-4 self-end"
+            aria-label={isCollapsed ? "Expandir menú" : "Colapsar menú"}
+            className="absolute -right-3 top-6 hidden h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-[#17243d] shadow-sm transition hover:bg-slate-100 md:flex"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className={`w-5 h-5 transform transition ${isCollapsed ? "rotate-180" : ""}`}>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-            </svg>
+            {isCollapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
           </button>
 
           {/* Perfil Usuario */}
-          <div className={`flex items-center mb-6 transition-all ${isCollapsed ? "justify-center" : "px-2"}`}>
+          <div className={`mb-6 flex items-center transition-all ${isCollapsed ? "justify-center" : "px-2"}`}>
             <img
               src={getHDImage(perfilUsuario?.avatarUsuario) || "/usuarioSinfoto.jpg"}
               alt="Avatar"
-              className="h-10 w-10 rounded-full object-cover border-2 border-white shadow-sm"
+              className="h-10 w-10 rounded-full border-2 border-[#dce9f7] object-cover shadow-sm"
             />
             {!isCollapsed && (
               <div className="ml-3 overflow-hidden">
-                <p className="text-sm font-bold text-gray-800 truncate">{perfilUsuario?.nombre || "Usuario"}</p>
-                <p className="text-xs text-gray-500 capitalize">{userRole || "usuario"}</p>
+                <p className="truncate text-xs font-bold text-white">{perfilUsuario?.nombre || "Usuario"}</p>
+                <p className="text-[10px] capitalize text-[#91a4bd]">{userRole || "usuario"}</p>
               </div>
             )}
           </div>
 
-          <hr className="border-slate-200 mb-6" />
+          <hr className="mb-6 border-[#2b4162]" />
 
           {/* Navegación */}
           <nav className="flex-1 overflow-y-auto">
@@ -181,17 +158,9 @@ const Dashboard = () => {
                         <Link
                           to="/dashboard/salidas"
                           onClick={handleMenuItemClick}
-                          className={`flex items-center p-2 rounded-lg transition ${
-                              urlActual === "/dashboard/salidas" && !location.search.includes("view=aprobadas")
-                                ? `${menuClassesByRole[userRole]?.active || 'bg-[#B2EBF2] text-black'} font-bold`
-                                : `${menuClassesByRole[userRole]?.inactive || 'text-black hover:bg-[#B2EBF2]'}`
-                            } ${isCollapsed ? "justify-center" : ""}`}
+                          className={navItemClass(isRouteActive("/dashboard/salidas") && !location.search.includes("view=aprobadas"))}
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`w-6 h-6 transition-opacity ${urlActual === "/dashboard/salidas" && !location.search.includes("view=aprobadas") ? "opacity-100" : "opacity-70"}`}>
-                            <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h13A2.5 2.5 0 0 1 21 7.5v9A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z" />
-                            <path d="M7 9h10" />
-                            <path d="M7 13h7" />
-                          </svg>
+                          <ClipboardList size={18} />
                           {!isCollapsed && <span className="ml-3">Salidas</span>}
                         </Link>
                       </li>
@@ -201,17 +170,9 @@ const Dashboard = () => {
                           <Link
                             to="/dashboard/salidas?view=aprobadas"
                             onClick={handleMenuItemClick}
-                            className={`flex items-center p-2 rounded-lg transition ${
-                                urlActual.includes("/dashboard/salidas") && location.search.includes("view=aprobadas")
-                                  ? `${menuClassesByRole[userRole]?.active || 'bg-[#B2EBF2] text-black'} font-bold`
-                                  : `${menuClassesByRole[userRole]?.inactive || 'text-black hover:bg-[#B2EBF2]'}`
-                              } ${isCollapsed ? "justify-center" : ""}`}
+                                className={navItemClass(urlActual.includes("/dashboard/salidas") && location.search.includes("view=aprobadas"))}
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`w-6 h-6 transition-opacity ${urlActual.includes("/dashboard/salidas") && location.search.includes("view=aprobadas") ? "opacity-100" : "opacity-70"}`}>
-                              <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z" />
-                              <path d="M8 9h8M8 13h8" />
-                              <path d="M9 17l2 2 4-5" />
-                            </svg>
+                            <FileCheck2 size={18} />
                             {!isCollapsed && <span className="ml-3">Aprobadas</span>}
                           </Link>
                         </li>
@@ -224,18 +185,9 @@ const Dashboard = () => {
                       <Link
                         to="/dashboard/salidas/validar"
                         onClick={handleMenuItemClick}
-                        className={`flex items-center p-2 rounded-lg transition ${
-                        urlActual === "/dashboard/salidas/validar"
-                          ? `${menuClassesByRole[userRole]?.active || 'bg-[#B2EBF2] text-black'} font-bold`
-                          : `${menuClassesByRole[userRole]?.inactive || 'text-black hover:bg-[#B2EBF2]'}`
-                      } ${isCollapsed ? "justify-center" : ""}`}
+                        className={navItemClass(urlActual === "/dashboard/salidas/validar")}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`w-6 h-6 transition-opacity ${urlActual === "/dashboard/salidas/validar" ? "opacity-100" : "opacity-70"}`}>
-                          <path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
-                          <path d="M8 8h8" />
-                          <path d="M9 12h6" />
-                          <path d="M10 16h4" />
-                        </svg>
+                        <QrCode size={18} />
                         {!isCollapsed && <span className="ml-3">Validar QR</span>}
                       </Link>
                     </li>
@@ -246,22 +198,14 @@ const Dashboard = () => {
               {/* Menú Administrador */}
               {esAdministrador && (
                 <>
-                  <p className={`text-[10px] font-bold text-gray-400 uppercase mb-2 mt-4 ${isCollapsed ? "text-center" : "px-2"}`}>Admin</p>
+                  <p className={`mb-2 mt-4 text-[10px] font-bold uppercase text-[#7186a1] ${isCollapsed ? "text-center" : "px-2"}`}>Admin</p>
                   <li>
                     <Link
                       to="/dashboard/admin/usuarios"
                       onClick={handleMenuItemClick}
-                      className={`flex items-center p-2 rounded-lg transition ${
-                        urlActual === "/dashboard/admin/usuarios"
-                          ? "bg-sky-100 text-sky-700 font-bold"
-                          : "text-slate-600 hover:bg-slate-100"
-                      } ${isCollapsed ? "justify-center" : ""}`}
+                        className={navItemClass(urlActual === "/dashboard/admin/usuarios")}
                     >
-                      <div className="w-5 h-5 flex items-center justify-center">
-                        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                        </svg>
-                      </div>
+                      <Users size={18} />
                       {!isCollapsed && <span className="ml-3">Usuarios</span>}
                     </Link>
                   </li>
@@ -274,21 +218,53 @@ const Dashboard = () => {
           <div className="mt-auto pt-4">
             <button
               onClick={handleLogout}
-              className={`w-full flex items-center p-2 rounded-lg text-gray-700 hover:bg-red-50 hover:text-red-600 transition ${isCollapsed ? "justify-center" : ""}`}
+              className={`flex w-full items-center gap-3 rounded-md px-3 py-3 text-sm text-[#aab8cf] transition hover:bg-[#6d2932] hover:text-white ${isCollapsed ? "justify-center" : ""}`}
             >
-              <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
-              </svg>
+              <LogOut size={18} />
               {!isCollapsed && <span className="ml-3 font-medium">Cerrar Sesión</span>}
             </button>
           </div>
         </div>
       </aside>
       
+      {/* Navegación contextual de solicitudes */}
+      <aside className="hidden w-[193px] shrink-0 border-r border-[#e5eaf0] bg-white px-4 py-8 lg:block">
+        <p className="mb-6 px-2 text-[10px] font-bold uppercase tracking-[0.04em] text-[#718098]">Solicitud</p>
+        <nav className="space-y-2">
+          <Link
+            to="/dashboard/salidas"
+            className={`flex items-center gap-3 rounded-md px-3 py-3 text-xs font-bold transition ${
+              urlActual.startsWith("/dashboard/salidas") && !location.search.includes("view=aprobadas")
+                ? "bg-[#e5effd] text-[#315b86]"
+                : "text-[#4f5d70] hover:bg-slate-50"
+            }`}
+          >
+            <span className="flex h-3 w-3 items-center justify-center rounded-[2px] border border-current"><span className="h-1 w-1 bg-current" /></span>
+            Transporte
+          </Link>
+          <div className="flex items-center gap-3 px-3 py-3 text-xs text-[#4f5d70]">
+            <span className="h-3 w-3 rounded-[2px] border-2 border-current" />
+            Paquetería
+          </div>
+          <div className="flex items-center gap-3 px-3 py-3 text-xs text-[#4f5d70]">
+            <span className="h-3 w-3 rounded-full border-2 border-current" />
+            Externo
+          </div>
+        </nav>
+      </aside>
+
       {/* CONTENIDO PRINCIPAL */}
-      <main className={`flex-1 min-h-screen overflow-y-auto bg-linear-to-br ${currentBg}`}>
-        <Outlet />
-      </main>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex h-[66px] shrink-0 items-center justify-between border-b border-[#e3e9f0] bg-white px-6 md:px-8">
+          <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#718098]">Control de salidas</p>
+          <div className="flex items-center gap-2 text-xs font-bold text-[#17243d]">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#17243d]" />
+            {perfilUsuario?.nombre || "Usuario"}
+            <ChevronRight size={14} className="text-slate-400" />
+          </div>
+        </header>
+        <main className="min-h-0 flex-1 overflow-y-auto bg-[#f4f7fa]"><Outlet /></main>
+      </div>
 
       {/* Overlay para móvil */}
       {mobileMenuOpen && (
