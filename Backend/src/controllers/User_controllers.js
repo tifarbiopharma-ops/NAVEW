@@ -1,4 +1,5 @@
 import bcryptjs from 'bcryptjs';
+import crypto from 'crypto';
 import pool from '../database.js';
 import { crearTokenJWT } from '../middlewares/JWT.js';
 import { registrarReporteUsuario } from '../utils/reportesUsuarios.js';
@@ -24,12 +25,12 @@ const limpiarIntentosLogin = (email) => {
 };
 
 const formatearUsuarioParaAuditoria = (usuario = {}) => ({
-  id: usuario.id,
-  nombre: usuario.nombre,
-  cedula: usuario.cedula,
-  email: usuario.email,
-  rol: usuario.rol,
-  estado: usuario.estado,
+  id: usuario.ID_COLABORADOR,
+  nombre: usuario.NOMBRE,
+  cedula: usuario.CEDULA,
+  email: usuario.EMAIL_CORPORATIVO,
+  rol: usuario.ROL,
+  estado: usuario.ESTADO,
 });
 
 // Login de usuario - NO REQUIERE ROL
@@ -46,27 +47,27 @@ const formatearUsuarioParaAuditoria = (usuario = {}) => ({
 
     const emailLower = email.toLowerCase();
 
-    // Buscar usuario por email
-    const [usuarios] = await connection.query(
-      'SELECT * FROM usuarios WHERE email = ?',
+    // Buscar colaborador por email corporativo
+    const [colaboradores] = await connection.query(
+      'SELECT * FROM Colaboradores WHERE EMAIL_CORPORATIVO = ?',
       [emailLower]
     );
 
-    if (usuarios.length === 0) {
+    if (colaboradores.length === 0) {
       return res.status(401).json({ msg: "Email o contraseña incorrectos" });
     }
 
-    const usuario = usuarios[0];
+    const usuario = colaboradores[0];
 
     // Verificar si la cuenta está bloqueada
-    if (usuario.estado === 'bloqueado') {
+    if (usuario.ESTADO === 'BLOQUEADO') {
       return res.status(403).json({ 
         msg: "Tu cuenta está bloqueada. Por favor contacta al administrador para desbloquearla." 
       });
     }
 
     // Verificar contraseña
-    const passwordValida = await bcryptjs.compare(password, usuario.password);
+    const passwordValida = await bcryptjs.compare(password, usuario.PASSWORD);
     if (!passwordValida) {
       const intentosActuales = obtenerIntentosFallidos(emailLower);
       registrarIntento(emailLower);
@@ -75,8 +76,8 @@ const formatearUsuarioParaAuditoria = (usuario = {}) => ({
       // Si llega a 3 intentos fallidos, bloquear la cuenta de forma permanente
       if (nuevoConteo >= MAX_INTENTOS) {
         await connection.query(
-          'UPDATE usuarios SET estado = ? WHERE id = ?',
-          ['bloqueado', usuario.id]
+          'UPDATE Colaboradores SET ESTADO = ? WHERE ID_COLABORADOR = ?',
+          ['BLOQUEADO', usuario.ID_COLABORADOR]
         );
         limpiarIntentosLogin(emailLower);
         return res.status(403).json({ 
@@ -94,16 +95,16 @@ const formatearUsuarioParaAuditoria = (usuario = {}) => ({
     limpiarIntentosLogin(emailLower);
 
     // Generar token JWT
-    const token = crearTokenJWT(usuario.id, usuario.rol);
+    const token = crearTokenJWT(usuario.ID_COLABORADOR, usuario.ROL);
 
     return res.status(200).json({
       msg: "Login exitoso",
       token,
       usuario: {
-        id: usuario.id,
-        nombre: usuario.nombre,
-        email: usuario.email,
-        rol: usuario.rol
+        id: usuario.ID_COLABORADOR,
+        nombre: usuario.NOMBRE,
+        email: usuario.EMAIL_CORPORATIVO,
+        rol: usuario.ROL
       }
     });
 
@@ -120,25 +121,36 @@ const formatearUsuarioParaAuditoria = (usuario = {}) => ({
   const connection = await pool.getConnection();
 
   try {
-    // El usuario autenticado viene en req.user desde el middleware
+    // El usuario autenticado viene en req.user desde el middleware (ya normalizado)
     const usuarioId = req.user?.id;
 
     if (!usuarioId) {
       return res.status(401).json({ msg: 'No autenticado' });
     }
 
-    const [usuarios] = await connection.query(
-      'SELECT id, nombre, cedula, email, rol, estado, created_at FROM usuarios WHERE id = ?',
+    const [colaboradores] = await connection.query(
+      'SELECT ID_COLABORADOR, HASH_IDENTIFICADOR, NOMBRE, CEDULA, EMAIL_CORPORATIVO, ROL, ESTADO, CREATED_AT FROM Colaboradores WHERE ID_COLABORADOR = ?',
       [usuarioId]
     );
 
-    if (usuarios.length === 0) {
+    if (colaboradores.length === 0) {
       return res.status(404).json({ msg: "Usuario no encontrado" });
     }
 
+    // Normalizar la respuesta para el frontend
+    const col = colaboradores[0];
     return res.status(200).json({
       msg: "Perfil obtenido exitosamente",
-      usuario: usuarios[0]
+      usuario: {
+        id: col.ID_COLABORADOR,
+        hash: col.HASH_IDENTIFICADOR,
+        nombre: col.NOMBRE,
+        cedula: col.CEDULA,
+        email: col.EMAIL_CORPORATIVO,
+        rol: col.ROL,
+        estado: col.ESTADO,
+        created_at: col.CREATED_AT,
+      }
     });
 
   } catch (err) {
@@ -195,7 +207,7 @@ const formatearUsuarioParaAuditoria = (usuario = {}) => ({
 
     // Verificar que el email no esté registrado
     const [emailExistente] = await connection.query(
-      'SELECT * FROM usuarios WHERE email = ?',
+      'SELECT * FROM Colaboradores WHERE EMAIL_CORPORATIVO = ?',
       [emailLower]
     );
     if (emailExistente.length > 0) {
@@ -204,7 +216,7 @@ const formatearUsuarioParaAuditoria = (usuario = {}) => ({
 
     // Verificar que la cédula no esté registrada
     const [cedulaExistente] = await connection.query(
-      'SELECT * FROM usuarios WHERE cedula = ?',
+      'SELECT * FROM Colaboradores WHERE CEDULA = ?',
       [cedula]
     );
     if (cedulaExistente.length > 0) {
@@ -215,18 +227,23 @@ const formatearUsuarioParaAuditoria = (usuario = {}) => ({
     // Encriptar contraseña
     const passwordEncriptada = await bcryptjs.hash(password, 10);
 
-    // Insertar el nuevo usuario en la base de datos (estado predeterminado: activo)
+    // Generar HASH_IDENTIFICADOR por LOPDP (usado para códigos QR)
+    const hashData = `${cedula}-${emailLower}-${Date.now()}`;
+    const hash_identificador = crypto.createHash('sha256').update(hashData).digest('hex');
+
+    // Insertar el nuevo colaborador en la base de datos (estado predeterminado: ACTIVO)
     const [result] = await connection.query(
-      'INSERT INTO usuarios (nombre, cedula, email, password, rol, estado) VALUES (?, ?, ?, ?, ?, ?)',
-      [nombre, cedula, emailLower, passwordEncriptada, rol, 'activo']
+      'INSERT INTO Colaboradores (HASH_IDENTIFICADOR, NOMBRE, CEDULA, EMAIL_CORPORATIVO, PASSWORD, ROL, ESTADO) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [hash_identificador, nombre, cedula, emailLower, passwordEncriptada, rol, 'ACTIVO']
     );
 
     const usuarioCreado = formatearUsuarioParaAuditoria({
-      id: result.insertId,
-      nombre,
-      cedula,
-      email: emailLower,
-      rol,
+      ID_COLABORADOR: result.insertId,
+      HASH_IDENTIFICADOR: hash_identificador,
+      NOMBRE: nombre,
+      CEDULA: cedula,
+      EMAIL_CORPORATIVO: emailLower,
+      ROL: rol,
     });
 
     await registrarReporteUsuario({
@@ -245,11 +262,12 @@ const formatearUsuarioParaAuditoria = (usuario = {}) => ({
       msg: "Usuario registrado exitosamente",
       usuario: {
         id: result.insertId,
+        hash: hash_identificador,
         nombre,
         cedula,
         email: emailLower,
         rol,
-        estado: 'activo'
+        estado: 'ACTIVO'
       }
     });
 
@@ -273,7 +291,21 @@ const formatearUsuarioParaAuditoria = (usuario = {}) => ({
       });
     }
 
-    const [usuarios] = await connection.query('SELECT id, nombre, cedula, email, rol, estado, created_at FROM usuarios');
+    const [colaboradores] = await connection.query(
+      'SELECT ID_COLABORADOR, HASH_IDENTIFICADOR, NOMBRE, CEDULA, EMAIL_CORPORATIVO, ROL, ESTADO, CREATED_AT FROM Colaboradores'
+    );
+
+    // Normalizar la respuesta para el frontend
+    const usuarios = colaboradores.map(col => ({
+      id: col.ID_COLABORADOR,
+      hash: col.HASH_IDENTIFICADOR,
+      nombre: col.NOMBRE,
+      cedula: col.CEDULA,
+      email: col.EMAIL_CORPORATIVO,
+      rol: col.ROL,
+      estado: col.ESTADO,
+      created_at: col.CREATED_AT,
+    }));
 
     return res.status(200).json({
       msg: "Usuarios obtenidos exitosamente",
@@ -302,18 +334,28 @@ const formatearUsuarioParaAuditoria = (usuario = {}) => ({
 
     const { id } = req.params;
 
-    const [usuarios] = await connection.query(
-      'SELECT id, nombre, cedula, email, rol, estado, created_at FROM usuarios WHERE id = ?',
+    const [colaboradores] = await connection.query(
+      'SELECT ID_COLABORADOR, HASH_IDENTIFICADOR, NOMBRE, CEDULA, EMAIL_CORPORATIVO, ROL, ESTADO, CREATED_AT FROM Colaboradores WHERE ID_COLABORADOR = ?',
       [id]
     );
 
-    if (usuarios.length === 0) {
+    if (colaboradores.length === 0) {
       return res.status(404).json({ msg: "Usuario no encontrado" });
     }
 
+    const col = colaboradores[0];
     return res.status(200).json({
       msg: "Usuario obtenido exitosamente",
-      usuario: usuarios[0]
+      usuario: {
+        id: col.ID_COLABORADOR,
+        hash: col.HASH_IDENTIFICADOR,
+        nombre: col.NOMBRE,
+        cedula: col.CEDULA,
+        email: col.EMAIL_CORPORATIVO,
+        rol: col.ROL,
+        estado: col.ESTADO,
+        created_at: col.CREATED_AT,
+      }
     });
 
   } catch (err) {
@@ -338,30 +380,30 @@ const formatearUsuarioParaAuditoria = (usuario = {}) => ({
       return res.status(400).json({ msg: 'El rol solo puede ser: administrador, jefe, solicitante o supervisor' });
     }
 
-    // Validar que el usuario exista
-    const [usuarioExistente] = await connection.query(
-      'SELECT * FROM usuarios WHERE id = ?',
+    // Validar que el colaborador exista
+    const [colaboradorExistente] = await connection.query(
+      'SELECT * FROM Colaboradores WHERE ID_COLABORADOR = ?',
       [id]
     );
 
-    if (usuarioExistente.length === 0) {
+    if (colaboradorExistente.length === 0) {
       return res.status(404).json({ msg: "Usuario no encontrado" });
     }
 
-    const usuarioAntes = formatearUsuarioParaAuditoria(usuarioExistente[0]);
+    const usuarioAntes = formatearUsuarioParaAuditoria(colaboradorExistente[0]);
 
     // Preparar datos a actualizar
     const actualizaciones = {};
-    if (nombre) actualizaciones.nombre = nombre;
-    if (cedula) actualizaciones.cedula = cedula;
-    if (email) actualizaciones.email = email.toLowerCase();
-    if (rol) actualizaciones.rol = rol;
-    if (estado && (estado === 'activo' || estado === 'bloqueado')) {
-      actualizaciones.estado = estado;
+    if (nombre) actualizaciones.NOMBRE = nombre;
+    if (cedula) actualizaciones.CEDULA = cedula;
+    if (email) actualizaciones.EMAIL_CORPORATIVO = email.toLowerCase();
+    if (rol) actualizaciones.ROL = rol;
+    if (estado && (estado === 'ACTIVO' || estado === 'BLOQUEADO')) {
+      actualizaciones.ESTADO = estado;
     }
 
     if (password) {
-      actualizaciones.password = await bcryptjs.hash(password, 10);
+      actualizaciones.PASSWORD = await bcryptjs.hash(password, 10);
     }
 
     // Si no hay cambios
@@ -374,24 +416,24 @@ const formatearUsuarioParaAuditoria = (usuario = {}) => ({
     const valores = [...Object.values(actualizaciones), id];
 
     await connection.query(
-      `UPDATE usuarios SET ${campos}, updated_at = NOW() WHERE id = ?`,
+      `UPDATE Colaboradores SET ${campos}, UPDATED_AT = NOW() WHERE ID_COLABORADOR = ?`,
       valores
     );
 
-    // Si se cambia el estado a activo, limpiar intentos de sesión
-    if (actualizaciones.estado === 'activo') {
-      const emailUsuario = usuarioExistente[0].email.toLowerCase();
+    // Si se cambia el estado a ACTIVO, limpiar intentos de sesión
+    if (actualizaciones.ESTADO === 'ACTIVO') {
+      const emailUsuario = colaboradorExistente[0].EMAIL_CORPORATIVO.toLowerCase();
       limpiarIntentosLogin(emailUsuario);
     }
 
-    const usuarioDespues = {
+    const colaboradorDespues = {
       ...usuarioAntes,
-      nombre: actualizaciones.nombre ?? usuarioAntes.nombre,
-      cedula: actualizaciones.cedula ?? usuarioAntes.cedula,
-      email: actualizaciones.email ?? usuarioAntes.email,
-      rol: actualizaciones.rol ?? usuarioAntes.rol,
-      estado: actualizaciones.estado ?? usuarioAntes.estado,
-      ...(actualizaciones.password ? { password: 'actualizada' } : {}),
+      nombre: actualizaciones.NOMBRE ?? usuarioAntes.nombre,
+      cedula: actualizaciones.CEDULA ?? usuarioAntes.cedula,
+      email: actualizaciones.EMAIL_CORPORATIVO ?? usuarioAntes.email,
+      rol: actualizaciones.ROL ?? usuarioAntes.rol,
+      estado: actualizaciones.ESTADO ?? usuarioAntes.estado,
+      ...(actualizaciones.PASSWORD ? { password: 'actualizada' } : {}),
     };
 
     await registrarReporteUsuario({
@@ -402,22 +444,22 @@ const formatearUsuarioParaAuditoria = (usuario = {}) => ({
       campoAfectado: Object.keys(actualizaciones).join(', ') || 'usuario',
       valorAnterior: {
         ...usuarioAntes,
-        ...(actualizaciones.password ? { password: 'actualizada' } : {}),
+        ...(actualizaciones.PASSWORD ? { password: 'actualizada' } : {}),
       },
-      valorNuevo: usuarioDespues,
+      valorNuevo: colaboradorDespues,
       targetUserId: Number(id),
-      targetUserName: usuarioDespues.nombre,
+      targetUserName: colaboradorDespues.nombre,
     });
 
     return res.status(200).json({
       msg: "Usuario actualizado exitosamente",
       usuario: { 
         id, 
-        nombre: actualizaciones.nombre || usuarioExistente[0].nombre, 
-        cedula: actualizaciones.cedula || usuarioExistente[0].cedula,
-        email: actualizaciones.email || usuarioExistente[0].email, 
-        rol: actualizaciones.rol || usuarioExistente[0].rol,
-        estado: actualizaciones.estado || usuarioExistente[0].estado
+        nombre: actualizaciones.NOMBRE || colaboradorExistente[0].NOMBRE, 
+        cedula: actualizaciones.CEDULA || colaboradorExistente[0].CEDULA,
+        email: actualizaciones.EMAIL_CORPORATIVO || colaboradorExistente[0].EMAIL_CORPORATIVO, 
+        rol: actualizaciones.ROL || colaboradorExistente[0].ROL,
+        estado: actualizaciones.ESTADO || colaboradorExistente[0].ESTADO
       }
     });
 
@@ -443,19 +485,19 @@ const formatearUsuarioParaAuditoria = (usuario = {}) => ({
 
     const { id } = req.params;
 
-    const [usuarioExistente] = await connection.query(
-      'SELECT * FROM usuarios WHERE id = ?',
+    const [colaboradorExistente] = await connection.query(
+      'SELECT * FROM Colaboradores WHERE ID_COLABORADOR = ?',
       [id]
     );
 
-    if (usuarioExistente.length === 0) {
+    if (colaboradorExistente.length === 0) {
       return res.status(404).json({ msg: "Usuario no encontrado" });
     }
 
-    const usuarioAntes = formatearUsuarioParaAuditoria(usuarioExistente[0]);
+    const usuarioAntes = formatearUsuarioParaAuditoria(colaboradorExistente[0]);
 
     const [resultado] = await connection.query(
-      'DELETE FROM usuarios WHERE id = ?',
+      'DELETE FROM Colaboradores WHERE ID_COLABORADOR = ?',
       [id]
     );
 

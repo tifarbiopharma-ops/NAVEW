@@ -14,8 +14,8 @@ import Login from "./pages/Autenticación/Login";
 import AdminUsuarios from "./pages/Administrador/AdminUsuarios";
 import CrearUsuarioPage from "./pages/Administrador/CrearUsuarioPage";
 import EditarUsuario from "./pages/Administrador/EditarUsuario";
-import SalidasDashboard from "./pages/Salidas/SalidasDashboard";
-import ValidarSalidaQR from "./pages/Salidas/ValidarSalidaQR";
+import TransporteDashboard from "./pages/Transporte/TransporteDashboard";
+import ValidarTransporteQR from "./pages/Transporte/ValidarTransporteQR";
 import NotFound from "./pages/NotFound";
 
 // 🔹 Componente para manejar el Home inteligente del Dashboard
@@ -29,11 +29,11 @@ const DashboardHomeRedirect = () => {
   }
 
   if (userRole.includes('supervisor')) {
-    return <Navigate to="salidas/validar" replace />;
+    return <Navigate to="transporte/validar" replace />;
   }
 
   if (userRole.includes('jefe') || userRole.includes('solicitante')) {
-    return <Navigate to="salidas" replace />;
+    return <Navigate to="transporte" replace />;
   }
 
   return <Navigate to="/login" replace />;
@@ -64,18 +64,18 @@ function App() {
           <Route index element={<DashboardHomeRedirect />} />
 
           <Route
-            path="salidas"
+            path="transporte"
             element={
               <PrivateRouteWithRole allowedRoles={["solicitante", "jefe", "administrador"]}>
-                <SalidasDashboard />
+                <TransporteDashboard />
               </PrivateRouteWithRole>
             }
           />
           <Route
-            path="salidas/validar"
+            path="transporte/validar"
             element={
               <PrivateRouteWithRole allowedRoles={["supervisor", "administrador"]}>
-                <ValidarSalidaQR />
+                <ValidarTransporteQR />
               </PrivateRouteWithRole>
             }
           />

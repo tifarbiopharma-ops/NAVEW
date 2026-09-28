@@ -15,7 +15,7 @@ const registrarReporteUsuario = async ({
     let usuarioValido = null;
 
     if (usuarioId) {
-      const [usuarios] = await pool.query('SELECT id FROM usuarios WHERE id = ?', [usuarioId]);
+      const [usuarios] = await pool.query('SELECT ID_COLABORADOR FROM Colaboradores WHERE ID_COLABORADOR = ?', [usuarioId]);
       usuarioValido = usuarios.length > 0 ? Number(usuarioId) : null;
     }
 

@@ -156,21 +156,21 @@ const Dashboard = () => {
                     <>
                       <li>
                         <Link
-                          to="/dashboard/salidas"
+                          to="/dashboard/transporte"
                           onClick={handleMenuItemClick}
-                          className={navItemClass(isRouteActive("/dashboard/salidas") && !location.search.includes("view=aprobadas"))}
+                          className={navItemClass(isRouteActive("/dashboard/transporte") && !location.search.includes("view=aprobadas"))}
                         >
                           <ClipboardList size={18} />
-                          {!isCollapsed && <span className="ml-3">Salidas</span>}
+                          {!isCollapsed && <span className="ml-3">Transporte</span>}
                         </Link>
                       </li>
 
                       {esSolicitante && (
                         <li>
                           <Link
-                            to="/dashboard/salidas?view=aprobadas"
+                            to="/dashboard/transporte?view=aprobadas"
                             onClick={handleMenuItemClick}
-                                className={navItemClass(urlActual.includes("/dashboard/salidas") && location.search.includes("view=aprobadas"))}
+                                className={navItemClass(urlActual.includes("/dashboard/transporte") && location.search.includes("view=aprobadas"))}
                           >
                             <FileCheck2 size={18} />
                             {!isCollapsed && <span className="ml-3">Aprobadas</span>}
@@ -183,9 +183,9 @@ const Dashboard = () => {
                   {esSupervisor && (
                     <li>
                       <Link
-                        to="/dashboard/salidas/validar"
+                        to="/dashboard/transporte/validar"
                         onClick={handleMenuItemClick}
-                        className={navItemClass(urlActual === "/dashboard/salidas/validar")}
+                        className={navItemClass(urlActual === "/dashboard/transporte/validar")}
                       >
                         <QrCode size={18} />
                         {!isCollapsed && <span className="ml-3">Validar QR</span>}
@@ -232,9 +232,9 @@ const Dashboard = () => {
         <p className="mb-6 px-2 text-[10px] font-bold uppercase tracking-[0.04em] text-[#718098]">Solicitud</p>
         <nav className="space-y-2">
           <Link
-            to="/dashboard/salidas"
+            to="/dashboard/transporte"
             className={`flex items-center gap-3 rounded-md px-3 py-3 text-xs font-bold transition ${
-              urlActual.startsWith("/dashboard/salidas") && !location.search.includes("view=aprobadas")
+              urlActual.startsWith("/dashboard/transporte") && !location.search.includes("view=aprobadas")
                 ? "bg-[#e5effd] text-[#315b86]"
                 : "text-[#4f5d70] hover:bg-slate-50"
             }`}

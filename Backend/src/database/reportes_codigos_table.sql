@@ -13,7 +13,7 @@ CREATE TABLE reportes_codigos (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
   FOREIGN KEY (codigo_id) REFERENCES codigos(id) ON DELETE CASCADE,
-  FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE SET NULL,
+  FOREIGN KEY (usuario_id) REFERENCES Colaboradores(ID_COLABORADOR) ON DELETE SET NULL,
 
   INDEX idx_codigo_id (codigo_id),
   INDEX idx_modulo (modulo),

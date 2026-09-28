@@ -12,12 +12,23 @@ const verificarTokenJWT = async (req, res, next) => {
         const token = authorization.split(" ")[1]
         const { id, rol } = jwt.verify(token, process.env.JWT_SECRET)
         
-        // Obtener datos del usuario desde la base de datos
-        const [usuarios] = await pool.query('SELECT * FROM usuarios WHERE id = ?', [id])
+        // Obtener datos del colaborador desde la base de datos
+        const [rows] = await pool.query('SELECT * FROM Colaboradores WHERE ID_COLABORADOR = ?', [id])
         
-        if (usuarios.length === 0) return res.status(401).json({ msg: "Usuario no encontrado" })
+        if (rows.length === 0) return res.status(401).json({ msg: "Usuario no encontrado" })
         
-        req.user = usuarios[0]
+        // Normalizar propiedades para que el resto del backend
+        // use nombres consistentes (lowercase) sin acoplarse
+        // a los nombres de columna de la BD.
+        const col = rows[0]
+        req.user = {
+            id: col.ID_COLABORADOR,
+            nombre: col.NOMBRE,
+            cedula: col.CEDULA,
+            email: col.EMAIL_CORPORATIVO,
+            rol: col.ROL,
+            estado: col.ESTADO,
+        }
         req.user.rolDesdeToken = rol
         next()
     } catch (error) {
@@ -30,4 +41,3 @@ export {
     crearTokenJWT,
     verificarTokenJWT
 }
-

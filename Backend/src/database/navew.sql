@@ -1,19 +1,13 @@
-CREATE SCHEMA IF NOT EXISTS `farbiopharma_logistica`
-DEFAULT CHARACTER SET utf8mb4;
-
-USE `farbiopharma_logistica`;
-
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- =========================================================
--- 1. AREAS
+-- DROP de tablas en orden inverso de dependencias
 -- =========================================================
 
 DROP TABLE IF EXISTS `Aprobaciones`;
 DROP TABLE IF EXISTS `Accesos_Externos`;
 DROP TABLE IF EXISTS `Envios_Paqueteria`;
 DROP TABLE IF EXISTS `Traslados_Personal`;
-DROP TABLE IF EXISTS `Correos`;
 DROP TABLE IF EXISTS `Celulares`;
 DROP TABLE IF EXISTS `Extensiones`;
 DROP TABLE IF EXISTS `Externos`;
@@ -23,7 +17,29 @@ DROP TABLE IF EXISTS `Departamentos`;
 DROP TABLE IF EXISTS `Areas`;
 DROP TABLE IF EXISTS `Ubicaciones`;
 DROP TABLE IF EXISTS `Plantas`;
+DROP TABLE IF EXISTS `Empresas`;
 
+
+-- =========================================================
+-- 1. EMPRESAS
+--
+-- Nueva tabla de catálogo para las empresas del grupo
+-- (FARBIOPHARMA, INPEL, CLAREL, etc.)
+-- =========================================================
+
+CREATE TABLE `Empresas` (
+    `ID_EMPRESA` INT NOT NULL AUTO_INCREMENT,
+    `NOMBRE` VARCHAR(100) NOT NULL,
+
+    PRIMARY KEY (`ID_EMPRESA`),
+
+    UNIQUE KEY `uk_empresas_nombre` (`NOMBRE`)
+) ENGINE=InnoDB;
+
+
+-- =========================================================
+-- 2. AREAS
+-- =========================================================
 
 CREATE TABLE `Areas` (
     `ID_AREAS` INT NOT NULL AUTO_INCREMENT,
@@ -36,7 +52,7 @@ CREATE TABLE `Areas` (
 
 
 -- =========================================================
--- 2. DEPARTAMENTOS
+-- 3. DEPARTAMENTOS
 -- =========================================================
 
 CREATE TABLE `Departamentos` (
@@ -50,7 +66,7 @@ CREATE TABLE `Departamentos` (
 
 
 -- =========================================================
--- 3. UBICACIONES
+-- 4. UBICACIONES
 -- =========================================================
 
 CREATE TABLE `Ubicaciones` (
@@ -64,7 +80,7 @@ CREATE TABLE `Ubicaciones` (
 
 
 -- =========================================================
--- 4. PLANTAS
+-- 5. PLANTAS
 -- =========================================================
 
 CREATE TABLE `Plantas` (
@@ -77,7 +93,7 @@ CREATE TABLE `Plantas` (
 
 
 -- =========================================================
--- 5. CARGOS
+-- 6. CARGOS
 --
 -- El cargo es parte del ORGANIGRAMA.
 --
@@ -134,26 +150,43 @@ CREATE TABLE `Cargos` (
 
 
 -- =========================================================
--- 6. COLABORADORES
+-- 7. COLABORADORES
 --
--- Esta es la tabla PRINCIPAL de personas internas.
+-- Tabla PRINCIPAL de personas internas.
 --
--- Ya NO utilizaremos una tabla "Empleados" separada.
+-- ID_COLABORADOR (INT AUTO_INCREMENT) es la llave primaria
+-- estable del sistema. CEDULA se mantiene como campo UNIQUE
+-- pero NO como PK, para evitar cascadas masivas si RRHH
+-- necesita corregir una cédula mal ingresada.
 --
--- CEDULA identifica al colaborador.
+-- EMAIL_CORPORATIVO se incluye directamente en esta tabla
+-- (en lugar de una tabla separada de Correos) porque es el
+-- dato con el que los colaboradores inician sesión en NAVEW.
+--
+-- DEPARTAMENTO es un campo de override opcional:
+--   - Si es NULL, el departamento se infiere automáticamente
+--     desde el Área asignada (cubre el 99% de casos).
+--   - Si RRHH lo establece explícitamente, esa asignación
+--     manual toma prioridad (cubre el 1% de excepciones).
 --
 -- ESTADO:
--- ACTIVO
--- INACTIVO
+--   ACTIVO    → Cuenta operativa.
+--   BLOQUEADO → Cuenta bloqueada por un administrador
+--              (ej. intentos fallidos de login).
+--   RRHH no maneja "inactivos"; simplemente elimina al
+--   colaborador de la base de datos cuando sale de la empresa.
 --
 -- FECHA_SALIDA permite conservar historial.
 -- =========================================================
 
 CREATE TABLE `Colaboradores` (
+    `ID_COLABORADOR` INT NOT NULL AUTO_INCREMENT,
+    `HASH_IDENTIFICADOR` VARCHAR(64) NOT NULL,
     `CEDULA` VARCHAR(10) NOT NULL,
     `NOMBRE` VARCHAR(100) NOT NULL,
-    `EMPRESA` VARCHAR(100) DEFAULT NULL,
+    `EMAIL_CORPORATIVO` VARCHAR(150) NOT NULL,
 
+    `EMPRESA` INT DEFAULT NULL,
     `DEPARTAMENTO` INT DEFAULT NULL,
     `AREA` INT DEFAULT NULL,
     `CARGO` INT DEFAULT NULL,
@@ -167,14 +200,28 @@ CREATE TABLE `Colaboradores` (
     `FECHA_INGRESO` DATE DEFAULT NULL,
     `FECHA_SALIDA` DATE DEFAULT NULL,
 
-    PRIMARY KEY (`CEDULA`),
+    `CREATED_AT` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `UPDATED_AT` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (`ID_COLABORADOR`),
+
+    UNIQUE KEY `uk_colaboradores_cedula` (`CEDULA`),
+    UNIQUE KEY `uk_colaboradores_hash` (`HASH_IDENTIFICADOR`),
+    UNIQUE KEY `uk_colaboradores_email` (`EMAIL_CORPORATIVO`),
 
     KEY `idx_colaboradores_nombre` (`NOMBRE`),
+    KEY `idx_colaboradores_empresa` (`EMPRESA`),
     KEY `idx_colaboradores_departamento` (`DEPARTAMENTO`),
     KEY `idx_colaboradores_area` (`AREA`),
     KEY `idx_colaboradores_cargo` (`CARGO`),
     KEY `idx_colaboradores_ubicacion` (`UBICACION`),
     KEY `idx_colaboradores_estado` (`ESTADO`),
+
+    CONSTRAINT `fk_colaboradores_empresa`
+        FOREIGN KEY (`EMPRESA`)
+        REFERENCES `Empresas` (`ID_EMPRESA`)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE,
 
     CONSTRAINT `fk_colaboradores_departamento`
         FOREIGN KEY (`DEPARTAMENTO`)
@@ -201,17 +248,17 @@ CREATE TABLE `Colaboradores` (
         ON UPDATE CASCADE,
 
     CONSTRAINT `chk_colaboradores_estado`
-        CHECK (`ESTADO` IN ('ACTIVO', 'INACTIVO'))
+        CHECK (`ESTADO` IN ('ACTIVO', 'BLOQUEADO'))
 ) ENGINE=InnoDB;
 
 
 -- =========================================================
--- 7. EXTENSIONES
+-- 8. EXTENSIONES
 -- =========================================================
 
 CREATE TABLE `Extensiones` (
     `ID_EXTENSIONES` INT NOT NULL AUTO_INCREMENT,
-    `ID_COLABORADOR` VARCHAR(10) NOT NULL,
+    `ID_COLABORADOR` INT NOT NULL,
     `EXTENSION` INT NOT NULL,
 
     PRIMARY KEY (`ID_EXTENSIONES`),
@@ -222,19 +269,19 @@ CREATE TABLE `Extensiones` (
 
     CONSTRAINT `fk_extensiones_colaborador`
         FOREIGN KEY (`ID_COLABORADOR`)
-        REFERENCES `Colaboradores` (`CEDULA`)
+        REFERENCES `Colaboradores` (`ID_COLABORADOR`)
         ON DELETE RESTRICT
         ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 
 -- =========================================================
--- 8. CELULARES
+-- 9. CELULARES
 -- =========================================================
 
 CREATE TABLE `Celulares` (
     `ID_CELULARES` INT NOT NULL AUTO_INCREMENT,
-    `ID_COLABORADOR` VARCHAR(10) NOT NULL,
+    `ID_COLABORADOR` INT NOT NULL,
     `CELULAR` VARCHAR(20) NOT NULL,
 
     PRIMARY KEY (`ID_CELULARES`),
@@ -243,31 +290,21 @@ CREATE TABLE `Celulares` (
 
     CONSTRAINT `fk_celulares_colaborador`
         FOREIGN KEY (`ID_COLABORADOR`)
-        REFERENCES `Colaboradores` (`CEDULA`)
+        REFERENCES `Colaboradores` (`ID_COLABORADOR`)
         ON DELETE RESTRICT
         ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 
 -- =========================================================
--- 9. CORREOS
+-- NOTA: La tabla "Correos" fue ELIMINADA.
+--
+-- Motivo: El correo corporativo ahora vive directamente en
+-- la tabla Colaboradores (campo EMAIL_CORPORATIVO) porque
+-- es el dato de inicio de sesión en NAVEW. No tiene sentido
+-- tener una relación 1:N si cada colaborador usa un único
+-- correo para autenticarse.
 -- =========================================================
-
-CREATE TABLE `Correos` (
-    `ID_CORREOS` INT NOT NULL AUTO_INCREMENT,
-    `ID_COLABORADOR` VARCHAR(10) NOT NULL,
-    `CORREO` VARCHAR(150) NOT NULL,
-
-    PRIMARY KEY (`ID_CORREOS`),
-
-    KEY `idx_correos_colaborador` (`ID_COLABORADOR`),
-
-    CONSTRAINT `fk_correos_colaborador`
-        FOREIGN KEY (`ID_COLABORADOR`)
-        REFERENCES `Colaboradores` (`CEDULA`)
-        ON DELETE RESTRICT
-        ON UPDATE CASCADE
-) ENGINE=InnoDB;
 
 
 -- =========================================================
@@ -290,10 +327,13 @@ CREATE TABLE `Externos` (
 -- =========================================================
 -- 11. TRASLADOS DE PERSONAL
 --
--- NO existe Progreso.
--- El seguimiento se realiza mediante Estado_Actual.
+-- =========================================================
+-- 11. TRASLADOS DE PERSONAL
 --
--- Los colaboradores ahora se relacionan mediante CEDULA.
+-- El seguimiento estricto para Process Mining se realiza
+-- insertando registros en la tabla Eventos_Process_Mining.
+--
+-- Los colaboradores se relacionan mediante ID_COLABORADOR.
 -- =========================================================
 
 CREATE TABLE `Traslados_Personal` (
@@ -306,12 +346,13 @@ CREATE TABLE `Traslados_Personal` (
     `Hora_Llegada` TIME NULL,
 
     `Motivo_Viaje` TEXT NULL,
+    `Observaciones` TEXT NULL,
 
     `Km_Inicial` DECIMAL(10,2) NULL,
     `Km_Final` DECIMAL(10,2) NULL,
 
-    `Monto_Pagado` DECIMAL(12,2) NULL,
-    `Factura_Referencia` VARCHAR(255) NULL,
+    `Monto_Solicitado` DECIMAL(12,2) NULL,
+    `Evidencia_Costo` VARCHAR(255) NULL,
 
     `Estado_Actual` VARCHAR(30) NOT NULL,
 
@@ -319,8 +360,8 @@ CREATE TABLE `Traslados_Personal` (
     `QR_Salida` TEXT NULL,
     `QR_Llegada` TEXT NULL,
 
-    `ID_Solicitante` VARCHAR(10) NOT NULL,
-    `ID_Chofer` VARCHAR(10) NULL,
+    `ID_Solicitante` INT NOT NULL,
+    `ID_Chofer` INT NULL,
 
     `ID_Planta_Origen` VARCHAR(10) NOT NULL,
     `ID_Planta_Destino` VARCHAR(10) NOT NULL,
@@ -340,13 +381,13 @@ CREATE TABLE `Traslados_Personal` (
 
     CONSTRAINT `fk_traslados_solicitante`
         FOREIGN KEY (`ID_Solicitante`)
-        REFERENCES `Colaboradores` (`CEDULA`)
+        REFERENCES `Colaboradores` (`ID_COLABORADOR`)
         ON DELETE RESTRICT
         ON UPDATE CASCADE,
 
     CONSTRAINT `fk_traslados_chofer`
         FOREIGN KEY (`ID_Chofer`)
-        REFERENCES `Colaboradores` (`CEDULA`)
+        REFERENCES `Colaboradores` (`ID_COLABORADOR`)
         ON DELETE RESTRICT
         ON UPDATE CASCADE,
 
@@ -381,11 +422,11 @@ CREATE TABLE `Envios_Paqueteria` (
 
     `ID_Planta_Origen` VARCHAR(10) NOT NULL,
     `ID_Departamento_Origen` INT NOT NULL,
-    `ID_Responsable` VARCHAR(10) NOT NULL,
+    `ID_Responsable` INT NOT NULL,
 
     `ID_Planta_Destino` VARCHAR(10) NOT NULL,
     `ID_Departamento_Destino` INT NOT NULL,
-    `ID_Destinatario` VARCHAR(10) NOT NULL,
+    `ID_Destinatario` INT NOT NULL,
 
     `Estado_Actual` VARCHAR(30) NOT NULL,
 
@@ -410,13 +451,13 @@ CREATE TABLE `Envios_Paqueteria` (
 
     CONSTRAINT `fk_envios_responsable`
         FOREIGN KEY (`ID_Responsable`)
-        REFERENCES `Colaboradores` (`CEDULA`)
+        REFERENCES `Colaboradores` (`ID_COLABORADOR`)
         ON DELETE RESTRICT
         ON UPDATE CASCADE,
 
     CONSTRAINT `fk_envios_destinatario`
         FOREIGN KEY (`ID_Destinatario`)
-        REFERENCES `Colaboradores` (`CEDULA`)
+        REFERENCES `Colaboradores` (`ID_COLABORADOR`)
         ON DELETE RESTRICT
         ON UPDATE CASCADE,
 
@@ -457,7 +498,7 @@ CREATE TABLE `Accesos_Externos` (
 
     `ID_Externo` VARCHAR(64) NOT NULL,
 
-    `ID_Empleado_Visitado` VARCHAR(10) NOT NULL,
+    `ID_Empleado_Visitado` INT NOT NULL,
 
     `Area_Visita` VARCHAR(100) NOT NULL,
     `ID_Planta_Destino` VARCHAR(10) NOT NULL,
@@ -494,7 +535,7 @@ CREATE TABLE `Accesos_Externos` (
 
     CONSTRAINT `fk_accesos_empleado_visitado`
         FOREIGN KEY (`ID_Empleado_Visitado`)
-        REFERENCES `Colaboradores` (`CEDULA`)
+        REFERENCES `Colaboradores` (`ID_COLABORADOR`)
         ON DELETE RESTRICT
         ON UPDATE CASCADE,
 
@@ -515,10 +556,10 @@ CREATE TABLE `Accesos_Externos` (
 -- El APROBADOR se determina desde el ORGANIGRAMA.
 --
 -- TIPO_SOLICITUD puede ser:
--- TRASLADO
--- EXTERNO
--- SALIDA
--- etc.
+--   TRASLADO
+--   EXTERNO
+--   SALIDA
+--   etc.
 --
 -- ID_SOLICITUD guarda el identificador de la solicitud.
 -- =========================================================
@@ -531,7 +572,7 @@ CREATE TABLE `Aprobaciones` (
 
     `NIVEL_APROBACION` INT NOT NULL,
 
-    `ID_APROBADOR` VARCHAR(10) NOT NULL,
+    `ID_APROBADOR` INT NOT NULL,
 
     `ESTADO` VARCHAR(20) NOT NULL DEFAULT 'PENDIENTE',
 
@@ -553,7 +594,7 @@ CREATE TABLE `Aprobaciones` (
 
     CONSTRAINT `fk_aprobaciones_aprobador`
         FOREIGN KEY (`ID_APROBADOR`)
-        REFERENCES `Colaboradores` (`CEDULA`)
+        REFERENCES `Colaboradores` (`ID_COLABORADOR`)
         ON DELETE RESTRICT
         ON UPDATE CASCADE,
 
@@ -565,6 +606,34 @@ CREATE TABLE `Aprobaciones` (
                 'RECHAZADO'
             )
         )
+) ENGINE=InnoDB;
+
+
+-- =========================================================
+-- 15. EVENTOS PROCESS MINING (Trazabilidad y Auditoría)
+-- =========================================================
+
+CREATE TABLE `Eventos_Process_Mining` (
+    `ID_Evento` INT NOT NULL AUTO_INCREMENT,
+    
+    `ID_Transaccion` VARCHAR(36) NOT NULL,
+    `Tipo_Modulo` VARCHAR(30) NOT NULL, 
+    `Fase_Estado` VARCHAR(50) NOT NULL, 
+    
+    `Timestamp_Evento` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    `ID_Usuario_Actor` INT NULL, 
+    `Detalles_Extra` TEXT NULL, 
+    
+    PRIMARY KEY (`ID_Evento`),
+    KEY `idx_process_mining_transaccion` (`ID_Transaccion`),
+    KEY `idx_process_mining_modulo_estado` (`Tipo_Modulo`, `Fase_Estado`),
+    
+    CONSTRAINT `fk_process_mining_actor`
+        FOREIGN KEY (`ID_Usuario_Actor`)
+        REFERENCES `Colaboradores` (`ID_COLABORADOR`)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 

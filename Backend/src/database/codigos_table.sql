@@ -52,8 +52,8 @@ CREATE TABLE codigos (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   
   -- Relaciones
-  FOREIGN KEY (created_by) REFERENCES usuarios(id) ON DELETE SET NULL,
-  FOREIGN KEY (updated_by) REFERENCES usuarios(id) ON DELETE SET NULL,
+  FOREIGN KEY (created_by) REFERENCES Colaboradores(ID_COLABORADOR) ON DELETE SET NULL,
+  FOREIGN KEY (updated_by) REFERENCES Colaboradores(ID_COLABORADOR) ON DELETE SET NULL,
   
   -- Índices para búsquedas rápidas
   INDEX idx_id (id),

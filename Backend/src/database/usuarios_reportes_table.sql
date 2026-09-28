@@ -12,7 +12,7 @@ CREATE TABLE reportes_usuarios (
   target_user_name VARCHAR(120) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-  FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE SET NULL,
+  FOREIGN KEY (usuario_id) REFERENCES Colaboradores(ID_COLABORADOR) ON DELETE SET NULL,
   INDEX idx_usuario_id (usuario_id),
   INDEX idx_accion (accion),
   INDEX idx_created_at (created_at)
