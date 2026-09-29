@@ -90,7 +90,9 @@ const EditarUsuario = () => {
       const response = await fetchDataBackend(url, null, 'GET', token);
       
       if (response?.usuarios && Array.isArray(response.usuarios)) {
-        const exists = response.usuarios.some(u => u.cedula === cedula && u.id !== usuario?.id);
+        const exists = response.usuarios.some(
+          u => String(u.cedula).trim() === cedula && Boolean(u.rol) && u.id !== usuario?.id
+        );
         if (exists) {
           return 'Esta cédula ya está registrada';
         }

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ClipboardList, FileCheck2, QrCode } from "lucide-react";
+import { ClipboardList, Globe2, Package, QrCode } from "lucide-react";
 
 const ContextSidebar = ({ role, path, search }) => {
   const esSolicitante = role.includes("solicitante");
@@ -10,7 +10,6 @@ const ContextSidebar = ({ role, path, search }) => {
   if (!mostrarSolicitudes) return null;
 
   const esTransporte = path === "/dashboard/transporte" && !search.includes("view=aprobadas");
-  const esAprobadas = path === "/dashboard/transporte" && search.includes("view=aprobadas");
   const esValidarQr = path === "/dashboard/transporte/validar";
 
   return (
@@ -28,17 +27,14 @@ const ContextSidebar = ({ role, path, search }) => {
             Transporte
           </Link>
         )}
-        {esSolicitante && (
-          <Link
-            to="/dashboard/transporte?view=aprobadas"
-            className={`flex items-center gap-3 rounded-md px-3 py-3 text-xs font-bold transition ${
-              esAprobadas ? "bg-[#e5effd] text-[#315b86]" : "text-[#4f5d70] hover:bg-slate-50"
-            }`}
-          >
-            <FileCheck2 size={14} />
-            Aprobadas
-          </Link>
-        )}
+        <div className="flex items-center gap-3 rounded-md px-3 py-3 text-xs text-[#4f5d70]">
+          <Package size={14} />
+          Paquetería
+        </div>
+        <div className="flex items-center gap-3 rounded-md px-3 py-3 text-xs text-[#4f5d70]">
+          <Globe2 size={14} />
+          Externo
+        </div>
         {esSupervisor && (
           <Link
             to="/dashboard/transporte/validar"

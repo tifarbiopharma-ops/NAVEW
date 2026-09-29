@@ -3,7 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import storeAuth from "../context/storeAuth";
 import useFetch from "../hooks/useFetch";
 import { getAuthClaims } from "../utils/authClaims";
-import { ClipboardList, FileCheck2, LogOut, Menu, PanelLeftClose, PanelLeftOpen, QrCode, Users, X } from "lucide-react";
+import { ChevronRight, ClipboardList, History, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Users, Workflow, X } from "lucide-react";
 import ContextSidebar from "./ContextSidebar";
 import TopBar from "./TopBar";
 
@@ -24,9 +24,6 @@ const Dashboard = () => {
   const nombreUsuario = perfilUsuario?.nombre || claims?.nombre || "Usuario";
 
   const esAdministrador = userRole === "administrador";
-  const esSolicitante = userRole.includes("solicitante");
-  const esJefe = userRole.includes("jefe");
-  const esSupervisor = userRole.includes("supervisor");
 
   const tituloSeccion = urlActual.startsWith("/dashboard/admin")
     ? "Administración"
@@ -96,7 +93,6 @@ const Dashboard = () => {
     };
   }, []);
 
-  const isRouteActive = (path, query) => urlActual === path && (!query || location.search.includes(query));
   const navItemClass = (active) => `group flex items-center gap-3 rounded-md px-3 py-3 text-sm transition ${
     active ? "bg-[#285789] font-bold text-white" : "text-[#aab8cf] hover:bg-[#1d3558] hover:text-white"
   } ${isCollapsed ? "justify-center" : ""}`;
@@ -161,46 +157,31 @@ const Dashboard = () => {
               {/* Menú Usuario Estándar (No Admins) */}
               {!esAdministrador && (
                 <>
-                  {(esSolicitante || esJefe) && (
-                    <>
-                      <li>
-                        <Link
-                          to="/dashboard/transporte"
-                          onClick={handleMenuItemClick}
-                          className={navItemClass(isRouteActive("/dashboard/transporte") && !location.search.includes("view=aprobadas"))}
-                        >
-                          <ClipboardList size={18} />
-                          {!isCollapsed && <span className="ml-3">Transporte</span>}
-                        </Link>
-                      </li>
-
-                      {esSolicitante && (
-                        <li>
-                          <Link
-                            to="/dashboard/transporte?view=aprobadas"
-                            onClick={handleMenuItemClick}
-                                className={navItemClass(urlActual.includes("/dashboard/transporte") && location.search.includes("view=aprobadas"))}
-                          >
-                            <FileCheck2 size={18} />
-                            {!isCollapsed && <span className="ml-3">Aprobadas</span>}
-                          </Link>
-                        </li>
-                      )}
-                    </>
-                  )}
-
-                  {esSupervisor && (
-                    <li>
-                      <Link
-                        to="/dashboard/transporte/validar"
-                        onClick={handleMenuItemClick}
-                        className={navItemClass(urlActual === "/dashboard/transporte/validar")}
-                      >
-                        <QrCode size={18} />
-                        {!isCollapsed && <span className="ml-3">Validar QR</span>}
-                      </Link>
-                    </li>
-                  )}
+                  <li>
+                    <Link
+                      to="/dashboard/transporte"
+                      onClick={handleMenuItemClick}
+                      className={navItemClass(urlActual.startsWith("/dashboard/transporte"))}
+                    >
+                      <ClipboardList size={18} />
+                      {!isCollapsed && <span className="ml-3">Solicitud</span>}
+                      {!isCollapsed && <ChevronRight className="ml-auto" size={14} />}
+                    </Link>
+                  </li>
+                  <li>
+                    <div className={`${navItemClass(false)} cursor-default`}>
+                      <Workflow size={18} />
+                      {!isCollapsed && <span className="ml-3">Proceso</span>}
+                      {!isCollapsed && <ChevronRight className="ml-auto" size={14} />}
+                    </div>
+                  </li>
+                  <li>
+                    <div className={`${navItemClass(false)} cursor-default`}>
+                      <History size={18} />
+                      {!isCollapsed && <span className="ml-3">Histórico</span>}
+                      {!isCollapsed && <ChevronRight className="ml-auto" size={14} />}
+                    </div>
+                  </li>
                 </>
               )}
 

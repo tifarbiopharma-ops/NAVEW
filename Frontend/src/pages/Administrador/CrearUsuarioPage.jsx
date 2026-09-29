@@ -84,7 +84,9 @@ const CrearUsuarioPage = () => {
       const response = await fetchDataBackend(url, null, 'GET', token);
       
       if (response?.usuarios && Array.isArray(response.usuarios)) {
-        const exists = response.usuarios.some(u => u.cedula === cedula);
+        const exists = response.usuarios.some(
+          u => String(u.cedula).trim() === cedula && Boolean(u.rol)
+        );
         if (exists) {
           return 'Esta cédula ya está registrada';
         }
@@ -125,7 +127,9 @@ const CrearUsuarioPage = () => {
       const response = await fetchDataBackend(url, null, 'GET', token);
       
       if (response?.usuarios && Array.isArray(response.usuarios)) {
-        const exists = response.usuarios.some(u => u.email?.toLowerCase() === email);
+        const exists = response.usuarios.some(
+          u => u.email?.toLowerCase() === email && Boolean(u.rol)
+        );
         if (exists) {
           return 'Este email ya está registrado';
         }
@@ -183,6 +187,7 @@ const CrearUsuarioPage = () => {
     if (!/^\d{10}$/.test(cedula)) {
       setColaboradorEncontrado(false);
       setValue('nombre', '');
+      setValue('email', '');
       return undefined;
     }
 
@@ -197,9 +202,11 @@ const CrearUsuarioPage = () => {
 
         if (response?.colaborador) {
           setValue('nombre', response.colaborador.NOMBRE, { shouldValidate: true });
+          setValue('email', response.colaborador.email || response.colaborador.EMAIL_CORPORATIVO || '', { shouldValidate: true });
           setColaboradorEncontrado(true);
         } else {
           setValue('nombre', '');
+          setValue('email', '');
           setColaboradorEncontrado(false);
         }
       } finally {
@@ -270,9 +277,9 @@ const CrearUsuarioPage = () => {
                       : 'border-slate-200 bg-slate-50 focus:border-slate-400 focus:ring-slate-200'
                   }`}
                   {...register('nombre', { validate: validateNombre })}
-                  readOnly
-                  aria-readonly="true"
-                  title={colaboradorEncontrado ? 'Nombre tomado del registro del colaborador' : 'Ingresa una cédula para buscar el colaborador'}
+                  readOnly={colaboradorEncontrado}
+                  aria-readonly={colaboradorEncontrado}
+                  title={colaboradorEncontrado ? 'Nombre tomado del registro del colaborador' : 'Puedes escribir el nombre manualmente'}
                 />
                 {errors.nombre && (
                   <p className="text-red-600 text-sm mt-2 font-medium">{errors.nombre.message}</p>
@@ -319,6 +326,9 @@ const CrearUsuarioPage = () => {
                       : 'border-slate-200 bg-slate-50 focus:border-slate-400 focus:ring-slate-200'
                   }`}
                   {...register('email', { validate: validateEmail })}
+                  readOnly={colaboradorEncontrado}
+                  aria-readonly={colaboradorEncontrado}
+                  title={colaboradorEncontrado ? 'Correo tomado del registro del colaborador' : 'Puedes escribir el correo manualmente'}
                 />
                 {errors.email && (
                   <p className="text-red-600 text-sm mt-2 font-medium">{errors.email.message}</p>

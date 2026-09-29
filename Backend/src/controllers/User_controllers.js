@@ -183,7 +183,7 @@ const obtenerColaboradorPorCedula = async (req, res) => {
 
     const { cedula } = req.params;
     const [colaboradores] = await connection.query(
-      'SELECT ID_COLABORADOR, NOMBRE, CEDULA FROM Colaboradores WHERE CEDULA = ?',
+      'SELECT ID_COLABORADOR, NOMBRE, CEDULA, EMAIL_CORPORATIVO AS email FROM Colaboradores WHERE CEDULA = ?',
       [cedula]
     );
 
