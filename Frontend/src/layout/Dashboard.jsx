@@ -27,6 +27,10 @@ const Dashboard = () => {
 
   const tituloSeccion = urlActual.startsWith("/dashboard/admin")
     ? "Administración"
+    : urlActual.startsWith("/dashboard/proceso")
+      ? "Proceso"
+    : urlActual.startsWith("/dashboard/historico")
+      ? "Histórico"
     : urlActual.startsWith("/dashboard/transporte")
       ? "Transporte"
       : "Panel principal";
@@ -169,18 +173,26 @@ const Dashboard = () => {
                     </Link>
                   </li>
                   <li>
-                    <div className={`${navItemClass(false)} cursor-default`}>
+                    <Link
+                      to="/dashboard/proceso/transporte"
+                      onClick={handleMenuItemClick}
+                      className={navItemClass(urlActual.startsWith("/dashboard/proceso"))}
+                    >
                       <Workflow size={18} />
                       {!isCollapsed && <span className="ml-3">Proceso</span>}
                       {!isCollapsed && <ChevronRight className="ml-auto" size={14} />}
-                    </div>
+                    </Link>
                   </li>
                   <li>
-                    <div className={`${navItemClass(false)} cursor-default`}>
+                    <Link
+                      to="/dashboard/historico/transporte"
+                      onClick={handleMenuItemClick}
+                      className={navItemClass(urlActual.startsWith("/dashboard/historico"))}
+                    >
                       <History size={18} />
                       {!isCollapsed && <span className="ml-3">Histórico</span>}
                       {!isCollapsed && <ChevronRight className="ml-auto" size={14} />}
-                    </div>
+                    </Link>
                   </li>
                 </>
               )}

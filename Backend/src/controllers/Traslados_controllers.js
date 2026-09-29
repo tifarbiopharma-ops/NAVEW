@@ -1,5 +1,5 @@
 import pool from '../database.js';
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 import { obtenerJefeDirecto } from '../utils/jerarquia.js';
 
 // ==========================================
@@ -83,7 +83,7 @@ const setupTraslado = async (req, res, connection, tipoTraslado, extraFields, ex
 // 2. CREATE ENDPOINTS (Formularios)
 // ==========================================
 
-export const createTrasladoEmpresarial = async (req, res) => {
+const createTrasladoEmpresarial = async (req, res) => {
   const connection = await pool.getConnection();
   try {
     const { id_chofer, km_inicial, km_final } = req.body;
@@ -104,7 +104,7 @@ export const createTrasladoEmpresarial = async (req, res) => {
   }
 };
 
-export const createTrasladoPersonal = async (req, res) => {
+const createTrasladoPersonal = async (req, res) => {
   const connection = await pool.getConnection();
   try {
     const { km_inicial, km_final, monto_solicitado, evidencia_costo } = req.body;
@@ -123,7 +123,7 @@ export const createTrasladoPersonal = async (req, res) => {
   }
 };
 
-export const createTrasladoPrivado = async (req, res) => {
+const createTrasladoPrivado = async (req, res) => {
   const connection = await pool.getConnection();
   try {
     const { monto_solicitado, evidencia_costo } = req.body;
@@ -146,7 +146,7 @@ export const createTrasladoPrivado = async (req, res) => {
 // 3. GET HISTÓRICO Y PROGRESO
 // ==========================================
 
-export const getTraslados = async (req, res) => {
+const getTraslados = async (req, res) => {
   try {
     const idUsuario = req.user.id;
     const rol = req.user.rol.toLowerCase();
@@ -176,7 +176,7 @@ export const getTraslados = async (req, res) => {
   }
 };
 
-export const getProgresoTraslado = async (req, res) => {
+const getProgresoTraslado = async (req, res) => {
   try {
     const { id } = req.params; // ID_Traslado
     const [rows] = await pool.query(
@@ -197,7 +197,7 @@ export const getProgresoTraslado = async (req, res) => {
 // 4. APROBACIÓN (JEFE)
 // ==========================================
 
-export const approveTraslado = async (req, res) => {
+const approveTraslado = async (req, res) => {
   const connection = await pool.getConnection();
   try {
     const { id } = req.params;
@@ -245,7 +245,7 @@ export const approveTraslado = async (req, res) => {
 // 5. ESCANEOS EN GARITA (Seguridad)
 // ==========================================
 
-export const registrarSalidaGarita = async (req, res) => {
+const registrarSalidaGarita = async (req, res) => {
   const connection = await pool.getConnection();
   try {
     const { id } = req.params; // ID_Traslado (leído del QR)
@@ -286,7 +286,7 @@ export const registrarSalidaGarita = async (req, res) => {
   }
 };
 
-export const registrarLlegadaGarita = async (req, res) => {
+const registrarLlegadaGarita = async (req, res) => {
   const connection = await pool.getConnection();
   try {
     const { id } = req.params;
@@ -324,4 +324,15 @@ export const registrarLlegadaGarita = async (req, res) => {
   } finally {
     connection.release();
   }
+};
+
+export {
+  createTrasladoEmpresarial,
+  createTrasladoPersonal,
+  createTrasladoPrivado,
+  getTraslados,
+  getProgresoTraslado,
+  approveTraslado,
+  registrarSalidaGarita,
+  registrarLlegadaGarita,
 };

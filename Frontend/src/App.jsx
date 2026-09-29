@@ -16,6 +16,10 @@ import CrearUsuarioPage from "./pages/Administrador/CrearUsuarioPage";
 import EditarUsuario from "./pages/Administrador/EditarUsuario";
 import TransporteDashboard from "./pages/Transporte/TransporteDashboard";
 import ValidarTransporteQR from "./pages/Transporte/ValidarTransporteQR";
+import SolicitudPaqueteria from "./pages/Paqueteria/SolicitudPaqueteria";
+import ProcesoSolicitudes from "./pages/Proceso/ProcesoSolicitudes";
+import HistoricoSolicitudes from "./pages/Historico/HistoricoSolicitudes";
+import SolicitudExterno from "./pages/Externo/SolicitudExterno";
 import NotFound from "./pages/NotFound";
 
 // 🔹 Componente para manejar el Home inteligente del Dashboard
@@ -76,6 +80,38 @@ function App() {
             element={
               <PrivateRouteWithRole allowedRoles={["supervisor", "administrador"]}>
                 <ValidarTransporteQR />
+              </PrivateRouteWithRole>
+            }
+          />
+          <Route
+            path="paqueteria"
+            element={
+              <PrivateRouteWithRole allowedRoles={["solicitante", "jefe", "administrador"]}>
+                <SolicitudPaqueteria />
+              </PrivateRouteWithRole>
+            }
+          />
+          <Route
+            path="externo"
+            element={
+              <PrivateRouteWithRole allowedRoles={["solicitante", "jefe", "administrador"]}>
+                <SolicitudExterno />
+              </PrivateRouteWithRole>
+            }
+          />
+          <Route
+            path="proceso/:modulo"
+            element={
+              <PrivateRouteWithRole allowedRoles={["solicitante", "jefe", "supervisor", "administrador"]}>
+                <ProcesoSolicitudes />
+              </PrivateRouteWithRole>
+            }
+          />
+          <Route
+            path="historico/:modulo"
+            element={
+              <PrivateRouteWithRole allowedRoles={["solicitante", "jefe", "supervisor", "administrador"]}>
+                <HistoricoSolicitudes />
               </PrivateRouteWithRole>
             }
           />

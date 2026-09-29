@@ -1,8 +1,10 @@
 import express from "express";
 import cors from "cors";
-import http from 'http';
+import http from 'node:http';
 import userRoutes from './routers/User_routes.js';
 import trasladosRoutes from './routers/Traslados_routes.js';
+import enviosRoutes from './routers/Envios_routes.js';
+import accesosRoutes from './routers/Accesos_routes.js';
 
 const app = express();
 
@@ -24,6 +26,8 @@ app.get('/', (req, res) => {
 
 app.use('/api/users', userRoutes);
 app.use('/api/traslados', trasladosRoutes);
+app.use('/api/envios', enviosRoutes);
+app.use('/api/accesos', accesosRoutes);
 
 
 const server = http.createServer(app);
