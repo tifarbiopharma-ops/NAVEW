@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { ToastContainer, toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
@@ -155,6 +155,8 @@ const CrearUsuarioPage = () => {
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors, isValidating },
     reset,
   } = useForm({
@@ -171,6 +173,45 @@ const CrearUsuarioPage = () => {
 
   const [enviando, setEnviando] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [buscandoColaborador, setBuscandoColaborador] = useState(false);
+  const [colaboradorEncontrado, setColaboradorEncontrado] = useState(false);
+  const cedulaActual = watch('cedula');
+
+  useEffect(() => {
+    const cedula = cedulaActual?.trim() || '';
+
+    if (!/^\d{10}$/.test(cedula)) {
+      setColaboradorEncontrado(false);
+      setValue('nombre', '');
+      return undefined;
+    }
+
+    let activo = true;
+    const buscarColaborador = async () => {
+      setBuscandoColaborador(true);
+      try {
+        const url = `${import.meta.env.VITE_BACKEND_URL}/api/users/colaboradores/cedula/${cedula}`;
+        const response = await fetchDataBackend(url, null, 'GET', token);
+
+        if (!activo) return;
+
+        if (response?.colaborador) {
+          setValue('nombre', response.colaborador.NOMBRE, { shouldValidate: true });
+          setColaboradorEncontrado(true);
+        } else {
+          setValue('nombre', '');
+          setColaboradorEncontrado(false);
+        }
+      } finally {
+        if (activo) setBuscandoColaborador(false);
+      }
+    };
+
+    buscarColaborador();
+    return () => {
+      activo = false;
+    };
+  }, [cedulaActual, fetchDataBackend, setValue, token]);
 
   const handleExit = () => {
     navigate('/dashboard/admin/usuarios');
@@ -229,9 +270,18 @@ const CrearUsuarioPage = () => {
                       : 'border-slate-200 bg-slate-50 focus:border-slate-400 focus:ring-slate-200'
                   }`}
                   {...register('nombre', { validate: validateNombre })}
+                  readOnly
+                  aria-readonly="true"
+                  title={colaboradorEncontrado ? 'Nombre tomado del registro del colaborador' : 'Ingresa una cédula para buscar el colaborador'}
                 />
                 {errors.nombre && (
                   <p className="text-red-600 text-sm mt-2 font-medium">{errors.nombre.message}</p>
+                )}
+                {buscandoColaborador && (
+                  <p className="mt-2 text-xs text-slate-500">Buscando colaborador...</p>
+                )}
+                {!buscandoColaborador && cedulaActual?.length === 10 && !colaboradorEncontrado && (
+                  <p className="mt-2 text-xs font-medium text-red-600">No se encontró un colaborador con esa cédula.</p>
                 )}
               </div>
 

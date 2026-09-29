@@ -1,6 +1,7 @@
 import express from 'express';
 import { 
   obtenerMiPerfil,
+  obtenerColaboradorPorCedula,
   registro, 
   login, 
   obtenerUsuarios, 
@@ -18,6 +19,8 @@ router.post('/login', login);
 // GET - Obtener perfil del usuario
 // La ruta es /api/users/mi-perfil
 router.get('/mi-perfil', verificarTokenJWT, obtenerMiPerfil);
+// GET - Buscar colaborador por cédula para crear un usuario
+router.get('/colaboradores/cedula/:cedula', verificarTokenJWT, obtenerColaboradorPorCedula);
 // POST - Registro de usuario
 // La ruta es /api/users/registro
 router.post('/registro', verificarTokenJWT, registro);

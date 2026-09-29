@@ -3,7 +3,9 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import storeAuth from "../context/storeAuth";
 import useFetch from "../hooks/useFetch";
 import { getAuthClaims } from "../utils/authClaims";
-import { ChevronRight, ClipboardList, FileCheck2, LogOut, Menu, PanelLeftClose, PanelLeftOpen, QrCode, Users, X } from "lucide-react";
+import { ClipboardList, FileCheck2, LogOut, Menu, PanelLeftClose, PanelLeftOpen, QrCode, Users, X } from "lucide-react";
+import ContextSidebar from "./ContextSidebar";
+import TopBar from "./TopBar";
 
 const Dashboard = () => {
   const location = useLocation();
@@ -19,11 +21,18 @@ const Dashboard = () => {
   // Extracción segura de roles
   const claims = token ? getAuthClaims(token) : null;
   const userRole = claims?.rol?.toLowerCase() || "";
+  const nombreUsuario = perfilUsuario?.nombre || claims?.nombre || "Usuario";
 
   const esAdministrador = userRole === "administrador";
   const esSolicitante = userRole.includes("solicitante");
   const esJefe = userRole.includes("jefe");
   const esSupervisor = userRole.includes("supervisor");
+
+  const tituloSeccion = urlActual.startsWith("/dashboard/admin")
+    ? "Administración"
+    : urlActual.startsWith("/dashboard/transporte")
+      ? "Transporte"
+      : "Panel principal";
 
   // Cargar perfil del usuario de forma segura
   useEffect(() => {
@@ -111,7 +120,7 @@ const Dashboard = () => {
       <aside
         className={`fixed md:relative z-40 transition-all duration-300 ease-in-out bg-[#142744] flex flex-col h-full
           ${mobileMenuOpen ? "left-0" : "-left-full"} md:left-0 
-          ${isCollapsed ? "md:w-20" : "md:w-[202px]"} w-64`}
+          ${isCollapsed ? "md:w-20" : "md:w-50.5"} w-64`}
       >
         <div className="flex h-full flex-col px-3 py-6">
           <div className={`mb-8 px-3 ${isCollapsed ? "text-center" : ""}`}>
@@ -137,7 +146,7 @@ const Dashboard = () => {
             />
             {!isCollapsed && (
               <div className="ml-3 overflow-hidden">
-                <p className="truncate text-xs font-bold text-white">{perfilUsuario?.nombre || "Usuario"}</p>
+                <p className="truncate text-xs font-bold text-white">{nombreUsuario}</p>
                 <p className="text-[10px] capitalize text-[#91a4bd]">{userRole || "usuario"}</p>
               </div>
             )}
@@ -227,42 +236,11 @@ const Dashboard = () => {
         </div>
       </aside>
       
-      {/* Navegación contextual de solicitudes */}
-      <aside className="hidden w-[193px] shrink-0 border-r border-[#e5eaf0] bg-white px-4 py-8 lg:block">
-        <p className="mb-6 px-2 text-[10px] font-bold uppercase tracking-[0.04em] text-[#718098]">Solicitud</p>
-        <nav className="space-y-2">
-          <Link
-            to="/dashboard/transporte"
-            className={`flex items-center gap-3 rounded-md px-3 py-3 text-xs font-bold transition ${
-              urlActual.startsWith("/dashboard/transporte") && !location.search.includes("view=aprobadas")
-                ? "bg-[#e5effd] text-[#315b86]"
-                : "text-[#4f5d70] hover:bg-slate-50"
-            }`}
-          >
-            <span className="flex h-3 w-3 items-center justify-center rounded-[2px] border border-current"><span className="h-1 w-1 bg-current" /></span>
-            Transporte
-          </Link>
-          <div className="flex items-center gap-3 px-3 py-3 text-xs text-[#4f5d70]">
-            <span className="h-3 w-3 rounded-[2px] border-2 border-current" />
-            Paquetería
-          </div>
-          <div className="flex items-center gap-3 px-3 py-3 text-xs text-[#4f5d70]">
-            <span className="h-3 w-3 rounded-full border-2 border-current" />
-            Externo
-          </div>
-        </nav>
-      </aside>
+      <ContextSidebar role={userRole} path={urlActual} search={location.search} />
 
       {/* CONTENIDO PRINCIPAL */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-[66px] shrink-0 items-center justify-between border-b border-[#e3e9f0] bg-white px-6 md:px-8">
-          <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#718098]">Control de salidas</p>
-          <div className="flex items-center gap-2 text-xs font-bold text-[#17243d]">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#17243d]" />
-            {perfilUsuario?.nombre || "Usuario"}
-            <ChevronRight size={14} className="text-slate-400" />
-          </div>
-        </header>
+        <TopBar title={tituloSeccion} userName={nombreUsuario} />
         <main className="min-h-0 flex-1 overflow-y-auto bg-[#f4f7fa]"><Outlet /></main>
       </div>
 

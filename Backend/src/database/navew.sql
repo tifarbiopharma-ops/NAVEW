@@ -1,9 +1,12 @@
+USE `farbiopharma_logistica`;
+
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- =========================================================
--- DROP de tablas en orden inverso de dependencias
+-- DROP DE TABLAS EN ORDEN INVERSO DE DEPENDENCIAS
 -- =========================================================
 
+DROP TABLE IF EXISTS `Eventos_Process_Mining`;
 DROP TABLE IF EXISTS `Aprobaciones`;
 DROP TABLE IF EXISTS `Accesos_Externos`;
 DROP TABLE IF EXISTS `Envios_Paqueteria`;
@@ -11,6 +14,7 @@ DROP TABLE IF EXISTS `Traslados_Personal`;
 DROP TABLE IF EXISTS `Celulares`;
 DROP TABLE IF EXISTS `Extensiones`;
 DROP TABLE IF EXISTS `Externos`;
+DROP TABLE IF EXISTS `usuarios`;
 DROP TABLE IF EXISTS `Colaboradores`;
 DROP TABLE IF EXISTS `Cargos`;
 DROP TABLE IF EXISTS `Departamentos`;
@@ -22,9 +26,6 @@ DROP TABLE IF EXISTS `Empresas`;
 
 -- =========================================================
 -- 1. EMPRESAS
---
--- Nueva tabla de catálogo para las empresas del grupo
--- (FARBIOPHARMA, INPEL, CLAREL, etc.)
 -- =========================================================
 
 CREATE TABLE `Empresas` (
@@ -32,9 +33,8 @@ CREATE TABLE `Empresas` (
     `NOMBRE` VARCHAR(100) NOT NULL,
 
     PRIMARY KEY (`ID_EMPRESA`),
-
     UNIQUE KEY `uk_empresas_nombre` (`NOMBRE`)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
 -- =========================================================
@@ -46,9 +46,8 @@ CREATE TABLE `Areas` (
     `AREA` VARCHAR(100) NOT NULL,
 
     PRIMARY KEY (`ID_AREAS`),
-
     UNIQUE KEY `uk_areas_nombre` (`AREA`)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
 -- =========================================================
@@ -60,9 +59,8 @@ CREATE TABLE `Departamentos` (
     `DEPARTAMENTO` VARCHAR(100) NOT NULL,
 
     PRIMARY KEY (`ID_DEPARTAMENTOS`),
-
     UNIQUE KEY `uk_departamentos_nombre` (`DEPARTAMENTO`)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
 -- =========================================================
@@ -76,7 +74,7 @@ CREATE TABLE `Ubicaciones` (
     `DIRECCION` VARCHAR(100) NOT NULL,
 
     PRIMARY KEY (`ID_UBICACIONES`)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
 -- =========================================================
@@ -89,38 +87,18 @@ CREATE TABLE `Plantas` (
     `Ubicacion_Fisica` VARCHAR(255) NULL,
 
     PRIMARY KEY (`ID_Planta`)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
 -- =========================================================
 -- 6. CARGOS
---
--- El cargo es parte del ORGANIGRAMA.
---
--- ID_CARGO_SUPERIOR indica de qué cargo depende.
---
--- Ejemplo:
---
--- GERENTE GENERAL
---      |
---      +-- SUBGERENTE GENERAL VETERINARIA
---      |       |
---      |       +-- LIDER OPERARIO
---      |
---      +-- SUBGERENTE GENERAL SOPORTE DE NEGOCIO
---
--- NO se coloca todavía la jerarquía de los cargos,
--- porque esa información debe venir de la estructura real
--- de la empresa y no vamos a inventarla.
 -- =========================================================
 
 CREATE TABLE `Cargos` (
     `ID_CARGOS` INT NOT NULL AUTO_INCREMENT,
     `DESCRIPCION` VARCHAR(150) NOT NULL,
-
     `AREA` INT DEFAULT NULL,
     `DEPARTAMENTO` INT DEFAULT NULL,
-
     `ID_CARGO_SUPERIOR` INT DEFAULT NULL,
 
     PRIMARY KEY (`ID_CARGOS`),
@@ -146,45 +124,18 @@ CREATE TABLE `Cargos` (
         REFERENCES `Cargos` (`ID_CARGOS`)
         ON DELETE SET NULL
         ON UPDATE CASCADE
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
 -- =========================================================
 -- 7. COLABORADORES
---
--- Tabla PRINCIPAL de personas internas.
---
--- ID_COLABORADOR (INT AUTO_INCREMENT) es la llave primaria
--- estable del sistema. CEDULA se mantiene como campo UNIQUE
--- pero NO como PK, para evitar cascadas masivas si RRHH
--- necesita corregir una cédula mal ingresada.
---
--- EMAIL_CORPORATIVO se incluye directamente en esta tabla
--- (en lugar de una tabla separada de Correos) porque es el
--- dato con el que los colaboradores inician sesión en NAVEW.
---
--- DEPARTAMENTO es un campo de override opcional:
---   - Si es NULL, el departamento se infiere automáticamente
---     desde el Área asignada (cubre el 99% de casos).
---   - Si RRHH lo establece explícitamente, esa asignación
---     manual toma prioridad (cubre el 1% de excepciones).
---
--- ESTADO:
---   ACTIVO    → Cuenta operativa.
---   BLOQUEADO → Cuenta bloqueada por un administrador
---              (ej. intentos fallidos de login).
---   RRHH no maneja "inactivos"; simplemente elimina al
---   colaborador de la base de datos cuando sale de la empresa.
---
--- FECHA_SALIDA permite conservar historial.
 -- =========================================================
 
 CREATE TABLE `Colaboradores` (
     `ID_COLABORADOR` INT NOT NULL AUTO_INCREMENT,
-    `HASH_IDENTIFICADOR` VARCHAR(64) NOT NULL,
     `CEDULA` VARCHAR(10) NOT NULL,
     `NOMBRE` VARCHAR(100) NOT NULL,
-    `EMAIL_CORPORATIVO` VARCHAR(150) NOT NULL,
+    `EMAIL_CORPORATIVO` VARCHAR(100) NULL,
 
     `EMPRESA` INT DEFAULT NULL,
     `DEPARTAMENTO` INT DEFAULT NULL,
@@ -192,10 +143,7 @@ CREATE TABLE `Colaboradores` (
     `CARGO` INT DEFAULT NULL,
     `UBICACION` INT DEFAULT NULL,
 
-    `PASSWORD` VARCHAR(255) NOT NULL,
-    `ROL` VARCHAR(50) NOT NULL,
-
-    `ESTADO` VARCHAR(20) NOT NULL DEFAULT 'ACTIVO',
+    `ESTADO` VARCHAR(20) NOT NULL DEFAULT 'ACTIVO' COMMENT 'ACTIVO o INACTIVO',
 
     `FECHA_INGRESO` DATE DEFAULT NULL,
     `FECHA_SALIDA` DATE DEFAULT NULL,
@@ -206,7 +154,6 @@ CREATE TABLE `Colaboradores` (
     PRIMARY KEY (`ID_COLABORADOR`),
 
     UNIQUE KEY `uk_colaboradores_cedula` (`CEDULA`),
-    UNIQUE KEY `uk_colaboradores_hash` (`HASH_IDENTIFICADOR`),
     UNIQUE KEY `uk_colaboradores_email` (`EMAIL_CORPORATIVO`),
 
     KEY `idx_colaboradores_nombre` (`NOMBRE`),
@@ -248,12 +195,45 @@ CREATE TABLE `Colaboradores` (
         ON UPDATE CASCADE,
 
     CONSTRAINT `chk_colaboradores_estado`
-        CHECK (`ESTADO` IN ('ACTIVO', 'BLOQUEADO'))
-) ENGINE=InnoDB;
+        CHECK (`ESTADO` IN ('ACTIVO', 'INACTIVO'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
 -- =========================================================
--- 8. EXTENSIONES
+-- 8. USUARIOS
+-- =========================================================
+
+CREATE TABLE `usuarios` (
+    `id` INT NOT NULL AUTO_INCREMENT,
+    `cedula` VARCHAR(10) NOT NULL,
+    `email` VARCHAR(100) NOT NULL,
+    `password` VARCHAR(255) NOT NULL,
+    `rol` VARCHAR(50) NOT NULL,
+    `estado` VARCHAR(20) NOT NULL DEFAULT 'activo' COMMENT 'activo o bloqueado',
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (`id`),
+
+    UNIQUE KEY `uk_usuarios_cedula` (`cedula`),
+    UNIQUE KEY `uk_usuarios_email` (`email`),
+
+    KEY `idx_usuarios_rol` (`rol`),
+    KEY `idx_usuarios_estado` (`estado`),
+
+    CONSTRAINT `fk_usuarios_colaborador`
+        FOREIGN KEY (`cedula`)
+        REFERENCES `Colaboradores` (`CEDULA`)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE,
+
+    CONSTRAINT `chk_usuarios_estado`
+        CHECK (`estado` IN ('activo', 'bloqueado'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+-- =========================================================
+-- 9. EXTENSIONES
 -- =========================================================
 
 CREATE TABLE `Extensiones` (
@@ -264,7 +244,6 @@ CREATE TABLE `Extensiones` (
     PRIMARY KEY (`ID_EXTENSIONES`),
 
     KEY `idx_extensiones_colaborador` (`ID_COLABORADOR`),
-
     UNIQUE KEY `uk_extension` (`EXTENSION`),
 
     CONSTRAINT `fk_extensiones_colaborador`
@@ -272,11 +251,11 @@ CREATE TABLE `Extensiones` (
         REFERENCES `Colaboradores` (`ID_COLABORADOR`)
         ON DELETE RESTRICT
         ON UPDATE CASCADE
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
 -- =========================================================
--- 9. CELULARES
+-- 10. CELULARES
 -- =========================================================
 
 CREATE TABLE `Celulares` (
@@ -293,22 +272,11 @@ CREATE TABLE `Celulares` (
         REFERENCES `Colaboradores` (`ID_COLABORADOR`)
         ON DELETE RESTRICT
         ON UPDATE CASCADE
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
 -- =========================================================
--- NOTA: La tabla "Correos" fue ELIMINADA.
---
--- Motivo: El correo corporativo ahora vive directamente en
--- la tabla Colaboradores (campo EMAIL_CORPORATIVO) porque
--- es el dato de inicio de sesión en NAVEW. No tiene sentido
--- tener una relación 1:N si cada colaborador usa un único
--- correo para autenticarse.
--- =========================================================
-
-
--- =========================================================
--- 10. EXTERNOS
+-- 11. EXTERNOS
 -- =========================================================
 
 CREATE TABLE `Externos` (
@@ -319,26 +287,16 @@ CREATE TABLE `Externos` (
     `Empresa` VARCHAR(100) NOT NULL,
 
     PRIMARY KEY (`ID_Externo`),
-
     UNIQUE KEY `uk_externos_cedula` (`Cedula`)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
 -- =========================================================
--- 11. TRASLADOS DE PERSONAL
---
--- =========================================================
--- 11. TRASLADOS DE PERSONAL
---
--- El seguimiento estricto para Process Mining se realiza
--- insertando registros en la tabla Eventos_Process_Mining.
---
--- Los colaboradores se relacionan mediante ID_COLABORADOR.
+-- 12. TRASLADOS DE PERSONAL
 -- =========================================================
 
 CREATE TABLE `Traslados_Personal` (
     `ID_Traslado` VARCHAR(36) NOT NULL,
-
     `Tipo_Traslado` VARCHAR(20) NOT NULL,
 
     `Fecha_Salida` DATE NOT NULL,
@@ -367,9 +325,7 @@ CREATE TABLE `Traslados_Personal` (
     `ID_Planta_Destino` VARCHAR(10) NOT NULL,
 
     `Fecha_Creacion` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `Fecha_Actualizacion` DATETIME NOT NULL
-        DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP,
+    `Fecha_Actualizacion` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     PRIMARY KEY (`ID_Traslado`),
 
@@ -402,13 +358,11 @@ CREATE TABLE `Traslados_Personal` (
         REFERENCES `Plantas` (`ID_Planta`)
         ON DELETE RESTRICT
         ON UPDATE CASCADE
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
 -- =========================================================
--- 12. ENVÍOS DE PAQUETERÍA
---
--- NO existe Progreso.
+-- 13. ENVÍOS DE PAQUETERÍA
 -- =========================================================
 
 CREATE TABLE `Envios_Paqueteria` (
@@ -435,9 +389,7 @@ CREATE TABLE `Envios_Paqueteria` (
     `QR_Llegada` TEXT NULL,
 
     `Fecha_Creacion` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `Fecha_Actualizacion` DATETIME NOT NULL
-        DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP,
+    `Fecha_Actualizacion` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     PRIMARY KEY (`ID_Paquete`),
 
@@ -484,20 +436,16 @@ CREATE TABLE `Envios_Paqueteria` (
         REFERENCES `Departamentos` (`ID_DEPARTAMENTOS`)
         ON DELETE RESTRICT
         ON UPDATE CASCADE
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
 -- =========================================================
--- 13. ACCESOS EXTERNOS
---
--- NO existe Progreso.
+-- 14. ACCESOS EXTERNOS
 -- =========================================================
 
 CREATE TABLE `Accesos_Externos` (
     `ID_Acceso` VARCHAR(36) NOT NULL,
-
     `ID_Externo` VARCHAR(64) NOT NULL,
-
     `ID_Empleado_Visitado` INT NOT NULL,
 
     `Area_Visita` VARCHAR(100) NOT NULL,
@@ -508,7 +456,6 @@ CREATE TABLE `Accesos_Externos` (
     `Hora_Salida` TIME NULL,
 
     `Motivo` TEXT NULL,
-
     `Estado_Actual` VARCHAR(30) NOT NULL,
 
     `QR_Token` TEXT NULL,
@@ -516,9 +463,7 @@ CREATE TABLE `Accesos_Externos` (
     `QR_Llegada` TEXT NULL,
 
     `Fecha_Creacion` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `Fecha_Actualizacion` DATETIME NOT NULL
-        DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP,
+    `Fecha_Actualizacion` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     PRIMARY KEY (`ID_Acceso`),
 
@@ -544,38 +489,21 @@ CREATE TABLE `Accesos_Externos` (
         REFERENCES `Plantas` (`ID_Planta`)
         ON DELETE RESTRICT
         ON UPDATE CASCADE
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
 -- =========================================================
--- 14. APROBACIONES
---
--- Esta tabla permite registrar quién aprobó/rechazó
--- una solicitud.
---
--- El APROBADOR se determina desde el ORGANIGRAMA.
---
--- TIPO_SOLICITUD puede ser:
---   TRASLADO
---   EXTERNO
---   SALIDA
---   etc.
---
--- ID_SOLICITUD guarda el identificador de la solicitud.
+-- 15. APROBACIONES
 -- =========================================================
 
 CREATE TABLE `Aprobaciones` (
     `ID_APROBACION` INT NOT NULL AUTO_INCREMENT,
-
     `TIPO_SOLICITUD` VARCHAR(30) NOT NULL,
     `ID_SOLICITUD` VARCHAR(36) NOT NULL,
-
     `NIVEL_APROBACION` INT NOT NULL,
-
     `ID_APROBADOR` INT NOT NULL,
 
     `ESTADO` VARCHAR(20) NOT NULL DEFAULT 'PENDIENTE',
-
     `COMENTARIO` TEXT NULL,
 
     `FECHA_ASIGNACION` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -583,14 +511,9 @@ CREATE TABLE `Aprobaciones` (
 
     PRIMARY KEY (`ID_APROBACION`),
 
-    KEY `idx_aprobaciones_solicitud`
-        (`TIPO_SOLICITUD`, `ID_SOLICITUD`),
-
-    KEY `idx_aprobaciones_aprobador`
-        (`ID_APROBADOR`),
-
-    KEY `idx_aprobaciones_estado`
-        (`ESTADO`),
+    KEY `idx_aprobaciones_solicitud` (`TIPO_SOLICITUD`, `ID_SOLICITUD`),
+    KEY `idx_aprobaciones_aprobador` (`ID_APROBADOR`),
+    KEY `idx_aprobaciones_estado` (`ESTADO`),
 
     CONSTRAINT `fk_aprobaciones_aprobador`
         FOREIGN KEY (`ID_APROBADOR`)
@@ -599,42 +522,60 @@ CREATE TABLE `Aprobaciones` (
         ON UPDATE CASCADE,
 
     CONSTRAINT `chk_aprobaciones_estado`
-        CHECK (
-            `ESTADO` IN (
-                'PENDIENTE',
-                'APROBADO',
-                'RECHAZADO'
-            )
-        )
-) ENGINE=InnoDB;
+        CHECK (`ESTADO` IN ('PENDIENTE', 'APROBADO', 'RECHAZADO'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
 -- =========================================================
--- 15. EVENTOS PROCESS MINING (Trazabilidad y Auditoría)
+-- 16. EVENTOS PROCESS MINING
 -- =========================================================
 
 CREATE TABLE `Eventos_Process_Mining` (
     `ID_Evento` INT NOT NULL AUTO_INCREMENT,
-    
     `ID_Transaccion` VARCHAR(36) NOT NULL,
-    `Tipo_Modulo` VARCHAR(30) NOT NULL, 
-    `Fase_Estado` VARCHAR(50) NOT NULL, 
-    
+    `Tipo_Modulo` VARCHAR(30) NOT NULL,
+    `Fase_Estado` VARCHAR(50) NOT NULL,
+
     `Timestamp_Evento` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    
-    `ID_Usuario_Actor` INT NULL, 
-    `Detalles_Extra` TEXT NULL, 
-    
+    `ID_Usuario_Actor` INT NULL,
+    `Detalles_Extra` TEXT NULL,
+
     PRIMARY KEY (`ID_Evento`),
+
     KEY `idx_process_mining_transaccion` (`ID_Transaccion`),
     KEY `idx_process_mining_modulo_estado` (`Tipo_Modulo`, `Fase_Estado`),
-    
+
     CONSTRAINT `fk_process_mining_actor`
         FOREIGN KEY (`ID_Usuario_Actor`)
         REFERENCES `Colaboradores` (`ID_COLABORADOR`)
         ON DELETE SET NULL
         ON UPDATE CASCADE
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+-- =========================================================
+-- 17. VISTA DE USUARIOS
+-- =========================================================
+
+CREATE OR REPLACE VIEW `vista_usuarios` AS
+SELECT
+    u.`id`,
+    u.`cedula`,
+    c.`NOMBRE`,
+    c.`EMAIL_CORPORATIVO`,
+    u.`email` AS `email_usuario`,
+    u.`rol`,
+    u.`estado`,
+    c.`ESTADO` AS `estado_colaborador`,
+    c.`CARGO`,
+    c.`AREA`,
+    c.`DEPARTAMENTO`,
+    c.`UBICACION`,
+    u.`created_at`,
+    u.`updated_at`
+FROM `usuarios` u
+INNER JOIN `Colaboradores` c
+    ON u.`cedula` = c.`CEDULA`;
 
 
 SET FOREIGN_KEY_CHECKS = 1;

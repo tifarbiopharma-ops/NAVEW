@@ -81,9 +81,18 @@ function App() {
           />
 
           {/* 🔹 Rutas para Administrador */}
-          <Route path="admin/usuarios" element={<AdminUsuarios />} />
-          <Route path="admin/usuarios/nuevo" element={<CrearUsuarioPage />} />
-          <Route path="admin/usuarios/editar/:id" element={<EditarUsuario />} />
+          <Route
+            path="admin/usuarios"
+            element={<PrivateRouteWithRole allowedRoles={["administrador"]}><AdminUsuarios /></PrivateRouteWithRole>}
+          />
+          <Route
+            path="admin/usuarios/nuevo"
+            element={<PrivateRouteWithRole allowedRoles={["administrador"]}><CrearUsuarioPage /></PrivateRouteWithRole>}
+          />
+          <Route
+            path="admin/usuarios/editar/:id"
+            element={<PrivateRouteWithRole allowedRoles={["administrador"]}><EditarUsuario /></PrivateRouteWithRole>}
+          />
         </Route>
 
         {/* 🔹 Manejo de 404 */}

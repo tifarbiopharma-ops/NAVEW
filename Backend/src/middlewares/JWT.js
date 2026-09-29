@@ -1,8 +1,8 @@
 import jwt from "jsonwebtoken"
 import pool from "../database.js"
 
-const crearTokenJWT = (id, rol) => {
-    return jwt.sign({ id, rol }, process.env.JWT_SECRET, { expiresIn: "8h" })
+const crearTokenJWT = (id, rol, nombre) => {
+    return jwt.sign({ id, rol, nombre }, process.env.JWT_SECRET, { expiresIn: "8h" })
 }
 
 const verificarTokenJWT = async (req, res, next) => {
@@ -13,7 +13,12 @@ const verificarTokenJWT = async (req, res, next) => {
         const { id, rol } = jwt.verify(token, process.env.JWT_SECRET)
         
         // Obtener datos del colaborador desde la base de datos
-        const [rows] = await pool.query('SELECT * FROM Colaboradores WHERE ID_COLABORADOR = ?', [id])
+        const [rows] = await pool.query(`
+            SELECT col.*, usu.rol AS ROL, usu.estado AS USUARIO_ESTADO
+            FROM Colaboradores col
+            INNER JOIN usuarios usu ON usu.cedula = col.CEDULA
+            WHERE col.ID_COLABORADOR = ?
+        `, [id])
         
         if (rows.length === 0) return res.status(401).json({ msg: "Usuario no encontrado" })
         
@@ -27,7 +32,7 @@ const verificarTokenJWT = async (req, res, next) => {
             cedula: col.CEDULA,
             email: col.EMAIL_CORPORATIVO,
             rol: col.ROL,
-            estado: col.ESTADO,
+            estado: col.USUARIO_ESTADO || col.ESTADO,
         }
         req.user.rolDesdeToken = rol
         next()
