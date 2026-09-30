@@ -89,6 +89,10 @@ const ProcesoSolicitudes = () => {
 
   // Verificación del rol de Supervisor
   const isSupervisor = userRole === 'supervisor';
+  const isJefe = userRole === 'jefe';
+
+  // Mostrar filtros a supervisores y jefes
+const mostrarFiltrosScope = isSupervisor || (isJefe && modulo !== 'paqueteria');
 
   const config = MODULES[modulo] || MODULES.transporte;
   const [requests, setRequests] = useState([]);
@@ -172,7 +176,7 @@ const ProcesoSolicitudes = () => {
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
           {/* Botones Azules de Filtro "Todas las Solicitudes" y "Mis Solicitudes" */}
-          {isSupervisor && (
+          {mostrarFiltrosScope && (
             <div className="mb-5 flex flex-wrap gap-2.5">
               <button
                 onClick={() => setScope('TODOS')}

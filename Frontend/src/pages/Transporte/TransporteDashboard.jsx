@@ -68,7 +68,7 @@ const TransporteDashboard = () => {
     fetchTraslados();
   }, [token]);
 
-  const canCreate = role.includes('solicitante') || role.includes('administrador');
+  const canCreate = role.includes('solicitante') || role.includes('administrador') || role.includes('jefe');
   const canApprove = role.includes('jefe') || role.includes('administrador');
   const canSeeQr = role.includes('solicitante') || role.includes('jefe') || role.includes('administrador');
   const canValidateQr = role.includes('supervisor') || role.includes('administrador');
@@ -192,7 +192,7 @@ const TransporteDashboard = () => {
           </div>
         </div>
 
-        {canCreate && !canApprove && !isAprobadasView && (
+        {canCreate && !isAprobadasView && (
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-5 flex items-center gap-3">
               <div className="rounded-2xl bg-[#17243D] p-2 text-white">

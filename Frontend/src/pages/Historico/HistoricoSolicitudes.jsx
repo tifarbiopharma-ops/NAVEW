@@ -86,7 +86,9 @@ const HistoricoSolicitudes = () => {
   const currentUserId = claims?.id || claims?.ID_Usuario || claims?.id_usuario;
 
   // Solo aplica filtros de scope en el módulo de paquetería
-  const mostrarFiltrosScope = modulo === 'paqueteria';
+  const isSupervisor = userRole === 'supervisor';
+  const isJefe = userRole === 'jefe';
+  const mostrarFiltrosScope = isSupervisor || (isJefe && modulo !== 'paqueteria');
 
   const config = MODULES[modulo] || MODULES.transporte;
   const [requests, setRequests] = useState([]);
