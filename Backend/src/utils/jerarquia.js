@@ -12,9 +12,10 @@ export const obtenerJefeDirecto = async (idColaborador) => {
       FROM Colaboradores emp
       JOIN Cargos cargo_emp ON emp.CARGO = cargo_emp.ID_CARGOS
       JOIN Colaboradores jefe ON jefe.CARGO = cargo_emp.ID_CARGO_SUPERIOR
+      JOIN usuarios usuario_jefe ON usuario_jefe.cedula = jefe.CEDULA
       WHERE emp.ID_COLABORADOR = ? 
         AND jefe.ESTADO = 'ACTIVO'
-        AND jefe.ROL IN ('jefe', 'administrador')
+        AND usuario_jefe.rol IN ('jefe', 'administrador')
       LIMIT 1;
     `;
     
@@ -31,10 +32,11 @@ export const obtenerJefeDirecto = async (idColaborador) => {
       FROM Colaboradores emp
       JOIN Colaboradores jefe ON 
         (jefe.AREA = emp.AREA OR jefe.DEPARTAMENTO = emp.DEPARTAMENTO)
+      JOIN usuarios usuario_jefe ON usuario_jefe.cedula = jefe.CEDULA
       WHERE emp.ID_COLABORADOR = ? 
         AND jefe.ID_COLABORADOR != emp.ID_COLABORADOR
         AND jefe.ESTADO = 'ACTIVO'
-        AND jefe.ROL = 'jefe'
+        AND usuario_jefe.rol = 'jefe'
       LIMIT 1;
     `;
     

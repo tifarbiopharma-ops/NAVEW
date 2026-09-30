@@ -86,7 +86,7 @@ function App() {
           <Route
             path="paqueteria"
             element={
-              <PrivateRouteWithRole allowedRoles={["solicitante", "jefe", "administrador"]}>
+              <PrivateRouteWithRole allowedRoles={["solicitante", "jefe", "administrador", "supervisor"]}>
                 <SolicitudPaqueteria />
               </PrivateRouteWithRole>
             }

@@ -1,0 +1,233 @@
+import { useEffect, useRef, useState } from 'react';
+import { Camera, LoaderCircle, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { BrowserQRCodeReader } from '@zxing/library';
+import storeAuth from '../../context/storeAuth';
+
+const API = import.meta.env.VITE_BACKEND_URL;
+
+const Escanear = ({ isOpen = true, onClose, onSuccess }) => {
+  const token = storeAuth((state) => state.token);
+  const [scanning, setScanning] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null);
+  const [devices, setDevices] = useState([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState('');
+
+  const videoRef = useRef(null);
+  const codeReaderRef = useRef(null);
+
+  // 1) Obtener cámaras disponibles
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const loadDevices = async () => {
+      try {
+        // Pedir permiso primero para que los labels de los dispositivos aparezcan
+        await navigator.mediaDevices.getUserMedia({ video: true });
+
+        const allDevices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = allDevices.filter((d) => d.kind === 'videoinput');
+
+        setDevices(videoDevices);
+
+        if (videoDevices.length > 0 && !selectedDeviceId) {
+          // Preferir cámara trasera si existe
+          const backCam = videoDevices.find((d) =>
+            /back|rear|environment|trasera/i.test(d.label)
+          );
+          setSelectedDeviceId(backCam?.deviceId || videoDevices[0].deviceId);
+        }
+      } catch (error) {
+        console.warn('No se pudieron listar las cámaras:', error);
+        setMessage({
+          type: 'error',
+          text: 'No se pudo acceder a las cámaras. Verifica los permisos.',
+        });
+      }
+    };
+
+    loadDevices();
+
+    // Escuchar cambios de dispositivos (conectar/desconectar cámara USB)
+    const handleDeviceChange = () => loadDevices();
+    navigator.mediaDevices.addEventListener?.('devicechange', handleDeviceChange);
+    return () => {
+      navigator.mediaDevices.removeEventListener?.('devicechange', handleDeviceChange);
+    };
+  }, [isOpen]);
+
+  // 2) Iniciar / reiniciar el escáner cuando cambia la cámara seleccionada
+  useEffect(() => {
+    if (!isOpen || !selectedDeviceId) return;
+
+    const codeReader = new BrowserQRCodeReader();
+    codeReaderRef.current = codeReader;
+    let isSubscribed = true;
+
+    const startScanner = async () => {
+      try {
+        await codeReader.decodeFromVideoDevice(
+          selectedDeviceId,
+          videoRef.current,
+          (result, err) => {
+            if (result && isSubscribed) {
+              handleProcessCode(result.getText());
+            }
+          }
+        );
+        if (isSubscribed) setScanning(true);
+      } catch (error) {
+        console.warn('No se pudo iniciar el escáner:', error);
+        if (isSubscribed) {
+          setScanning(false);
+          setMessage({
+            type: 'error',
+            text: 'No se pudo iniciar la cámara seleccionada.',
+          });
+        }
+      }
+    };
+
+    const timer = setTimeout(startScanner, 150);
+
+    return () => {
+      isSubscribed = false;
+      clearTimeout(timer);
+      if (codeReaderRef.current) {
+        codeReaderRef.current.reset();
+      }
+    };
+  }, [isOpen, selectedDeviceId]);
+
+  const handleProcessCode = async (code) => {
+    if (!code || loading) return;
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      if (codeReaderRef.current) {
+        codeReaderRef.current.reset();
+        setScanning(false);
+      }
+
+      const response = await fetch(`${API}/api/qr/verificar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ token_qr: code }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.msg || 'Código QR inválido o no encontrado');
+
+      setMessage({ type: 'success', text: '¡Solicitud verificada correctamente!' });
+      if (onSuccess) onSuccess(data);
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message });
+      // Reanudar escaneo para intentar de nuevo
+      if (selectedDeviceId) {
+        const codeReader = new BrowserQRCodeReader();
+        codeReaderRef.current = codeReader;
+        try {
+          await codeReader.decodeFromVideoDevice(
+            selectedDeviceId,
+            videoRef.current,
+            (result) => {
+              if (result) handleProcessCode(result.getText());
+            }
+          );
+          setScanning(true);
+        } catch (_) {
+          /* ignore */
+        }
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="w-full">
+      <div className="mb-4 flex items-center gap-3">
+        <div className="rounded-xl bg-[#17243d] p-2.5 text-white">
+          <Camera size={20} />
+        </div>
+        <div>
+          <h3 className="text-lg font-bold text-[#17243d]">Escanear Código QR</h3>
+          <p className="text-xs text-slate-500">ZXing Barcode Scanner</p>
+        </div>
+      </div>
+
+      {/* Visor de Cámara */}
+      <div className="relative h-60 w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-950 flex items-center justify-center">
+        <video ref={videoRef} className="h-full w-full object-cover" />
+
+        {!scanning && !loading && (
+          <div className="absolute inset-0 flex items-center justify-center p-4 text-center text-xs text-slate-400 bg-slate-950/90">
+            Permite el acceso a la cámara para comenzar el escaneo.
+          </div>
+        )}
+
+        {loading && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-950/80 text-white">
+            <LoaderCircle className="animate-spin" size={28} />
+            <span className="mt-2 text-xs">Verificando código...</span>
+          </div>
+        )}
+      </div>
+
+      {/* Selector de cámara */}
+      <div className="mt-4 flex items-center gap-2">
+        <select
+          value={selectedDeviceId}
+          onChange={(e) => setSelectedDeviceId(e.target.value)}
+          disabled={devices.length === 0}
+          className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs outline-none focus:border-[#315b86] disabled:opacity-50"
+        >
+          {devices.length === 0 && <option value="">No hay cámaras disponibles</option>}
+          {devices.map((device, index) => (
+            <option key={device.deviceId} value={device.deviceId}>
+              {device.label || `Cámara ${index + 1}`}
+            </option>
+          ))}
+        </select>
+
+        <button
+          type="button"
+          onClick={() => {
+            // Forzar recarga de dispositivos
+            navigator.mediaDevices.enumerateDevices().then((all) => {
+              const vids = all.filter((d) => d.kind === 'videoinput');
+              setDevices(vids);
+              if (vids.length > 0 && !vids.some((d) => d.deviceId === selectedDeviceId)) {
+                setSelectedDeviceId(vids[0].deviceId);
+              }
+            });
+          }}
+          className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-[#315b86] transition hover:bg-slate-50"
+          title="Recargar cámaras"
+        >
+          <RefreshCw size={14} />
+        </button>
+      </div>
+
+      {/* Mensaje de respuesta del backend */}
+      {message && (
+        <div
+          className={`mt-3 flex items-center gap-2 rounded-lg p-3 text-xs font-semibold ${
+            message.type === 'success'
+              ? 'bg-emerald-50 text-emerald-700'
+              : 'bg-red-50 text-red-700'
+          }`}
+        >
+          {message.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+          <span>{message.text}</span>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Escanear;

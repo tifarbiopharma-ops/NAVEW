@@ -24,6 +24,7 @@ const Dashboard = () => {
   const nombreUsuario = perfilUsuario?.nombre || claims?.nombre || "Usuario";
 
   const esAdministrador = userRole === "administrador";
+  const esSupervisor = userRole === "supervisor";
 
   const tituloSeccion = urlActual.startsWith("/dashboard/admin")
     ? "Administración"
@@ -163,7 +164,7 @@ const Dashboard = () => {
                 <>
                   <li>
                     <Link
-                      to="/dashboard/transporte"
+                      to={ esSupervisor ? "/dashboard/paqueteria" : "/dashboard/transporte"}
                       onClick={handleMenuItemClick}
                       className={navItemClass(urlActual.startsWith("/dashboard/transporte"))}
                     >

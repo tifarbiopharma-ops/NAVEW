@@ -10,10 +10,10 @@ const initialForm = {
   fecha_salida: new Date().toISOString().slice(0, 10),
   hora_entrega: '',
   id_planta_origen: '',
-  id_departamento_origen: '',
+  id_area_origen: '',
   id_responsable: '',
   id_planta_destino: '',
-  id_departamento_destino: '',
+  id_area_destino: '',
   id_destinatario: '',
   tipo_contenido: '',
   comentario: '',
@@ -23,7 +23,7 @@ const SolicitudPaqueteria = () => {
   const token = storeAuth((state) => state.token);
   const claims = getAuthClaims(token);
   const [form, setForm] = useState(initialForm);
-  const [catalogos, setCatalogos] = useState({ plantas: [], departamentos: [], colaboradores: [] });
+  const [catalogos, setCatalogos] = useState({ plantas: [], areas: [], colaboradores: [] });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -123,8 +123,8 @@ const SolicitudPaqueteria = () => {
                 <select name="id_planta_origen" value={form.id_planta_origen} onChange={handleChange} required className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione una planta</option>{renderOptions(catalogos.plantas)}</select>
               </label>
               <label className="space-y-1.5">
-                <span className="text-xs font-semibold text-[#17243d]">Departamento de origen *</span>
-                <select name="id_departamento_origen" value={form.id_departamento_origen} onChange={handleChange} required className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione un departamento</option>{renderOptions(catalogos.departamentos)}</select>
+                <span className="text-xs font-semibold text-[#17243d]">Área de origen *</span>
+                <select name="id_area_origen" value={form.id_area_origen} onChange={handleChange} required className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione un área</option>{renderOptions(catalogos.areas)}</select>
               </label>
 
               <label className="space-y-1.5">
@@ -141,8 +141,8 @@ const SolicitudPaqueteria = () => {
                 <select name="id_planta_destino" value={form.id_planta_destino} onChange={handleChange} required className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione una planta</option>{renderOptions(catalogos.plantas)}</select>
               </label>
               <label className="space-y-1.5">
-                <span className="text-xs font-semibold text-[#17243d]">Departamento de destino *</span>
-                <select name="id_departamento_destino" value={form.id_departamento_destino} onChange={handleChange} required className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione un departamento</option>{renderOptions(catalogos.departamentos)}</select>
+                <span className="text-xs font-semibold text-[#17243d]">Área de destino *</span>
+                <select name="id_area_destino" value={form.id_area_destino} onChange={handleChange} required className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione un área</option>{renderOptions(catalogos.areas)}</select>
               </label>
 
               <label className="space-y-1.5">
@@ -163,7 +163,6 @@ const SolicitudPaqueteria = () => {
             </form>
           )}
         </section>
-
       </div>
     </div>
   );

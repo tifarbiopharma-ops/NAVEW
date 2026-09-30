@@ -375,11 +375,11 @@ CREATE TABLE `Envios_Paqueteria` (
     `Comentario` TEXT NULL,
 
     `ID_Planta_Origen` VARCHAR(10) NOT NULL,
-    `ID_Departamento_Origen` INT NOT NULL,
+    `ID_Area_Origen` INT NOT NULL,
     `ID_Responsable` INT NOT NULL,
 
     `ID_Planta_Destino` VARCHAR(10) NOT NULL,
-    `ID_Departamento_Destino` INT NOT NULL,
+    `ID_Area_Destino` INT NOT NULL,
     `ID_Destinatario` INT NOT NULL,
 
     `Estado_Actual` VARCHAR(30) NOT NULL,
@@ -397,8 +397,8 @@ CREATE TABLE `Envios_Paqueteria` (
     KEY `idx_envios_destinatario` (`ID_Destinatario`),
     KEY `idx_envios_planta_origen` (`ID_Planta_Origen`),
     KEY `idx_envios_planta_destino` (`ID_Planta_Destino`),
-    KEY `idx_envios_departamento_origen` (`ID_Departamento_Origen`),
-    KEY `idx_envios_departamento_destino` (`ID_Departamento_Destino`),
+    KEY `idx_envios_area_origen` (`ID_Area_Origen`),
+    KEY `idx_envios_area_destino` (`ID_Area_Destino`),
     KEY `idx_envios_estado` (`Estado_Actual`),
 
     CONSTRAINT `fk_envios_responsable`
@@ -425,15 +425,15 @@ CREATE TABLE `Envios_Paqueteria` (
         ON DELETE RESTRICT
         ON UPDATE CASCADE,
 
-    CONSTRAINT `fk_envios_departamento_origen`
-        FOREIGN KEY (`ID_Departamento_Origen`)
-        REFERENCES `Departamentos` (`ID_DEPARTAMENTOS`)
+    CONSTRAINT `fk_envios_area_origen`
+        FOREIGN KEY (`ID_Area_Origen`)
+        REFERENCES `Areas` (`ID_AREAS`)
         ON DELETE RESTRICT
         ON UPDATE CASCADE,
 
-    CONSTRAINT `fk_envios_departamento_destino`
-        FOREIGN KEY (`ID_Departamento_Destino`)
-        REFERENCES `Departamentos` (`ID_DEPARTAMENTOS`)
+    CONSTRAINT `fk_envios_area_destino`
+        FOREIGN KEY (`ID_Area_Destino`)
+        REFERENCES `Areas` (`ID_AREAS`)
         ON DELETE RESTRICT
         ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

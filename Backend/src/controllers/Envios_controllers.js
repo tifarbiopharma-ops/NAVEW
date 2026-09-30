@@ -1,6 +1,5 @@
 import crypto from 'node:crypto';
 import pool from '../database.js';
-import { obtenerJefeDirecto } from '../utils/jerarquia.js';
 
 const ROLES_SOLICITUD = new Set(['solicitante', 'jefe', 'administrador']);
 
@@ -18,8 +17,8 @@ const obtenerCatalogosEnvio = async (req, res) => {
 		const [plantas] = await pool.query(
 			'SELECT ID_Planta AS id, Nombre_Planta AS nombre FROM Plantas ORDER BY Nombre_Planta'
 		);
-		const [departamentos] = await pool.query(
-			'SELECT ID_DEPARTAMENTOS AS id, DEPARTAMENTO AS nombre FROM Departamentos ORDER BY DEPARTAMENTO'
+		const [areas] = await pool.query(
+			'SELECT ID_AREAS AS id, AREA AS nombre FROM Areas ORDER BY AREA'
 		);
 		const [colaboradores] = await pool.query(
 			`SELECT ID_COLABORADOR AS id, NOMBRE AS nombre
@@ -28,7 +27,7 @@ const obtenerCatalogosEnvio = async (req, res) => {
 			 ORDER BY NOMBRE`
 		);
 
-		return res.status(200).json({ success: true, plantas, departamentos, colaboradores });
+		return res.status(200).json({ success: true, plantas, areas, colaboradores });
 	} catch (error) {
 		return res.status(500).json({ msg: 'No se pudieron cargar los catálogos', error: error.message });
 	}
@@ -48,10 +47,10 @@ const crearEnvioPaqueteria = async (req, res) => {
 			tipo_contenido,
 			comentario,
 			id_planta_origen,
-			id_departamento_origen,
+			id_area_origen,
 			id_responsable,
 			id_planta_destino,
-			id_departamento_destino,
+			id_area_destino,
 			id_destinatario,
 		} = req.body;
 
@@ -60,10 +59,10 @@ const crearEnvioPaqueteria = async (req, res) => {
 			fecha_salida,
 			tipo_contenido,
 			id_planta_origen,
-			id_departamento_origen,
+			id_area_origen,
 			responsable,
 			id_planta_destino,
-			id_departamento_destino,
+			id_area_destino,
 			id_destinatario,
 		];
 
@@ -72,11 +71,7 @@ const crearEnvioPaqueteria = async (req, res) => {
 		}
 
 		const idPaquete = crypto.randomUUID();
-		const idAprobador = await obtenerJefeDirecto(req.user.id);
-		if (!idAprobador) {
-			return res.status(400).json({ msg: 'No se encontró un jefe directo para aprobar la solicitud' });
-		}
-
+		const qrToken = `PAQUETERIA|${idPaquete}`;
 		await connection.beginTransaction();
 
 		const [responsableValido] = await connection.query(
@@ -97,9 +92,9 @@ const crearEnvioPaqueteria = async (req, res) => {
 		await connection.query(
 			`INSERT INTO Envios_Paqueteria
 				(ID_Paquete, Fecha_Salida, Hora_Entrega, Tipo_Contenido, Comentario,
-				 ID_Planta_Origen, ID_Departamento_Origen, ID_Responsable,
-				 ID_Planta_Destino, ID_Departamento_Destino, ID_Destinatario, Estado_Actual)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SOLICITADO')`,
+					 ID_Planta_Origen, ID_Area_Origen, ID_Responsable,
+					 ID_Planta_Destino, ID_Area_Destino, ID_Destinatario, Estado_Actual, QR_Token)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SOLICITADO', ?)`,
 			[
 				idPaquete,
 				fecha_salida,
@@ -107,24 +102,19 @@ const crearEnvioPaqueteria = async (req, res) => {
 				tipo_contenido.trim(),
 				comentario?.trim() || null,
 				id_planta_origen,
-				id_departamento_origen,
+				id_area_origen,
 				responsable,
 				id_planta_destino,
-				id_departamento_destino,
+				id_area_destino,
 				id_destinatario,
+				qrToken,
 			]
 		);
 
-		await connection.query(
-			`INSERT INTO Aprobaciones
-				(TIPO_SOLICITUD, ID_SOLICITUD, NIVEL_APROBACION, ID_APROBADOR, ESTADO)
-			 VALUES ('PAQUETERIA', ?, 1, ?, 'PENDIENTE')`,
-			[idPaquete, idAprobador]
-		);
 		await registrarEvento(connection, idPaquete, 'SOLICITADO', req.user.id, { tipo_contenido: tipo_contenido.trim() });
 
 		await connection.commit();
-		return res.status(201).json({ success: true, msg: 'Solicitud de paquetería creada', idPaquete });
+		return res.status(201).json({ success: true, msg: 'Solicitud de paquetería creada', idPaquete, qrToken });
 	} catch (error) {
 		await connection.rollback();
 		return res.status(500).json({ msg: 'No se pudo crear la solicitud de paquetería', error: error.message });
@@ -158,15 +148,15 @@ const obtenerEnviosPaqueteria = async (req, res) => {
 							dest.NOMBRE AS destinatario_nombre,
 							po.Nombre_Planta AS planta_origen_nombre,
 							pd.Nombre_Planta AS planta_destino_nombre,
-							  dep_origen.DEPARTAMENTO AS departamento_origen_nombre,
-							  dep_destino.DEPARTAMENTO AS departamento_destino_nombre
+							area_origen.AREA AS area_origen_nombre,
+							area_destino.AREA AS area_destino_nombre
 			 FROM Envios_Paqueteria e
 			 INNER JOIN Colaboradores resp ON resp.ID_COLABORADOR = e.ID_Responsable
 			 INNER JOIN Colaboradores dest ON dest.ID_COLABORADOR = e.ID_Destinatario
 			 INNER JOIN Plantas po ON po.ID_Planta = e.ID_Planta_Origen
 			 INNER JOIN Plantas pd ON pd.ID_Planta = e.ID_Planta_Destino
-			INNER JOIN Departamentos dep_origen ON dep_origen.ID_DEPARTAMENTOS = e.ID_Departamento_Origen
-			INNER JOIN Departamentos dep_destino ON dep_destino.ID_DEPARTAMENTOS = e.ID_Departamento_Destino
+			INNER JOIN Areas area_origen ON area_origen.ID_AREAS = e.ID_Area_Origen
+			INNER JOIN Areas area_destino ON area_destino.ID_AREAS = e.ID_Area_Destino
 			 ${filtro}
 			 ORDER BY e.Fecha_Creacion DESC`,
 			params
