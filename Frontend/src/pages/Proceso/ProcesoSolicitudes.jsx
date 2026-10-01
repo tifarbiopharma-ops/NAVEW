@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { LoaderCircle, Search, QrCode, X, ScanQrCode } from 'lucide-react';
+import { LoaderCircle, Search, QrCode, X, ScanQrCode, Eye, Check, XCircle } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'react-toastify';
 import { useParams } from 'react-router-dom';
@@ -68,18 +68,26 @@ const normalizeRequest = (item, module) => {
     id: item.ID_Acceso,
     code: `EXT-${String(item.ID_Acceso).slice(0, 8).toUpperCase()}`,
     requester: item.empleado_nombre || item.nombre_solicitante || 'Sin solicitante',
-    requesterId: item.ID_Empleado || item.ID_Solicitante || item.ID_Usuario || item.id,
+    requesterId: item.ID_Empleado_Visitado || item.ID_Empleado || item.ID_Solicitante || item.ID_Usuario || item.id,
+    provider: item.externo_nombre || 'Sin visitante',
+    company: item.externo_empresa || 'Sin empresa',
+    identification: item.externo_cedula || 'Sin cédula',
+    phone: item.externo_telefono || 'Sin teléfono',
     area: item.Area_Visita || 'Acceso externo',
     destination: item.planta_destino_nombre || 'Sin destino',
     date: item.Fecha_Visita,
+    entryTime: item.Hora_Ingreso || 'Sin hora',
+    exitTime: item.Hora_Salida || 'Sin hora',
+    reason: item.Motivo || 'Sin motivo indicado',
     status: item.Estado_Actual,
-    qrToken: null,
+    qrToken: item.QR_Token || null,
   };
 };
 
 const estadoEtiqueta = (estado) => {
   if (estado === 'EN_CAMINO') return 'En camino';
   if (estado === 'FINALIZADO') return 'Finalizado';
+  if (estado === 'APROBADO_JEFE') return 'Aprobado';
   return estado || 'SIN ESTADO';
 };
 
@@ -87,6 +95,7 @@ const estadoClase = (estado) => {
   if (estado === 'EN_CAMINO') {
     return 'bg-amber-50 text-amber-700';
   }
+  if (estado === 'APROBADO_JEFE') return 'bg-emerald-100 text-emerald-700';
   if (estado === 'FINALIZADO') return 'bg-emerald-50 text-emerald-700';
   return 'bg-blue-50 text-[#315b86]';
 };
@@ -104,9 +113,12 @@ const ProcesoSolicitudes = () => {
   // Verificación del rol de Supervisor
   const isSupervisor = userRole === 'supervisor';
   const isJefe = userRole === 'jefe';
+  const supervisorSoloTodas = isSupervisor && modulo !== 'paqueteria';
+  const soloTodas = supervisorSoloTodas;
+  const soloMis = isJefe && modulo === 'paqueteria';
 
   // Mostrar filtros a supervisores y jefes
-const mostrarFiltrosScope = isSupervisor || (isJefe && modulo !== 'paqueteria');
+  const mostrarFiltrosScope = isSupervisor || (isJefe && modulo !== 'paqueteria');
 
   const config = MODULES[modulo] || MODULES.transporte;
   const [requests, setRequests] = useState([]);
@@ -115,7 +127,13 @@ const mostrarFiltrosScope = isSupervisor || (isJefe && modulo !== 'paqueteria');
   const [scope, setScope] = useState('TODOS'); // 'TODOS' | 'MIS_SOLICITUDES'
   const [loading, setLoading] = useState(true);
   const [selectedQr, setSelectedQr] = useState(null);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [approvingId, setApprovingId] = useState(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+  useEffect(() => {
+    setScope(soloMis ? 'MIS_SOLICITUDES' : 'TODOS');
+  }, [soloMis]);
 
   const loadRequests = async () => {
     if (!token) return;
@@ -136,6 +154,29 @@ const mostrarFiltrosScope = isSupervisor || (isJefe && modulo !== 'paqueteria');
     }
   };
 
+  const handleApproval = async (request, accion) => {
+    setApprovingId(request.id);
+    try {
+      const response = await fetch(`${API}/api/accesos/approve/${request.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ accion }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.msg || 'No se pudo procesar la solicitud');
+      toast.success(accion === 'APROBADO_JEFE' ? 'Solicitud aprobada y QR generado' : 'Solicitud rechazada');
+      setSelectedRequest(null);
+      await loadRequests();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
   useEffect(() => {
     loadRequests();
   }, [token, modulo, config.endpoint, config.responseKey]);
@@ -153,6 +194,8 @@ const mostrarFiltrosScope = isSupervisor || (isJefe && modulo !== 'paqueteria');
       const matchesStatus = status === 'TODOS' || item.status === status;
       
       const matchesScope =
+        soloTodas ||
+        (soloMis && scope === 'MIS_SOLICITUDES') ||
         scope === 'TODOS' ||
         (scope === 'MIS_SOLICITUDES' && (
           String(item.requesterId) === String(currentUserId) ||
@@ -161,7 +204,7 @@ const mostrarFiltrosScope = isSupervisor || (isJefe && modulo !== 'paqueteria');
 
       return matchesQuery && matchesStatus && matchesScope;
     });
-  }, [requests, query, status, scope, currentUserId, nombreUsuario]);
+  }, [requests, query, status, scope, currentUserId, nombreUsuario, soloTodas, soloMis]);
 
   return (
     <div className="min-h-full bg-[#f4f7fa] p-4 md:p-8">
@@ -193,7 +236,7 @@ const mostrarFiltrosScope = isSupervisor || (isJefe && modulo !== 'paqueteria');
           {/* Botones Azules de Filtro "Todas las Solicitudes" y "Mis Solicitudes" */}
           {mostrarFiltrosScope && (
             <div className="mb-5 flex flex-wrap gap-2.5">
-              <button
+              {!soloMis && <button
                 onClick={() => setScope('TODOS')}
                 className={`rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition-all ${
                   scope === 'TODOS'
@@ -202,17 +245,19 @@ const mostrarFiltrosScope = isSupervisor || (isJefe && modulo !== 'paqueteria');
                 }`}
               >
                 Todas las Solicitudes
-              </button>
-              <button
-                onClick={() => setScope('MIS_SOLICITUDES')}
-                className={`rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition-all ${
-                  scope === 'MIS_SOLICITUDES'
-                    ? 'bg-[#17243d] text-white'
-                    : 'border border-slate-200 bg-blue-50/60 text-[#315b86] hover:bg-blue-100/70'
-                }`}
-              >
-                Mis Solicitudes
-              </button>
+              </button>}
+              {(soloMis || !soloTodas) && (
+                <button
+                  onClick={() => setScope('MIS_SOLICITUDES')}
+                  className={`rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition-all ${
+                    scope === 'MIS_SOLICITUDES'
+                      ? 'bg-[#17243d] text-white'
+                      : 'border border-slate-200 bg-blue-50/60 text-[#315b86] hover:bg-blue-100/70'
+                  }`}
+                >
+                  Mis Solicitudes
+                </button>
+              )}
             </div>
           )}
 
@@ -280,7 +325,34 @@ const mostrarFiltrosScope = isSupervisor || (isJefe && modulo !== 'paqueteria');
                       {!isSupervisor && (
                         <td className="px-3 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
-                            {modulo === 'paqueteria' && item.qrToken && (
+                            {isJefe && <button
+                              onClick={() => setSelectedRequest(item)}
+                              className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 p-1.5 text-[#315b86] transition hover:bg-[#e5effd]"
+                              title="Ver datos"
+                            >
+                              <Eye size={15} />
+                            </button>}
+                            {isJefe && modulo === 'externo' && item.status === 'SOLICITADO' && (
+                              <>
+                                <button
+                                  onClick={() => handleApproval(item, 'APROBADO_JEFE')}
+                                  disabled={approvingId === item.id}
+                                  className="inline-flex items-center justify-center rounded-lg bg-[#315b86] p-1.5 text-white transition hover:bg-[#223a5d] disabled:opacity-50"
+                                  title="Aprobar"
+                                >
+                                  <Check size={15} />
+                                </button>
+                                <button
+                                  onClick={() => handleApproval(item, 'RECHAZADO')}
+                                  disabled={approvingId === item.id}
+                                  className="inline-flex items-center justify-center rounded-lg border border-[#77a8d2] bg-[#e5effd] p-1.5 text-[#17243d] transition hover:bg-[#cfe1f7] disabled:opacity-50"
+                                  title="Rechazar"
+                                >
+                                  <XCircle size={15} />
+                                </button>
+                              </>
+                            )}
+                            {!isJefe && item.qrToken && item.status === 'APROBADO_JEFE' && (
                               <button
                                 onClick={() => setSelectedQr({ code: item.code, token: item.qrToken })}
                                 className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 font-semibold text-[#17243d] transition hover:bg-[#17243d] hover:text-white"
@@ -317,6 +389,45 @@ const mostrarFiltrosScope = isSupervisor || (isJefe && modulo !== 'paqueteria');
             <div className="overflow-hidden rounded-xl bg-slate-50 p-2 border border-slate-100">
               <Escanear onClose={() => setIsScannerOpen(false)} />
             </div>
+          </div>
+        </div>
+      )}
+
+      {selectedRequest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+            <button
+              onClick={() => setSelectedRequest(null)}
+              className="absolute right-4 top-4 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              title="Cerrar"
+            >
+              <X size={18} />
+            </button>
+            <div className="mb-5 flex items-center gap-3">
+              <div className="rounded-xl bg-[#e5effd] p-2.5 text-[#315b86]"><Eye size={20} /></div>
+              <div>
+                <h3 className="text-lg font-bold text-[#17243d]">Datos de la solicitud</h3>
+                <p className="text-xs text-slate-500">{selectedRequest.code}</p>
+              </div>
+            </div>
+            <dl className="grid gap-3 text-sm sm:grid-cols-2">
+              <div><dt className="text-xs font-semibold text-slate-400">Persona que solicita</dt><dd className="font-medium text-slate-700">{selectedRequest.requester}</dd></div>
+              {modulo === 'externo' && <>
+                <div><dt className="text-xs font-semibold text-slate-400">Proveedor / visitante</dt><dd className="font-medium text-slate-700">{selectedRequest.provider}</dd></div>
+                <div><dt className="text-xs font-semibold text-slate-400">Empresa</dt><dd className="font-medium text-slate-700">{selectedRequest.company}</dd></div>
+                <div><dt className="text-xs font-semibold text-slate-400">Cédula</dt><dd className="font-medium text-slate-700">{selectedRequest.identification}</dd></div>
+                <div><dt className="text-xs font-semibold text-slate-400">Teléfono</dt><dd className="font-medium text-slate-700">{selectedRequest.phone}</dd></div>
+              </>}
+              <div><dt className="text-xs font-semibold text-slate-400">Estado</dt><dd className="font-medium text-slate-700">{estadoEtiqueta(selectedRequest.status)}</dd></div>
+              <div><dt className="text-xs font-semibold text-slate-400">Destino</dt><dd className="font-medium text-slate-700">{selectedRequest.destination}</dd></div>
+              <div><dt className="text-xs font-semibold text-slate-400">Área</dt><dd className="font-medium text-slate-700">{selectedRequest.area}</dd></div>
+              <div><dt className="text-xs font-semibold text-slate-400">Fecha</dt><dd className="font-medium text-slate-700">{String(selectedRequest.date || '').slice(0, 10)}</dd></div>
+              {modulo === 'externo' && <>
+                <div><dt className="text-xs font-semibold text-slate-400">Hora de ingreso</dt><dd className="font-medium text-slate-700">{selectedRequest.entryTime}</dd></div>
+                <div><dt className="text-xs font-semibold text-slate-400">Hora de salida</dt><dd className="font-medium text-slate-700">{selectedRequest.exitTime}</dd></div>
+                <div className="sm:col-span-2"><dt className="text-xs font-semibold text-slate-400">Motivo</dt><dd className="font-medium text-slate-700">{selectedRequest.reason}</dd></div>
+              </>}
+            </dl>
           </div>
         </div>
       )}

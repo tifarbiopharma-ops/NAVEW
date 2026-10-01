@@ -88,13 +88,20 @@ const HistoricoSolicitudes = () => {
   // Solo aplica filtros de scope en el módulo de paquetería
   const isSupervisor = userRole === 'supervisor';
   const isJefe = userRole === 'jefe';
-  const mostrarFiltrosScope = isSupervisor || (isJefe && modulo !== 'paqueteria');
+  const supervisorSoloTodas = isSupervisor && modulo !== 'paqueteria';
+  const soloTodas = supervisorSoloTodas;
+  const soloMis = isJefe && modulo === 'paqueteria';
+  const mostrarFiltrosScope = isSupervisor || isJefe;
 
   const config = MODULES[modulo] || MODULES.transporte;
   const [requests, setRequests] = useState([]);
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState('TODOS'); // 'TODOS' | 'MIS_SOLICITUDES'
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setScope(soloMis ? 'MIS_SOLICITUDES' : 'TODOS');
+  }, [soloMis]);
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -129,6 +136,8 @@ const HistoricoSolicitudes = () => {
       );
 
       const matchesScope =
+        soloTodas ||
+        (soloMis && scope === 'MIS_SOLICITUDES') ||
         !mostrarFiltrosScope ||
         scope === 'TODOS' ||
         (scope === 'MIS_SOLICITUDES' && (
@@ -138,7 +147,7 @@ const HistoricoSolicitudes = () => {
 
       return matchesQuery && matchesScope;
     });
-  }, [requests, query, scope, mostrarFiltrosScope, currentUserId, nombreUsuario]);
+  }, [requests, query, scope, mostrarFiltrosScope, soloTodas, soloMis, currentUserId, nombreUsuario]);
 
   return (
     <div className="min-h-full bg-[#f4f7fa] p-4 md:p-8">
@@ -155,7 +164,7 @@ const HistoricoSolicitudes = () => {
           {/* Botones de filtro: solo en Paquetería */}
           {mostrarFiltrosScope && (
             <div className="mb-5 mt-4 flex flex-wrap gap-2.5">
-              <button
+              {!soloMis && <button
                 onClick={() => setScope('TODOS')}
                 className={`rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition-all ${
                   scope === 'TODOS'
@@ -164,17 +173,19 @@ const HistoricoSolicitudes = () => {
                 }`}
               >
                 Todas las Solicitudes
-              </button>
-              <button
-                onClick={() => setScope('MIS_SOLICITUDES')}
-                className={`rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition-all ${
-                  scope === 'MIS_SOLICITUDES'
-                    ? 'bg-[#17243d] text-white'
-                    : 'border border-slate-200 bg-blue-50/60 text-[#315b86] hover:bg-blue-100/70'
-                }`}
-              >
-                Mis Solicitudes
-              </button>
+              </button>}
+              {(soloMis || !soloTodas) && (
+                <button
+                  onClick={() => setScope('MIS_SOLICITUDES')}
+                  className={`rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition-all ${
+                    scope === 'MIS_SOLICITUDES'
+                      ? 'bg-[#17243d] text-white'
+                      : 'border border-slate-200 bg-blue-50/60 text-[#315b86] hover:bg-blue-100/70'
+                  }`}
+                >
+                  Mis Solicitudes
+                </button>
+              )}
             </div>
           )}
 

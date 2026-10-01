@@ -1,6 +1,6 @@
 import pool from '../database.js';
 import crypto from 'node:crypto';
-import { obtenerJefeDirecto } from '../utils/jerarquia.js';
+import { obtenerColaboradoresACargo, obtenerJefeDirecto } from '../utils/jerarquia.js';
 
 // ==========================================
 // 1. HELPERS
@@ -154,15 +154,17 @@ const getTraslados = async (req, res) => {
     let query = 'SELECT * FROM Traslados_Personal ORDER BY Fecha_Creacion DESC';
     let params = [];
 
-    if (!['administrador', 'seguridad'].includes(rol)) {
+    if (!['administrador', 'supervisor'].includes(rol)) {
       if (rol === 'jefe') {
-        query = `
-          SELECT t.* FROM Traslados_Personal t
-          LEFT JOIN Aprobaciones a ON a.ID_SOLICITUD = t.ID_Traslado AND a.TIPO_SOLICITUD = 'TRASLADO'
-          WHERE t.ID_Solicitante = ? OR a.ID_APROBADOR = ?
-          ORDER BY t.Fecha_Creacion DESC
-        `;
-        params = [idUsuario, idUsuario];
+        const idsSubordinados = await obtenerColaboradoresACargo(idUsuario);
+        idsSubordinados.push(idUsuario);
+        query = idsSubordinados.length
+          ? `SELECT * FROM Traslados_Personal
+             WHERE ID_Solicitante IN (${idsSubordinados.map(() => '?').join(', ')})
+               AND Estado_Actual IN ('SOLICITADO', 'PENDIENTE')
+             ORDER BY Fecha_Creacion DESC`
+          : 'SELECT * FROM Traslados_Personal WHERE 1 = 0';
+        params = idsSubordinados;
       } else {
         query = 'SELECT * FROM Traslados_Personal WHERE ID_Solicitante = ? ORDER BY Fecha_Creacion DESC';
         params = [idUsuario];
@@ -205,6 +207,7 @@ const approveTraslado = async (req, res) => {
     const { accion, comentario } = req.body; // 'APROBADO_JEFE' o 'RECHAZADO'
 
     const dbEstado = accion === 'APROBADO_JEFE' ? 'APROBADO_JEFE' : 'RECHAZADO';
+    const estadoAprobacion = accion === 'APROBADO_JEFE' ? 'APROBADO' : 'RECHAZADO';
 
     await connection.beginTransaction();
 
@@ -221,7 +224,7 @@ const approveTraslado = async (req, res) => {
 
     await connection.query(
       `UPDATE Aprobaciones SET ESTADO = ?, COMENTARIO = ?, FECHA_RESPUESTA = NOW() WHERE ID_APROBACION = ?`,
-      [dbEstado, comentario || null, aprobaciones[0].ID_APROBACION]
+      [estadoAprobacion, comentario || null, aprobaciones[0].ID_APROBACION]
     );
 
     await connection.query(

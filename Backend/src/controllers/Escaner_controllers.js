@@ -92,7 +92,7 @@ const verificarQRPaquetería = async (req, res) => {
 
     await connection.commit();
 
-    // ✅ Escaneo exitoso: liberar el bloqueo para permitir el siguiente tipo
+    //  Escaneo exitoso: liberar el bloqueo para permitir el siguiente tipo
     intentosRecientes.delete(claveIntento);
 
     return res.json({

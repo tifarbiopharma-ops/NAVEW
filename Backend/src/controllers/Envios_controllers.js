@@ -130,15 +130,7 @@ const obtenerEnviosPaqueteria = async (req, res) => {
 		let filtro = '';
 		const params = [];
 
-		if (rol === 'jefe') {
-			filtro = `WHERE e.ID_Responsable = ? OR EXISTS (
-				SELECT 1 FROM Aprobaciones a
-				WHERE a.ID_SOLICITUD = e.ID_Paquete
-					AND a.TIPO_SOLICITUD = 'PAQUETERIA'
-					AND a.ID_APROBADOR = ?
-			)`;
-			params.push(req.user.id, req.user.id);
-		} else if (!['administrador', 'supervisor'].includes(rol)) {
+		if (!['administrador', 'supervisor'].includes(rol)) {
 			filtro = 'WHERE e.ID_Responsable = ? OR e.ID_Destinatario = ?';
 			params.push(req.user.id, req.user.id);
 		}

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Camera, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Camera, CheckCircle2, AlertCircle, RefreshCw, XCircle } from 'lucide-react';
 import { BrowserQRCodeReader } from '@zxing/library';
 import storeAuth from '../../context/storeAuth';
 import Formato from './Formato';
 
 const API = import.meta.env.VITE_BACKEND_URL;
-const TIEMPO_MINIMO_VALIDACION_MS = 10000;
+const TIEMPO_MINIMO_VALIDACION_MS = 5000;
 
 const Escanear = ({ isOpen = true, onClose, onSuccess }) => {
   const token = storeAuth((state) => state.token);
@@ -15,6 +15,8 @@ const Escanear = ({ isOpen = true, onClose, onSuccess }) => {
   const [devices, setDevices] = useState([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
   const [formatoSalida, setFormatoSalida] = useState(null);
+  const [aprobado, setAprobado] = useState(false);
+  const [qrFinalizado, setQrFinalizado] = useState(false);
 
   const videoRef = useRef(null);
   const codeReaderRef = useRef(null);
@@ -109,6 +111,8 @@ const Escanear = ({ isOpen = true, onClose, onSuccess }) => {
     let datosResultado = null;
     setLoading(true);
     setMessage(null);
+    setAprobado(false);
+    setQrFinalizado(false);
 
     try {
       if (codeReaderRef.current) {
@@ -133,8 +137,10 @@ const Escanear = ({ isOpen = true, onClose, onSuccess }) => {
       if (onSuccess) onSuccess(data);
     } catch (error) {
       mensajeResultado = { type: 'error', text: error.message };
+      const qrYaUtilizado = /ya fue escaneado|ciclo de utilidad/i.test(error.message);
+      if (qrYaUtilizado) setQrFinalizado(true);
       // Reanudar escaneo para intentar de nuevo
-      if (selectedDeviceId) {
+      if (selectedDeviceId && !qrYaUtilizado) {
         const codeReader = new BrowserQRCodeReader();
         codeReaderRef.current = codeReader;
         try {
@@ -158,6 +164,10 @@ const Escanear = ({ isOpen = true, onClose, onSuccess }) => {
       }
       if (mensajeResultado?.type === 'success' && datosResultado?.escaneos === 1) {
         setFormatoSalida({ token: code, data: datosResultado });
+      } else if (mensajeResultado?.type === 'success' && datosResultado?.escaneos === 2) {
+        setAprobado(true);
+      } else if (qrFinalizado) {
+        setMessage(null);
       } else {
         setMessage(mensajeResultado);
       }
@@ -172,6 +182,44 @@ const Escanear = ({ isOpen = true, onClose, onSuccess }) => {
         envio={formatoSalida.data.envio || formatoSalida.data}
         onClose={onClose}
       />
+    );
+  }
+
+  if (aprobado) {
+    return (
+      <div className="flex min-h-[360px] w-full flex-col items-center justify-center rounded-xl bg-white px-6 text-center">
+        <div className="flex h-36 w-36 items-center justify-center rounded-full border-[7px] border-emerald-500 text-emerald-500">
+          <CheckCircle2 size={112} strokeWidth={2.2} />
+        </div>
+        <h2 className="mt-7 text-3xl font-bold text-emerald-600">¡Aprobado!</h2>
+        <p className="mt-2 text-sm text-slate-500">El envío ha sido registrado exitosamente.</p>
+        <button
+          type="button"
+          onClick={() => onClose?.()}
+          className="mt-7 rounded-lg bg-[#17243d] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#223a5d]"
+        >
+          Cerrar
+        </button>
+      </div>
+    );
+  }
+
+  if (qrFinalizado) {
+    return (
+      <div className="flex min-h-[360px] w-full flex-col items-center justify-center rounded-xl bg-white px-6 text-center">
+        <div className="flex h-36 w-36 items-center justify-center rounded-full border-[7px] border-[#315b86] text-[#315b86]">
+          <XCircle size={112} strokeWidth={2.2} />
+        </div>
+        <h2 className="mt-7 text-2xl font-bold text-[#17243d]">QR vencido</h2>
+        <p className="mt-2 text-sm text-slate-500">Este QR cumplió con su ciclo de utilidad.</p>
+        <button
+          type="button"
+          onClick={() => onClose?.()}
+          className="mt-7 rounded-lg bg-[#17243d] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#223a5d]"
+        >
+          Cerrar
+        </button>
+      </div>
     );
   }
 

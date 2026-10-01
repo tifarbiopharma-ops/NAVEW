@@ -49,3 +49,34 @@ export const obtenerJefeDirecto = async (idColaborador) => {
     throw new Error('No se pudo determinar el jefe directo en la base de datos');
   }
 };
+
+export const obtenerColaboradoresACargo = async (idJefe) => {
+  const [rows] = await pool.query(
+    `WITH RECURSIVE cargos_subordinados AS (
+      SELECT subordinado.ID_CARGOS AS id_cargo
+      FROM Cargos subordinado
+      INNER JOIN Cargos superior ON superior.ID_CARGOS = subordinado.ID_CARGO_SUPERIOR
+      INNER JOIN Colaboradores jefe ON jefe.ID_COLABORADOR = ?
+        AND (
+          subordinado.ID_CARGO_SUPERIOR = jefe.CARGO
+          OR (
+            jefe.CARGO IS NULL
+            AND superior.AREA <=> jefe.AREA
+            AND superior.DEPARTAMENTO <=> jefe.DEPARTAMENTO
+          )
+        )
+      UNION ALL
+      SELECT cargo.ID_CARGOS
+      FROM Cargos cargo
+      INNER JOIN cargos_subordinados superior ON cargo.ID_CARGO_SUPERIOR = superior.id_cargo
+    )
+    SELECT DISTINCT colaborador.ID_COLABORADOR
+    FROM Colaboradores colaborador
+    INNER JOIN cargos_subordinados cargo ON cargo.id_cargo = colaborador.CARGO
+    WHERE colaborador.ID_COLABORADOR <> ?
+      AND colaborador.ESTADO = 'ACTIVO'`,
+    [idJefe, idJefe]
+  );
+
+  return rows.map(({ ID_COLABORADOR }) => ID_COLABORADOR);
+};

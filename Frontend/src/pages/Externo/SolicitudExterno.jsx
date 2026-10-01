@@ -5,6 +5,11 @@ import storeAuth from '../../context/storeAuth';
 
 const API = import.meta.env.VITE_BACKEND_URL;
 
+const obtenerHoraActual = () => {
+  const ahora = new Date();
+  return `${String(ahora.getHours()).padStart(2, '0')}:${String(ahora.getMinutes()).padStart(2, '0')}`;
+};
+
 const initialForm = {
   empresa: '',
   nombre_apellido: '',
@@ -36,6 +41,18 @@ const SolicitudExterno = () => {
         const data = await response.json();
         if (!response.ok) throw new Error(data?.msg || 'No se pudieron cargar los catálogos');
         setCatalogos(data);
+        const perfil = data.perfilSolicitante;
+        if (perfil) {
+          setForm((previous) => ({
+            ...previous,
+            id_empleado_visitado: previous.id_empleado_visitado || String(perfil.id),
+            area_visita: previous.area_visita || perfil.areaNombre || '',
+            id_planta_destino: previous.id_planta_destino || String(perfil.plantaId || ''),
+            hora_ingreso: previous.hora_ingreso || obtenerHoraActual(),
+          }));
+        } else {
+          setForm((previous) => ({ ...previous, hora_ingreso: previous.hora_ingreso || obtenerHoraActual() }));
+        }
       } catch (error) {
         toast.error(error.message);
       } finally {
@@ -66,7 +83,13 @@ const SolicitudExterno = () => {
       const data = await response.json();
       if (!response.ok) throw new Error(data?.msg || 'No se pudo crear la solicitud');
       toast.success('Solicitud de acceso externo creada correctamente');
-      setForm({ ...initialForm, id_empleado_visitado: '' });
+      setForm((previous) => ({
+        ...initialForm,
+        id_empleado_visitado: previous.id_empleado_visitado,
+        area_visita: previous.area_visita,
+        id_planta_destino: previous.id_planta_destino,
+        hora_ingreso: obtenerHoraActual(),
+      }));
     } catch (error) {
       toast.error(error.message);
     } finally {
