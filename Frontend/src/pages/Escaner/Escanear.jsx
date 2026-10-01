@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Camera, LoaderCircle, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Camera, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 import { BrowserQRCodeReader } from '@zxing/library';
 import storeAuth from '../../context/storeAuth';
+import Formato from './Formato';
 
 const API = import.meta.env.VITE_BACKEND_URL;
+const TIEMPO_MINIMO_VALIDACION_MS = 10000;
 
 const Escanear = ({ isOpen = true, onClose, onSuccess }) => {
   const token = storeAuth((state) => state.token);
@@ -12,6 +14,7 @@ const Escanear = ({ isOpen = true, onClose, onSuccess }) => {
   const [message, setMessage] = useState(null);
   const [devices, setDevices] = useState([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
+  const [formatoSalida, setFormatoSalida] = useState(null);
 
   const videoRef = useRef(null);
   const codeReaderRef = useRef(null);
@@ -101,6 +104,9 @@ const Escanear = ({ isOpen = true, onClose, onSuccess }) => {
 
   const handleProcessCode = async (code) => {
     if (!code || loading) return;
+    const inicioValidacion = Date.now();
+    let mensajeResultado = null;
+    let datosResultado = null;
     setLoading(true);
     setMessage(null);
 
@@ -110,7 +116,7 @@ const Escanear = ({ isOpen = true, onClose, onSuccess }) => {
         setScanning(false);
       }
 
-      const response = await fetch(`${API}/api/qr/verificar`, {
+      const response = await fetch(`${API}/api/escaner/paqueteria`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -122,10 +128,11 @@ const Escanear = ({ isOpen = true, onClose, onSuccess }) => {
       const data = await response.json();
       if (!response.ok) throw new Error(data.msg || 'Código QR inválido o no encontrado');
 
-      setMessage({ type: 'success', text: '¡Solicitud verificada correctamente!' });
+      datosResultado = data;
+      mensajeResultado = { type: 'success', text: '¡Solicitud verificada correctamente!' };
       if (onSuccess) onSuccess(data);
     } catch (error) {
-      setMessage({ type: 'error', text: error.message });
+      mensajeResultado = { type: 'error', text: error.message };
       // Reanudar escaneo para intentar de nuevo
       if (selectedDeviceId) {
         const codeReader = new BrowserQRCodeReader();
@@ -144,9 +151,29 @@ const Escanear = ({ isOpen = true, onClose, onSuccess }) => {
         }
       }
     } finally {
+      const tiempoRestante =
+        TIEMPO_MINIMO_VALIDACION_MS - (Date.now() - inicioValidacion);
+      if (tiempoRestante > 0) {
+        await new Promise((resolve) => setTimeout(resolve, tiempoRestante));
+      }
+      if (mensajeResultado?.type === 'success' && datosResultado?.escaneos === 1) {
+        setFormatoSalida({ token: code, data: datosResultado });
+      } else {
+        setMessage(mensajeResultado);
+      }
       setLoading(false);
     }
   };
+
+  if (formatoSalida) {
+    return (
+      <Formato
+        token={formatoSalida.token}
+        envio={formatoSalida.data.envio || formatoSalida.data}
+        onClose={onClose}
+      />
+    );
+  }
 
   return (
     <div className="w-full">
@@ -171,9 +198,14 @@ const Escanear = ({ isOpen = true, onClose, onSuccess }) => {
         )}
 
         {loading && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-950/80 text-white">
-            <LoaderCircle className="animate-spin" size={28} />
-            <span className="mt-2 text-xs">Verificando código...</span>
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white px-8">
+            <div className="text-5xl font-black tracking-tight text-[#17243d]">
+              NA<span className="text-[#77a8d2]">VEW</span>
+            </div>
+            <div className="mt-8 h-3 w-64 overflow-hidden rounded-full bg-[#e4edf6]">
+              <div className="h-full w-1/2 animate-[loadingBar_1.4s_ease-in-out_infinite] rounded-full bg-[#3970a8]" />
+            </div>
+            <span className="mt-3 text-xs font-medium text-slate-500">Validando código QR...</span>
           </div>
         )}
       </div>

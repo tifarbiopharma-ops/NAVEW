@@ -1,3 +1,6 @@
+import pool from '../database.js';
+import { registrarEvento } from './Envios_controllers.js';
+
 const MINUTOS_COOLDOWN = 5; // 5 minutos anti-duplicado (mismo escaneo)
 const intentosRecientes = new Map(); // idPaquete -> timestamp del último intento
 
@@ -7,9 +10,23 @@ const verificarQRPaquetería = async (req, res) => {
     const { token_qr } = req.body;
 
     const [rows] = await connection.query(
-      `SELECT ID_Paquete, Estado_Actual, QR_Salida, QR_Llegada
-       FROM Envios_Paqueteria
-       WHERE QR_Token = ?`,
+      `SELECT e.ID_Paquete, e.Estado_Actual, e.QR_Salida, e.QR_Llegada,
+              e.Fecha_Salida AS fecha_salida,
+              e.Tipo_Contenido AS tipo_contenido,
+              po.Nombre_Planta AS lugar_origen,
+              ao.AREA AS departamento_origen,
+              resp.NOMBRE AS responsable_origen,
+              pd.Nombre_Planta AS lugar_destino,
+              ad.AREA AS departamento_destino,
+              dest.NOMBRE AS responsable_destino
+       FROM Envios_Paqueteria e
+       INNER JOIN Plantas po ON po.ID_Planta = e.ID_Planta_Origen
+       INNER JOIN Areas ao ON ao.ID_AREAS = e.ID_Area_Origen
+       INNER JOIN Colaboradores resp ON resp.ID_COLABORADOR = e.ID_Responsable
+       INNER JOIN Plantas pd ON pd.ID_Planta = e.ID_Planta_Destino
+       INNER JOIN Areas ad ON ad.ID_AREAS = e.ID_Area_Destino
+       INNER JOIN Colaboradores dest ON dest.ID_COLABORADOR = e.ID_Destinatario
+       WHERE e.QR_Token = ?`,
       [token_qr]
     );
 
@@ -58,7 +75,7 @@ const verificarQRPaquetería = async (req, res) => {
     }
 
     const campoActualizar = esPrimerEscaneo ? 'QR_Salida' : 'QR_Llegada';
-    const nuevoEstado = esPrimerEscaneo ? 'ESCANEADO_ORIGEN' : 'FINALIZADO';
+    const nuevoEstado = esPrimerEscaneo ? 'EN_CAMINO' : 'FINALIZADO';
 
     await connection.beginTransaction();
 
@@ -86,6 +103,7 @@ const verificarQRPaquetería = async (req, res) => {
       escaneos: esPrimerEscaneo ? 1 : 2,
       restantes: esPrimerEscaneo ? 1 : 0,
       estado: nuevoEstado,
+      envio,
     });
   } catch (error) {
     await connection.rollback();

@@ -22,6 +22,7 @@ const obtenerCatalogosEnvio = async (req, res) => {
 		);
 		const [colaboradores] = await pool.query(
 			`SELECT ID_COLABORADOR AS id, NOMBRE AS nombre
+				, AREA AS areaId
 			 FROM Colaboradores
 			 WHERE ESTADO = 'ACTIVO'
 			 ORDER BY NOMBRE`
@@ -168,5 +169,5 @@ const obtenerEnviosPaqueteria = async (req, res) => {
 	}
 };
 
-export { obtenerCatalogosEnvio, crearEnvioPaqueteria, obtenerEnviosPaqueteria };
+export { obtenerCatalogosEnvio, crearEnvioPaqueteria, obtenerEnviosPaqueteria, registrarEvento };
 

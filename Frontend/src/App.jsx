@@ -33,7 +33,7 @@ const DashboardHomeRedirect = () => {
   }
 
   if (userRole.includes('supervisor')) {
-    return <Navigate to="transporte/validar" replace />;
+    return <Navigate to="paqueteria" replace />;
   }
 
   if (userRole.includes('jefe') || userRole.includes('solicitante')) {

@@ -63,9 +63,40 @@ html::-webkit-scrollbar-thumb:hover {
     filter: blur(0);
   }
 }
+
+@keyframes loadingBar {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(220%);
+  }
+}
+
 .reveal {
   animation: smoothReveal 0.8s ease-out forwards;
   will-change: transform, opacity, filter;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .qr-print-area,
+  .qr-print-area * {
+    visibility: visible;
+  }
+
+  .qr-print-area {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    border: 0;
+  }
 }
 
 /* Estilos de las cards de filtro */

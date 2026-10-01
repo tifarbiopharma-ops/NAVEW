@@ -60,7 +60,7 @@ const normalizeRequest = (item, module) => {
       destination: item.planta_destino_nombre || 'Sin destino',
       date: item.Fecha_Salida,
       status: item.Estado_Actual,
-      qrToken: item.qrToken || item.Token_QR || item.ID_Paquete,
+      qrToken: item.qrToken || item.QR_Token || item.Token_QR || item.ID_Paquete,
     };
   }
 
@@ -75,6 +75,20 @@ const normalizeRequest = (item, module) => {
     status: item.Estado_Actual,
     qrToken: null,
   };
+};
+
+const estadoEtiqueta = (estado) => {
+  if (estado === 'EN_CAMINO') return 'En camino';
+  if (estado === 'FINALIZADO') return 'Finalizado';
+  return estado || 'SIN ESTADO';
+};
+
+const estadoClase = (estado) => {
+  if (estado === 'EN_CAMINO') {
+    return 'bg-amber-50 text-amber-700';
+  }
+  if (estado === 'FINALIZADO') return 'bg-emerald-50 text-emerald-700';
+  return 'bg-blue-50 text-[#315b86]';
 };
 
 const ProcesoSolicitudes = () => {
@@ -134,6 +148,7 @@ const mostrarFiltrosScope = isSupervisor || (isJefe && modulo !== 'paqueteria');
     const normalizedQuery = query.trim().toLowerCase();
 
     return requests.filter((item) => {
+      if (modulo === 'paqueteria' && item.status === 'FINALIZADO') return false;
       const matchesQuery = !normalizedQuery || Object.values(item).some((value) => String(value || '').toLowerCase().includes(normalizedQuery));
       const matchesStatus = status === 'TODOS' || item.status === status;
       
@@ -256,8 +271,8 @@ const mostrarFiltrosScope = isSupervisor || (isJefe && modulo !== 'paqueteria');
                       </td>
                       <td className="px-3 py-4 text-slate-600">{String(item.date || '').slice(0, 10)}</td>
                       <td className="px-3 py-4">
-                        <span className="rounded-full bg-blue-50 px-3 py-1 font-semibold text-[#315b86]">
-                          {item.status || 'SIN ESTADO'}
+                        <span className={`rounded-full px-3 py-1 font-semibold ${estadoClase(item.status)}`}>
+                          {estadoEtiqueta(item.status)}
                         </span>
                       </td>
 
@@ -290,7 +305,7 @@ const mostrarFiltrosScope = isSupervisor || (isJefe && modulo !== 'paqueteria');
       {/* Modal Emergente para Escanear QR */}
       {isScannerOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
-          <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+          <div className="relative w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
             <button
               onClick={() => setIsScannerOpen(false)}
               className="absolute right-4 top-4 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"

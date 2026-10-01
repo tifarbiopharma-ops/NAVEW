@@ -6,9 +6,20 @@ import { getAuthClaims } from '../../utils/authClaims';
 
 const API = import.meta.env.VITE_BACKEND_URL;
 
+const fechaLocal = () => {
+  const fecha = new Date();
+  const offset = fecha.getTimezoneOffset() * 60000;
+  return new Date(fecha.getTime() - offset).toISOString().slice(0, 10);
+};
+
+const horaLocal = () => {
+  const fecha = new Date();
+  return `${String(fecha.getHours()).padStart(2, '0')}:${String(fecha.getMinutes()).padStart(2, '0')}`;
+};
+
 const initialForm = {
-  fecha_salida: new Date().toISOString().slice(0, 10),
-  hora_entrega: '',
+  fecha_salida: fechaLocal(),
+  hora_entrega: horaLocal(),
   id_planta_origen: '',
   id_area_origen: '',
   id_responsable: '',
@@ -38,9 +49,13 @@ const SolicitudPaqueteria = () => {
 
       if (!catalogosResponse.ok) throw new Error(catalogosData.msg || 'No se pudieron cargar los catálogos');
       setCatalogos(catalogosData);
+      const responsableInicial = catalogosData.colaboradores.find(
+        (item) => String(item.id) === String(claims?.id)
+      );
       setForm((previous) => ({
         ...previous,
         id_responsable: previous.id_responsable || String(claims?.id || ''),
+        id_area_origen: previous.id_area_origen || String(responsableInicial?.areaId || ''),
       }));
     } catch (error) {
       toast.error(error.message || 'No se pudo cargar la solicitud');
@@ -55,6 +70,15 @@ const SolicitudPaqueteria = () => {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+    if (name === 'id_responsable') {
+      const responsable = catalogos.colaboradores.find((item) => String(item.id) === value);
+      setForm((previous) => ({
+        ...previous,
+        id_responsable: value,
+        id_area_origen: responsable?.areaId ? String(responsable.areaId) : previous.id_area_origen,
+      }));
+      return;
+    }
     setForm((previous) => ({ ...previous, [name]: value }));
   };
 
@@ -75,7 +99,12 @@ const SolicitudPaqueteria = () => {
       if (!response.ok) throw new Error(data.msg || 'No se pudo crear la solicitud');
 
       toast.success('Solicitud de paquetería creada correctamente');
-      setForm({ ...initialForm, id_responsable: String(claims?.id || '') });
+      setForm({
+        ...initialForm,
+        fecha_salida: fechaLocal(),
+        hora_entrega: horaLocal(),
+        id_responsable: String(claims?.id || ''),
+      });
       await fetchData();
     } catch (error) {
       toast.error(error.message || 'Error creando la solicitud');
