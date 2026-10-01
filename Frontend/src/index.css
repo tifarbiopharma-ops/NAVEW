@@ -82,6 +82,20 @@ html::-webkit-scrollbar-thumb:hover {
 }
 
 @media print {
+  @page {
+    size: 100mm 100mm;
+    margin: 0;
+  }
+
+  html,
+  body {
+    width: 100mm;
+    height: 100mm;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
   body * {
     visibility: hidden;
   }
@@ -92,10 +106,109 @@ html::-webkit-scrollbar-thumb:hover {
   }
 
   .qr-print-area {
-    position: absolute;
-    inset: 0;
-    width: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100mm;
+    height: 100mm;
+    box-sizing: border-box;
+    overflow: hidden;
+    padding: 5mm;
+    margin: 0 !important;
     border: 0;
+    border-radius: 0;
+    background: #fff;
+    color: #17243d;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .qr-print-area .etiqueta-cabecera {
+    height: 17mm;
+    margin-bottom: 3mm;
+    padding-bottom: 2.5mm;
+    gap: 3mm;
+  }
+
+  .qr-print-area .etiqueta-cabecera img {
+    width: 38mm;
+    height: 15mm;
+  }
+
+  .qr-print-area .etiqueta-cabecera p:first-child {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    font-size: 8pt;
+    line-height: 1.15;
+  }
+
+  .qr-print-area .etiqueta-cabecera p:last-child {
+    margin-top: 1.5mm;
+    font-size: 7.5pt;
+  }
+
+  .qr-print-area .etiqueta-contenido {
+    display: grid;
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr) 45mm;
+    gap: 3mm;
+    height: 55mm;
+    min-width: 0;
+  }
+
+  .qr-print-area .etiqueta-datos {
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 1.5mm;
+  }
+
+  .qr-print-area .etiqueta-datos > div {
+    grid-template-columns: 46% 54%;
+    min-width: 0;
+  }
+
+  .qr-print-area .etiqueta-datos > div > div {
+    padding: 2mm 2.5mm;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: 7.5pt;
+    line-height: 1.1;
+  }
+
+  .qr-print-area .etiqueta-qr {
+    width: 45mm;
+    box-sizing: border-box;
+    padding: 2mm;
+    border-radius: 1.5mm;
+  }
+
+  .qr-print-area .etiqueta-qr svg {
+    width: 40mm;
+    height: 40mm;
+  }
+
+  .qr-print-area .etiqueta-token {
+    display: none;
+  }
+
+  .qr-print-area .etiqueta-pie {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    margin-top: 3mm;
+    font-size: 7pt;
+    line-height: 1.15;
+  }
+
+  .qr-print-area .etiqueta-contador {
+    order: -1;
+  }
+
+  .qr-print-area .etiqueta-estado {
+    margin-top: 1mm;
+    text-align: right;
   }
 }
 

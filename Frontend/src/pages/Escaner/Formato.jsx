@@ -16,9 +16,9 @@ const Formato = ({ token, envio, onClose }) => {
 
   return (
     <div className="qr-print-area w-full rounded-xl border border-slate-200 bg-white p-5">
-      <div className="mb-5 flex items-start justify-between gap-4 border-b border-slate-300 pb-4">
+      <div className="etiqueta-cabecera mb-5 flex items-start justify-between gap-4 border-b border-slate-300 pb-4">
         <img src="/logo.png" alt="FarbioPharma" className="h-16 w-36 object-contain object-left" />
-        <div className="text-right">
+        <div className="min-w-0 flex-1 text-right">
           <p className="text-xs font-bold uppercase tracking-widest text-[#17243d]">
             Identificación mensajería interna
           </p>
@@ -26,8 +26,8 @@ const Formato = ({ token, envio, onClose }) => {
         </div>
       </div>
 
-      <div className="flex items-start gap-4">
-        <div className="min-w-0 flex-1 overflow-hidden rounded-lg border border-slate-300">
+      <div className="etiqueta-contenido flex items-start gap-4">
+        <div className="etiqueta-datos min-w-0 flex-1 overflow-hidden rounded-lg border border-slate-300">
           <FilaFormato etiqueta="Tipo de contenido" valor={dato('tipo_contenido', 'Tipo_Contenido')} />
           <FilaFormato etiqueta="Responsable origen" valor={dato('responsable_origen', 'NOMBRE_Responsable')} />
           <FilaFormato etiqueta="Lugar de origen" valor={dato('lugar_origen', 'Nombre_Planta_Origen')} />
@@ -36,15 +36,15 @@ const Formato = ({ token, envio, onClose }) => {
           <FilaFormato etiqueta="Responsable destino" valor={dato('responsable_destino', 'NOMBRE_Destinatario')} />
         </div>
 
-        <div className="flex shrink-0 flex-col items-center rounded-lg border border-slate-300 p-3">
+        <div className="etiqueta-qr flex shrink-0 flex-col items-center rounded-lg border border-slate-300 p-3">
           <QRCodeSVG value={token} size={180} level="H" includeMargin />
-          <p className="mt-2 max-w-44 break-all text-center text-[9px] text-slate-500">{token}</p>
+          <p className="etiqueta-token mt-2 max-w-44 break-all text-center text-[9px] text-slate-500">{token}</p>
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between text-[10px] text-slate-500">
-        <span>Salida registrada. Pendiente escaneo en destino.</span>
-        <span>Escaneo 1 de 2</span>
+      <div className="etiqueta-pie mt-4 flex items-center justify-between text-[10px] text-slate-500">
+        <span className="etiqueta-estado">Pendiente escaneo en destino.</span>
+        <span className="etiqueta-contador">Escaneo 1 de 2</span>
       </div>
 
       <div className="mt-5 flex gap-2 print:hidden">
