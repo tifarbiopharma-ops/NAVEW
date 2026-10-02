@@ -71,6 +71,14 @@ const crearEnvioPaqueteria = async (req, res) => {
 			return res.status(400).json({ msg: 'Completa todos los campos obligatorios de la solicitud' });
 		}
 
+		if (String(id_planta_origen) === String(id_planta_destino)) {
+			return res.status(400).json({ msg: 'La planta de origen y la planta de destino deben ser diferentes' });
+		}
+
+		if (String(responsable) === String(id_destinatario)) {
+			return res.status(400).json({ msg: 'El responsable y el destinatario deben ser diferentes' });
+		}
+
 		const idPaquete = crypto.randomUUID();
 		const qrToken = `PAQUETERIA|${idPaquete}`;
 		await connection.beginTransaction();

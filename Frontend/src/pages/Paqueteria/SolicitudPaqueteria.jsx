@@ -84,6 +84,17 @@ const SolicitudPaqueteria = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+
+    if (String(form.id_planta_origen) === String(form.id_planta_destino)) {
+      toast.error('La planta de origen y la planta de destino deben ser diferentes');
+      return;
+    }
+
+    if (String(form.id_responsable) === String(form.id_destinatario)) {
+      toast.error('El responsable y el destinatario deben ser diferentes');
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -113,8 +124,14 @@ const SolicitudPaqueteria = () => {
     }
   };
 
-  const renderOptions = (items) => items.map((item) => (
-    <option key={item.id} value={item.id}>{item.nombre}</option>
+  const renderOptions = (items, disabledId = '') => items.map((item) => (
+    <option
+      key={item.id}
+      value={item.id}
+      disabled={disabledId !== '' && String(item.id) === String(disabledId)}
+    >
+      {item.nombre}
+    </option>
   ));
 
   return (
@@ -149,7 +166,7 @@ const SolicitudPaqueteria = () => {
 
               <label className="space-y-1.5">
                 <span className="text-xs font-semibold text-[#17243d]">Planta de origen *</span>
-                <select name="id_planta_origen" value={form.id_planta_origen} onChange={handleChange} required className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione una planta</option>{renderOptions(catalogos.plantas)}</select>
+                <select name="id_planta_origen" value={form.id_planta_origen} onChange={handleChange} required className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione una planta</option>{renderOptions(catalogos.plantas, form.id_planta_destino)}</select>
               </label>
               <label className="space-y-1.5">
                 <span className="text-xs font-semibold text-[#17243d]">Área de origen *</span>
@@ -158,7 +175,7 @@ const SolicitudPaqueteria = () => {
 
               <label className="space-y-1.5">
                 <span className="text-xs font-semibold text-[#17243d]">Responsable *</span>
-                <select name="id_responsable" value={form.id_responsable} onChange={handleChange} required className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione un responsable</option>{renderOptions(catalogos.colaboradores)}</select>
+                <select name="id_responsable" value={form.id_responsable} onChange={handleChange} required className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione un responsable</option>{renderOptions(catalogos.colaboradores, form.id_destinatario)}</select>
               </label>
               <label className="space-y-1.5">
                 <span className="text-xs font-semibold text-[#17243d]">Tipo de contenido *</span>
@@ -167,7 +184,7 @@ const SolicitudPaqueteria = () => {
 
               <label className="space-y-1.5">
                 <span className="text-xs font-semibold text-[#17243d]">Planta de destino *</span>
-                <select name="id_planta_destino" value={form.id_planta_destino} onChange={handleChange} required className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione una planta</option>{renderOptions(catalogos.plantas)}</select>
+                <select name="id_planta_destino" value={form.id_planta_destino} onChange={handleChange} required className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione una planta</option>{renderOptions(catalogos.plantas, form.id_planta_origen)}</select>
               </label>
               <label className="space-y-1.5">
                 <span className="text-xs font-semibold text-[#17243d]">Área de destino *</span>
@@ -176,7 +193,7 @@ const SolicitudPaqueteria = () => {
 
               <label className="space-y-1.5">
                 <span className="text-xs font-semibold text-[#17243d]">Destinatario *</span>
-                <select name="id_destinatario" value={form.id_destinatario} onChange={handleChange} required className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione un destinatario</option>{renderOptions(catalogos.colaboradores)}</select>
+                <select name="id_destinatario" value={form.id_destinatario} onChange={handleChange} required className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione un destinatario</option>{renderOptions(catalogos.colaboradores, form.id_responsable)}</select>
               </label>
               <label className="space-y-1.5 md:col-span-2">
                 <span className="text-xs font-semibold text-[#17243d]">Comentario</span>

@@ -1,5 +1,6 @@
 import pool from '../database.js';
 import { registrarEvento } from './Envios_controllers.js';
+import { notificarLlegadaPedido } from '../telegram/telegramService.js';
 
 const MINUTOS_COOLDOWN = 5; // 5 minutos anti-duplicado (mismo escaneo)
 const intentosRecientes = new Map(); // idPaquete -> timestamp del último intento
@@ -94,6 +95,19 @@ const verificarQRPaquetería = async (req, res) => {
 
     //  Escaneo exitoso: liberar el bloqueo para permitir el siguiente tipo
     intentosRecientes.delete(claveIntento);
+
+    if (!esPrimerEscaneo) {
+      await notificarLlegadaPedido({
+        fecha_salida: envio.fecha_salida,
+        tipo_contenido: envio.tipo_contenido,
+        planta_origen: envio.lugar_origen,
+        area_origen: envio.departamento_origen,
+        responsable_origen: envio.responsable_origen,
+        planta_destino: envio.lugar_destino,
+        area_destino: envio.departamento_destino,
+        responsable_destino: envio.responsable_destino,
+      });
+    }
 
     return res.json({
       success: true,

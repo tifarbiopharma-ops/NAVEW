@@ -352,7 +352,7 @@ const ProcesoSolicitudes = () => {
                                 </button>
                               </>
                             )}
-                            {!isJefe && item.qrToken && item.status === 'APROBADO_JEFE' && (
+                            {!isJefe && item.qrToken && (modulo === 'paqueteria' || item.status === 'APROBADO_JEFE') && (
                               <button
                                 onClick={() => setSelectedQr({ code: item.code, token: item.qrToken })}
                                 className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 font-semibold text-[#17243d] transition hover:bg-[#17243d] hover:text-white"

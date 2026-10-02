@@ -107,7 +107,7 @@ const Dashboard = () => {
       
       {/* HEADER MÓVIL */}
       <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:hidden">
-        <div className="text-lg font-black tracking-tight text-[#17243d]">NA<span className="text-[#3970a8]">WE</span>W</div>
+        <div className="text-lg font-black tracking-tight text-[#17243d]">NA<span className="text-[#3970a8]">VE</span>W</div>
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           aria-label={mobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
@@ -125,7 +125,7 @@ const Dashboard = () => {
       >
         <div className="flex h-full flex-col px-3 py-6">
           <div className={`mb-8 px-3 ${isCollapsed ? "text-center" : ""}`}>
-            <div className="text-xl font-black tracking-tight text-white">NA<span className="text-[#77a8d2]">WE</span>W</div>
+            <div className="text-xl font-black tracking-tight text-white">NA<span className="text-[#77a8d2]">VE</span>W</div>
             {!isCollapsed && <p className="mt-1 text-[9px] font-medium tracking-[0.08em] text-[#9aacbf]">Farbiopharma</p>}
           </div>
 
