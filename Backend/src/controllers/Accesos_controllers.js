@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import { obtenerColaboradoresACargo, obtenerJefeDirecto } from '../utils/jerarquia.js';
 
 const ROLES_SOLICITUD = new Set(['solicitante', 'jefe', 'administrador']);
-
+//colaborador 
 const obtenerCatalogosAcceso = async (req, res) => {
 	try {
 		const [plantas] = await pool.query(
