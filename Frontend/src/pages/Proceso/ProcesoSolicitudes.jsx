@@ -40,13 +40,13 @@ const normalizeRequest = (item, module) => {
     return {
       id: item.ID_Traslado,
       code: `SAL-${String(item.ID_Traslado).slice(0, 8).toUpperCase()}`,
-      requester: item.ID_Solicitante || 'Sin solicitante',
+      requester: item.Solicitante_Nombre || item.NOMBRE || 'Sin solicitante',
       requesterId: item.ID_Solicitante || item.ID_Usuario || item.id_solicitante || item.id,
       area: item.Tipo_Traslado || 'Transporte',
       destination: `Planta ${item.ID_Planta_Destino}`,
       date: item.Fecha_Salida,
       status: item.Estado_Actual,
-      qrToken: null,
+      qrToken: item.QR_Token || item.ID_Traslado,
     };
   }
 
@@ -157,7 +157,8 @@ const ProcesoSolicitudes = () => {
   const handleApproval = async (request, accion) => {
     setApprovingId(request.id);
     try {
-      const response = await fetch(`${API}/api/accesos/approve/${request.id}`, {
+      const approvalBase = modulo === 'transporte' ? '/api/traslados/approve' : '/api/accesos/approve';
+      const response = await fetch(`${API}${approvalBase}/${request.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -332,23 +333,23 @@ const ProcesoSolicitudes = () => {
                             >
                               <Eye size={15} />
                             </button>}
-                            {isJefe && modulo === 'externo' && item.status === 'SOLICITADO' && (
+                            {isJefe && (modulo === 'transporte' || modulo === 'externo') && item.status === 'SOLICITADO' && (
                               <>
                                 <button
                                   onClick={() => handleApproval(item, 'APROBADO_JEFE')}
                                   disabled={approvingId === item.id}
-                                  className="inline-flex items-center justify-center rounded-lg bg-[#315b86] p-1.5 text-white transition hover:bg-[#223a5d] disabled:opacity-50"
+                                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#315b86] px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-[#223a5d] disabled:opacity-50"
                                   title="Aprobar"
                                 >
-                                  <Check size={15} />
+                                  <Check size={14} /> Aprobar
                                 </button>
                                 <button
                                   onClick={() => handleApproval(item, 'RECHAZADO')}
                                   disabled={approvingId === item.id}
-                                  className="inline-flex items-center justify-center rounded-lg border border-[#77a8d2] bg-[#e5effd] p-1.5 text-[#17243d] transition hover:bg-[#cfe1f7] disabled:opacity-50"
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-[#77a8d2] bg-[#e5effd] px-2.5 py-1.5 text-xs font-semibold text-[#17243d] transition hover:bg-[#cfe1f7] disabled:opacity-50"
                                   title="Rechazar"
                                 >
-                                  <XCircle size={15} />
+                                  <XCircle size={14} /> Rechazar
                                 </button>
                               </>
                             )}

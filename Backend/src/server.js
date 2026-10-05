@@ -6,6 +6,7 @@ import trasladosRoutes from './routers/Traslados_routes.js';
 import enviosRoutes from './routers/Envios_routes.js';
 import accesosRoutes from './routers/Accesos_routes.js';
 import escanerRoutes from './routers/Escaner_routes.js';
+import imagenesRoutes from './routers/Imagenes_routes.js';
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use('/api/traslados', trasladosRoutes);
 app.use('/api/envios', enviosRoutes);
 app.use('/api/accesos', accesosRoutes);
 app.use ('/api/escaner', escanerRoutes);
+app.use('/api/imagenes', imagenesRoutes);
 
 
 const server = http.createServer(app);

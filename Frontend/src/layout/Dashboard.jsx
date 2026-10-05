@@ -1,15 +1,14 @@
 import { useState, useEffect } from "react";
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, Outlet, useLocation } from "react-router-dom";
 import storeAuth from "../context/storeAuth";
 import useFetch from "../hooks/useFetch";
 import { getAuthClaims } from "../utils/authClaims";
-import { ChevronRight, ClipboardList, History, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Users, Workflow, X } from "lucide-react";
+import { ChevronRight, ClipboardList, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Users, Workflow, X } from "lucide-react";
 import ContextSidebar from "./ContextSidebar";
 import TopBar from "./TopBar";
 
 const Dashboard = () => {
   const location = useLocation();
-  const navigate = useNavigate();
   const urlActual = location.pathname;
   const { logout, token } = storeAuth();
   const { fetchDataBackend } = useFetch();
@@ -181,17 +180,6 @@ const Dashboard = () => {
                     >
                       <Workflow size={18} />
                       {!isCollapsed && <span className="ml-3">Proceso</span>}
-                      {!isCollapsed && <ChevronRight className="ml-auto" size={14} />}
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      to="/dashboard/historico/transporte"
-                      onClick={handleMenuItemClick}
-                      className={navItemClass(urlActual.startsWith("/dashboard/historico"))}
-                    >
-                      <History size={18} />
-                      {!isCollapsed && <span className="ml-3">Histórico</span>}
                       {!isCollapsed && <ChevronRight className="ml-auto" size={14} />}
                     </Link>
                   </li>

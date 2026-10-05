@@ -151,7 +151,10 @@ const getTraslados = async (req, res) => {
     const idUsuario = req.user.id;
     const rol = req.user.rol.toLowerCase();
 
-    let query = 'SELECT * FROM Traslados_Personal ORDER BY Fecha_Creacion DESC';
+    let query = `SELECT t.*, col.NOMBRE AS Solicitante_Nombre
+           FROM Traslados_Personal t
+           LEFT JOIN Colaboradores col ON col.ID_COLABORADOR = t.ID_Solicitante
+           ORDER BY t.Fecha_Creacion DESC`;
     let params = [];
 
     if (!['administrador', 'supervisor'].includes(rol)) {
@@ -159,14 +162,19 @@ const getTraslados = async (req, res) => {
         const idsSubordinados = await obtenerColaboradoresACargo(idUsuario);
         idsSubordinados.push(idUsuario);
         query = idsSubordinados.length
-          ? `SELECT * FROM Traslados_Personal
-             WHERE ID_Solicitante IN (${idsSubordinados.map(() => '?').join(', ')})
-               AND Estado_Actual IN ('SOLICITADO', 'PENDIENTE')
-             ORDER BY Fecha_Creacion DESC`
-          : 'SELECT * FROM Traslados_Personal WHERE 1 = 0';
+          ? `SELECT t.*, col.NOMBRE AS Solicitante_Nombre
+             FROM Traslados_Personal t
+             LEFT JOIN Colaboradores col ON col.ID_COLABORADOR = t.ID_Solicitante
+             WHERE t.ID_Solicitante IN (${idsSubordinados.map(() => '?').join(', ')})
+               AND t.Estado_Actual IN ('SOLICITADO', 'PENDIENTE')
+             ORDER BY t.Fecha_Creacion DESC`
+          : 'SELECT t.*, col.NOMBRE AS Solicitante_Nombre FROM Traslados_Personal t LEFT JOIN Colaboradores col ON col.ID_COLABORADOR = t.ID_Solicitante WHERE 1 = 0';
         params = idsSubordinados;
       } else {
-        query = 'SELECT * FROM Traslados_Personal WHERE ID_Solicitante = ? ORDER BY Fecha_Creacion DESC';
+        query = `SELECT t.*, col.NOMBRE AS Solicitante_Nombre
+           FROM Traslados_Personal t
+           LEFT JOIN Colaboradores col ON col.ID_COLABORADOR = t.ID_Solicitante
+           WHERE t.ID_Solicitante = ? ORDER BY t.Fecha_Creacion DESC`;
         params = [idUsuario];
       }
     }
@@ -227,15 +235,27 @@ const approveTraslado = async (req, res) => {
       [estadoAprobacion, comentario || null, aprobaciones[0].ID_APROBACION]
     );
 
-    await connection.query(
-      `UPDATE Traslados_Personal SET Estado_Actual = ? WHERE ID_Traslado = ?`,
-      [dbEstado, id]
-    );
+    const updateQuery = dbEstado === 'APROBADO_JEFE'
+      ? `UPDATE Traslados_Personal
+         SET Estado_Actual = ?, QR_Token = ?
+         WHERE ID_Traslado = ?`
+      : `UPDATE Traslados_Personal
+         SET Estado_Actual = ?
+         WHERE ID_Traslado = ?`;
+    const updateParams = dbEstado === 'APROBADO_JEFE'
+      ? [dbEstado, id, id]
+      : [dbEstado, id];
+
+    await connection.query(updateQuery, updateParams);
 
     await insertEventLog(connection, id, 'TRASLADO', dbEstado, idAprobador, { comentario });
 
     await connection.commit();
-    res.status(200).json({ success: true, msg: `Solicitud ${dbEstado.toLowerCase()}` });
+    res.status(200).json({
+      success: true,
+      msg: `Solicitud ${dbEstado.toLowerCase()}`,
+      qrToken: dbEstado === 'APROBADO_JEFE' ? id : null,
+    });
   } catch (error) {
     await connection.rollback();
     res.status(500).json({ msg: "Error", error: error.message });

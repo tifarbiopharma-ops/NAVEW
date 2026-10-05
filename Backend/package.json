@@ -11,7 +11,7 @@
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
     "hash:password": "node src/utils/hashPassword.js",
-    "check": "node --check src/index.js && node --check src/server.js && node --check src/database.js && node --check src/controllers/Accesos_controllers.js && node --check src/controllers/Envios_controllers.js && node --check src/controllers/Traslados_controllers.js && node --check src/controllers/User_controllers.js && node --check src/routers/Accesos_routes.js && node --check src/routers/Envios_routes.js && node --check src/routers/Traslados_routes.js && node --check src/routers/User_routes.js && node --check src/middlewares/JWT.js && node --check src/utils/dbHelpers.js && node --check src/utils/hashPassword.js && node --check src/utils/jerarquia.js && node --check src/utils/reportesCodigos.js && node --check src/utils/reportesUsuarios.js && node --check src/telegram/telegram.config.js && node --check src/telegram/telegramService.js"
+    "check": "node --check src/index.js && node --check src/server.js && node --check src/database.js && node --check src/controllers/Accesos_controllers.js && node --check src/controllers/Envios_controllers.js && node --check src/controllers/Traslados_controllers.js && node --check src/controllers/User_controllers.js && node --check src/controllers/Imagenes_controllers.js && node --check src/routers/Accesos_routes.js && node --check src/routers/Envios_routes.js && node --check src/routers/Traslados_routes.js && node --check src/routers/User_routes.js && node --check src/routers/Imagenes_routes.js && node --check src/middlewares/JWT.js && node --check src/utils/dbHelpers.js && node --check src/utils/hashPassword.js && node --check src/utils/jerarquia.js && node --check src/utils/reportesCodigos.js && node --check src/utils/reportesUsuarios.js && node --check src/telegram/telegram.config.js && node --check src/telegram/telegramService.js"
   },
   "keywords": [],
   "author": "Elkin Diaz",
@@ -25,6 +25,10 @@
     "mysql2": "^3.6.5"
   },
   "dependencies": {
-    "node-telegram-bot-api": "^1.2.0"
+    "minio": "^8.0.7",
+    "multer": "^2.4.0",
+    "node-telegram-bot-api": "^1.2.0",
+    "minio": "^8.0.5",
+    "multer": "^2.0.2"
   }
 }

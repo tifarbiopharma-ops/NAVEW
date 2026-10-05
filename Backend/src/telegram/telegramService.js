@@ -30,25 +30,28 @@ export const notificarLlegadaPedido = async (salida = {}) => {
 
     const mensaje = `
 📅 <b>Fecha:</b> ${fechaSalida}
+    <b>------------------------------</b>
 📦 <b>Tipo de contenido:</b> ${salida.tipo_contenido || 'No disponible'}
+    <b>------------------------------</b>
 🏭 <b>Planta de origen:</b> ${salida.planta_origen || 'No disponible'}
 📍 <b>Área de origen:</b> ${salida.area_origen || 'No disponible'}
 👤 <b>Responsable origen:</b> ${salida.responsable_origen || 'No disponible'}
+    <b>------------------------------</b>
 🏭 <b>Planta de destino:</b> ${salida.planta_destino || 'No disponible'}
 📍 <b>Área de destino:</b> ${salida.area_destino || 'No disponible'}
 👤 <b>Responsable destino:</b> ${salida.responsable_destino || 'No disponible'}
-
+    <b>------------------------------</b>
 
 <b>Su paquete se encuentra en garita!</b>
     `.trim();
 
     await bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
-    console.log('📨 Notificación de entrega enviada por Telegram');
+    console.log('Notificación de entrega enviada por Telegram');
   } catch (error) {
-    console.error('❌ Error enviando notificación de entrega por Telegram:', error.message);
+    console.error('Error enviando notificación de entrega por Telegram:', error.message);
   }
 };
 
 export const notificarResumenPorEstado = async () => {
-  console.log('⚠️ Telegram de flujo legacy no está activo en este sistema.');
+  console.log('Telegram de flujo legacy no está activo en este sistema.');
 };

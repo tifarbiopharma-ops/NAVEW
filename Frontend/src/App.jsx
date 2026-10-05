@@ -14,8 +14,8 @@ import Login from "./pages/Autenticación/Login";
 import AdminUsuarios from "./pages/Administrador/AdminUsuarios";
 import CrearUsuarioPage from "./pages/Administrador/CrearUsuarioPage";
 import EditarUsuario from "./pages/Administrador/EditarUsuario";
-import TransporteDashboard from "./pages/Transporte/TransporteDashboard";
-import ValidarTransporteQR from "./pages/Transporte/ValidarTransporteQR";
+import TransporteDashboard from "./pages/Transporte/SolicitudTraslados";
+import SolicitudTraslados from "./pages/Transporte/SolicitudTraslados";
 import SolicitudPaqueteria from "./pages/Paqueteria/SolicitudPaqueteria";
 import ProcesoSolicitudes from "./pages/Proceso/ProcesoSolicitudes";
 import HistoricoSolicitudes from "./pages/Historico/HistoricoSolicitudes";
@@ -79,7 +79,7 @@ function App() {
             path="transporte/validar"
             element={
               <PrivateRouteWithRole allowedRoles={["supervisor", "administrador"]}>
-                <ValidarTransporteQR />
+                <SolicitudTraslados />
               </PrivateRouteWithRole>
             }
           />
