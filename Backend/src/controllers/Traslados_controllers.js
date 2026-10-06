@@ -83,6 +83,26 @@ const setupTraslado = async (req, res, connection, tipoTraslado, extraFields, ex
 // 2. CREATE ENDPOINTS (Formularios)
 // ==========================================
 
+const obtenerChoferes = async (req, res) => {
+  try {
+    const [choferes] = await pool.query(
+      `SELECT c.ID_COLABORADOR AS id, c.NOMBRE AS nombre, ca.DESCRIPCION AS cargo
+       FROM Colaboradores c
+       INNER JOIN Cargos ca ON ca.ID_CARGOS = c.CARGO
+       WHERE c.ESTADO = 'ACTIVO'
+         AND c.CARGO = 61
+       ORDER BY c.NOMBRE`
+    );
+
+    return res.status(200).json({ success: true, choferes });
+  } catch (error) {
+    return res.status(500).json({
+      msg: 'No se pudieron cargar los choferes',
+      error: error.message,
+    });
+  }
+};
+
 const createTrasladoEmpresarial = async (req, res) => {
   const connection = await pool.getConnection();
   try {
@@ -350,6 +370,7 @@ const registrarLlegadaGarita = async (req, res) => {
 };
 
 export {
+  obtenerChoferes,
   createTrasladoEmpresarial,
   createTrasladoPersonal,
   createTrasladoPrivado,

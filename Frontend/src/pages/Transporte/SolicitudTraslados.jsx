@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { CheckCircle2, LoaderCircle, Car, Bus, BadgeDollarSign, ClipboardList } from 'lucide-react';
 import { ToastContainer, toast } from 'react-toastify';
 import storeAuth from '../../context/storeAuth';
@@ -31,8 +32,10 @@ const SolicitudTraslados = () => {
   
   const [isGenerating, setIsGenerating] = useState(false);
   const [tabIndex, setTabIndex] = useState('EMPRESARIAL'); // EMPRESARIAL, PERSONAL, PRIVADO
+  const [choferes, setChoferes] = useState([]);
+  const [loadingChoferes, setLoadingChoferes] = useState(false);
 
-  const [form, setForm] = useState({
+  const defaultValues = {
     fecha_salida: obtenerFechaLocal(),
     hora_salida: obtenerHoraLocal(),
     hora_llegada: '',
@@ -43,41 +46,49 @@ const SolicitudTraslados = () => {
     km_inicial: '',
     km_final: '',
     monto_solicitado: '',
-  });
+  };
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    formState: { errors },
+  } = useForm({ defaultValues, shouldUnregister: true });
+  const form = watch();
 
   const canCreate = role.includes('solicitante') || role.includes('administrador') || role.includes('jefe');
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
+  useEffect(() => {
+    if (!token || !canCreate) return;
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+    const cargarChoferes = async () => {
+      setLoadingChoferes(true);
+      try {
+        const response = await fetch(`${API}/api/traslados/choferes`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.msg || 'No se pudieron cargar los choferes');
+        setChoferes(data.choferes || []);
+      } catch (error) {
+        toast.error(error.message || 'No se pudieron cargar los choferes');
+      } finally {
+        setLoadingChoferes(false);
+      }
+    };
+
+    cargarChoferes();
+  }, [token, canCreate]);
+
+  const onSubmit = async (formData) => {
     if (!token) return;
 
-    const camposFaltantes = [];
-    if (!form.fecha_salida) camposFaltantes.push('fecha de salida');
-    if (!form.hora_salida) camposFaltantes.push('hora de salida');
-    if (!form.id_planta_origen) camposFaltantes.push('planta de origen');
-    if (!form.id_planta_destino) camposFaltantes.push('planta de destino');
-    if (!form.motivo_viaje.trim()) camposFaltantes.push('motivo');
-    if (tabIndex === 'EMPRESARIAL' && !form.id_chofer.trim()) camposFaltantes.push('chofer');
-    if ((tabIndex === 'PERSONAL' || tabIndex === 'PRIVADO') && (!form.monto_solicitado || Number(form.monto_solicitado) <= 0)) camposFaltantes.push('monto válido');
-    if (tabIndex === 'PERSONAL' && !form.km_inicial) camposFaltantes.push('KM inicial');
-    if (tabIndex === 'PERSONAL' && !form.km_final) camposFaltantes.push('KM final');
-
-    if (camposFaltantes.length > 0) {
-      toast.error(`Completa: ${camposFaltantes.join(', ')}`);
-      return;
-    }
-
-    if (tabIndex === 'PERSONAL' && Number(form.km_final) < Number(form.km_inicial)) {
+    if (tabIndex === 'PERSONAL' && Number(formData.km_final) < Number(formData.km_inicial)) {
       toast.error('El KM final no puede ser menor que el KM inicial');
       return;
     }
 
-    if (form.id_planta_origen === form.id_planta_destino) {
+    if (formData.id_planta_origen === formData.id_planta_destino) {
       toast.error('La planta de origen y destino deben ser diferentes');
       return;
     }
@@ -96,7 +107,7 @@ const SolicitudTraslados = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify(formData),
       });
 
       const data = await response.json();
@@ -105,8 +116,8 @@ const SolicitudTraslados = () => {
       }
 
       toast.success(`Transporte ${tabIndex.toLowerCase()} solicitado correctamente.`);
-      setForm({
-        ...form,
+      reset({
+        ...defaultValues,
         fecha_salida: obtenerFechaLocal(),
         hora_salida: obtenerHoraLocal(),
         motivo_viaje: '',
@@ -122,7 +133,6 @@ const SolicitudTraslados = () => {
       setIsGenerating(false);
     }
   };
-
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
@@ -156,25 +166,25 @@ const SolicitudTraslados = () => {
               ))}
             </div>
 
-            <form onSubmit={handleSubmit} className="grid gap-x-7 gap-y-4 md:grid-cols-2">
-              <label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">Fecha de salida</span><input type="date" name="fecha_salida" value={form.fecha_salida} onChange={handleChange} required className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" /></label>
+            <form onSubmit={handleSubmit(onSubmit)} className="grid gap-x-7 gap-y-4 md:grid-cols-2">
+              <label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">Fecha de salida</span><input type="date" {...register('fecha_salida', { required: 'La fecha de salida es obligatoria' })} className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" />{errors.fecha_salida && <span className="text-xs text-red-600">{errors.fecha_salida.message}</span>}</label>
 
               {tabIndex === 'EMPRESARIAL' ? (
-                <label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">Chofer</span><input type="text" name="id_chofer" value={form.id_chofer} onChange={handleChange} required placeholder="Ingrese el nombre del chofer" className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none placeholder:text-slate-400 focus:border-[#315b86]" /></label>
+                <label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">Chofer</span><select {...register('id_chofer', { required: 'El chofer es obligatorio' })} disabled={loadingChoferes} className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">{loadingChoferes ? 'Cargando choferes...' : 'Seleccione un chofer'}</option>{choferes.map((chofer) => <option key={chofer.id} value={chofer.id}>{chofer.nombre}</option>)}</select>{errors.id_chofer && <span className="text-xs text-red-600">{errors.id_chofer.message}</span>}</label>
               ) : (
-                <label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">Hora de llegada</span><input type="time" name="hora_llegada" value={form.hora_llegada} onChange={handleChange} className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" /></label>
+                <label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">Hora de llegada *</span><input type="time" {...register('hora_llegada', { required: 'La hora de llegada es obligatoria' })} className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" />{errors.hora_llegada && <span className="text-xs text-red-600">{errors.hora_llegada.message}</span>}</label>
               )}
 
-              <label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">Hora de salida</span><input type="time" name="hora_salida" value={form.hora_salida} onChange={handleChange} required className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" /></label>
-              {tabIndex === 'EMPRESARIAL' && <label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">Hora de llegada</span><input type="time" name="hora_llegada" value={form.hora_llegada} onChange={handleChange} className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" /></label>}
+              <label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">Hora de salida</span><input type="time" {...register('hora_salida', { required: 'La hora de salida es obligatoria' })} className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" />{errors.hora_salida && <span className="text-xs text-red-600">{errors.hora_salida.message}</span>}</label>
+              {tabIndex === 'EMPRESARIAL' && <label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">Hora de llegada *</span><input type="time" {...register('hora_llegada', { required: 'La hora de llegada es obligatoria' })} className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" />{errors.hora_llegada && <span className="text-xs text-red-600">{errors.hora_llegada.message}</span>}</label>}
 
-              {tabIndex === 'PERSONAL' && <><label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">KM inicial</span><input type="number" min="0" step="0.01" name="km_inicial" value={form.km_inicial} onChange={handleChange} required className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" /></label><label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">KM final</span><input type="number" min={form.km_inicial || 0} step="0.01" name="km_final" value={form.km_final} onChange={handleChange} required className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" /></label></>}
+              {tabIndex === 'PERSONAL' && <><label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">KM inicial</span><input type="number" min="0" step="0.01" {...register('km_inicial', { required: 'El KM inicial es obligatorio', valueAsNumber: true })} className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" />{errors.km_inicial && <span className="text-xs text-red-600">{errors.km_inicial.message}</span>}</label><label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">KM final</span><input type="number" min={form.km_inicial || 0} step="0.01" {...register('km_final', { required: 'El KM final es obligatorio', valueAsNumber: true })} className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" />{errors.km_final && <span className="text-xs text-red-600">{errors.km_final.message}</span>}</label></>}
 
-              <label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">Planta de origen</span><select name="id_planta_origen" value={form.id_planta_origen} onChange={handleChange} required className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="" disabled>Ingrese la Planta de Origen</option>{PLANTAS.map((planta) => <option key={planta.id} value={planta.id}>{planta.nombre}</option>)}</select></label>
-              <label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">Planta de destino</span><select name="id_planta_destino" value={form.id_planta_destino} onChange={handleChange} required className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="" disabled>Ingrese la Planta de Destino</option>{PLANTAS.map((planta) => <option key={planta.id} value={planta.id}>{planta.nombre}</option>)}</select></label>
+              <label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">Planta de origen</span><select {...register('id_planta_origen', { required: 'La planta de origen es obligatoria' })} className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="" disabled>Ingrese la Planta de Origen</option>{PLANTAS.map((planta) => <option key={planta.id} value={planta.id}>{planta.nombre}</option>)}</select>{errors.id_planta_origen && <span className="text-xs text-red-600">{errors.id_planta_origen.message}</span>}</label>
+              <label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">Planta de destino</span><select {...register('id_planta_destino', { required: 'La planta de destino es obligatoria' })} className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="" disabled>Ingrese la Planta de Destino</option>{PLANTAS.map((planta) => <option key={planta.id} value={planta.id}>{planta.nombre}</option>)}</select>{errors.id_planta_destino && <span className="text-xs text-red-600">{errors.id_planta_destino.message}</span>}</label>
 
-              <label className="space-y-1.5 md:col-span-2"><span className="text-xs font-bold text-[#17243d]">Motivo</span><textarea name="motivo_viaje" value={form.motivo_viaje} onChange={handleChange} required rows={2} placeholder="Ingrese el motivo de la salida..." className="w-full resize-none rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none placeholder:text-slate-400 focus:border-[#315b86]" /></label>
-              {(tabIndex === 'PERSONAL' || tabIndex === 'PRIVADO') && <label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">Monto</span><input type="number" step="0.01" name="monto_solicitado" value={form.monto_solicitado} onChange={handleChange} required placeholder="Ingrese el monto" className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none placeholder:text-slate-400 focus:border-[#315b86]" /></label>}
+              <label className="space-y-1.5 md:col-span-2"><span className="text-xs font-bold text-[#17243d]">Motivo</span><textarea {...register('motivo_viaje', { required: 'El motivo es obligatorio', validate: (value) => value.trim() !== '' || 'El motivo es obligatorio' })} rows={2} placeholder="Ingrese el motivo de la salida..." className="w-full resize-none rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none placeholder:text-slate-400 focus:border-[#315b86]" />{errors.motivo_viaje && <span className="text-xs text-red-600">{errors.motivo_viaje.message}</span>}</label>
+              {(tabIndex === 'PERSONAL' || tabIndex === 'PRIVADO') && <label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">Monto</span><input type="number" min="0.01" step="0.01" {...register('monto_solicitado', { required: 'El monto es obligatorio', min: { value: 0.01, message: 'El monto debe ser mayor que cero' }, valueAsNumber: true })} placeholder="Ingrese el monto" className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none placeholder:text-slate-400 focus:border-[#315b86]" />{errors.monto_solicitado && <span className="text-xs text-red-600">{errors.monto_solicitado.message}</span>}</label>}
 
               <div className="pt-2 md:col-span-2"><button type="submit" disabled={isGenerating} className="inline-flex items-center gap-2 rounded-md bg-[#17243d] px-5 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#223a5d] disabled:opacity-60">{isGenerating ? <LoaderCircle className="animate-spin" size={16} /> : <CheckCircle2 size={16} />} Guardar solicitud</button></div>
             </form>

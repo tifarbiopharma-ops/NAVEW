@@ -9,11 +9,16 @@ const obtenerCatalogosAcceso = async (req, res) => {
 		const [plantas] = await pool.query(
 			'SELECT ID_Planta AS id, Nombre_Planta AS nombre FROM Plantas ORDER BY Nombre_Planta'
 		);
+		const [areas] = await pool.query(
+			'SELECT ID_AREAS AS id, AREA AS nombre FROM Areas ORDER BY AREA'
+		);
 		const [colaboradores] = await pool.query(
-			`SELECT ID_COLABORADOR AS id, NOMBRE AS nombre
-			 FROM Colaboradores
-			 WHERE ESTADO = 'ACTIVO'
-			 ORDER BY NOMBRE`
+			`SELECT c.ID_COLABORADOR AS id, c.NOMBRE AS nombre,
+					c.AREA AS areaId, a.AREA AS areaNombre
+			 FROM Colaboradores c
+			 LEFT JOIN Areas a ON a.ID_AREAS = c.AREA
+			 WHERE c.ESTADO = 'ACTIVO'
+			 ORDER BY c.NOMBRE`
 		);
 		const [perfilRows] = await pool.query(
 			`SELECT c.ID_COLABORADOR AS id,
@@ -38,6 +43,7 @@ const obtenerCatalogosAcceso = async (req, res) => {
 		return res.status(200).json({
 			success: true,
 			plantas,
+			areas,
 			colaboradores,
 			perfilSolicitante: perfilRows[0] || null,
 		});
