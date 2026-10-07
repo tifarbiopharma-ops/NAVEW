@@ -9,6 +9,7 @@ import {
   registrarSalidaGarita,
   registrarLlegadaGarita,
   obtenerChoferes,
+  obtenerPlantas,
 } from '../controllers/Traslados_controllers.js';
 import { verificarTokenJWT } from '../middlewares/JWT.js';
 
@@ -16,6 +17,7 @@ const router = express.Router();
 
 // Formularios de Creación (Usuarios)
 router.get('/choferes', verificarTokenJWT, obtenerChoferes);
+router.get('/plantas', verificarTokenJWT, obtenerPlantas);
 router.post('/empresarial', verificarTokenJWT, createTrasladoEmpresarial);
 router.post('/personal', verificarTokenJWT, createTrasladoPersonal);
 router.post('/privado', verificarTokenJWT, createTrasladoPrivado);

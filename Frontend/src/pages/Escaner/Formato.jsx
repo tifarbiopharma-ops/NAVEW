@@ -39,12 +39,16 @@ const Formato = ({ token, envio, onClose }) => {
         <div className="etiqueta-qr flex shrink-0 flex-col items-center rounded-lg border border-slate-300 p-3">
           <QRCodeSVG value={token} size={180} level="H" includeMargin />
           <p className="etiqueta-token mt-2 max-w-44 break-all text-center text-[9px] text-slate-500">{token}</p>
+          <div className="mt-2 border-t border-slate-200 pt-2 text-center text-[10px] font-semibold text-[#17243d]">
+            <p>ID: {dato('id_paquete', 'ID_Paquete')}</p>
+            <p>Fecha: {dato('fecha_salida', 'Fecha_Salida')}</p>
+            <p>Hora: {dato('hora_entrega', 'Hora_Entrega')}</p>
+          </div>
         </div>
       </div>
 
       <div className="etiqueta-pie mt-4 flex items-center justify-between text-[10px] text-slate-500">
-        <span className="etiqueta-estado">Pendiente escaneo en destino.</span>
-        <span className="etiqueta-contador">Escaneo 1 de 2</span>
+        <span className="etiqueta-contador">Paquete 1 de 2</span>
       </div>
 
       <div className="mt-5 flex gap-2 print:hidden">

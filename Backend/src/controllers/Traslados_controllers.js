@@ -103,6 +103,21 @@ const obtenerChoferes = async (req, res) => {
   }
 };
 
+const obtenerPlantas = async (req, res) => {
+  try {
+    const [plantas] = await pool.query(
+      'SELECT ID_Planta AS id, Nombre_Planta AS nombre FROM Plantas ORDER BY Nombre_Planta'
+    );
+
+    return res.status(200).json({ success: true, plantas });
+  } catch (error) {
+    return res.status(500).json({
+      msg: 'No se pudieron cargar las plantas',
+      error: error.message,
+    });
+  }
+};
+
 const createTrasladoEmpresarial = async (req, res) => {
   const connection = await pool.getConnection();
   try {
@@ -128,6 +143,11 @@ const createTrasladoPersonal = async (req, res) => {
   const connection = await pool.getConnection();
   try {
     const { km_inicial, km_final, monto_solicitado, evidencia_costo } = req.body;
+    if (km_inicial !== undefined && km_final !== undefined
+      && Number(km_final) <= Number(km_inicial)) {
+      connection.release();
+      return res.status(400).json({ msg: 'El KM final debe ser mayor que el KM inicial' });
+    }
     await connection.beginTransaction();
     const result = await setupTraslado(req, res, connection, 'PERSONAL', 
       ['Km_Inicial', 'Km_Final', 'Monto_Solicitado', 'Evidencia_Costo'], 
@@ -371,6 +391,7 @@ const registrarLlegadaGarita = async (req, res) => {
 
 export {
   obtenerChoferes,
+  obtenerPlantas,
   createTrasladoEmpresarial,
   createTrasladoPersonal,
   createTrasladoPrivado,

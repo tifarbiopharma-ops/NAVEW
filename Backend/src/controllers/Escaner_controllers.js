@@ -13,6 +13,7 @@ const verificarQRPaquetería = async (req, res) => {
     const [rows] = await connection.query(
       `SELECT e.ID_Paquete, e.Estado_Actual, e.QR_Salida, e.QR_Llegada,
               e.Fecha_Salida AS fecha_salida,
+              e.Hora_Entrega AS hora_entrega,
               e.Tipo_Contenido AS tipo_contenido,
               po.Nombre_Planta AS lugar_origen,
               ao.AREA AS departamento_origen,

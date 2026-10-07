@@ -24,16 +24,12 @@ const SolicitudTraslados = () => {
   const claims = getAuthClaims(token);
   const role = (claims?.rol || '').toLowerCase();
   
-  const PLANTAS = [
-    { id: 1, nombre: 'Planta Central' },
-    { id: 2, nombre: 'El Carmen' },
-    { id: 3, nombre: 'Oficinas Centrales' }
-  ];
-  
   const [isGenerating, setIsGenerating] = useState(false);
   const [tabIndex, setTabIndex] = useState('EMPRESARIAL'); // EMPRESARIAL, PERSONAL, PRIVADO
   const [choferes, setChoferes] = useState([]);
+  const [plantas, setPlantas] = useState([]);
   const [loadingChoferes, setLoadingChoferes] = useState(false);
+  const [loadingPlantas, setLoadingPlantas] = useState(false);
 
   const defaultValues = {
     fecha_salida: obtenerFechaLocal(),
@@ -63,6 +59,7 @@ const SolicitudTraslados = () => {
 
     const cargarChoferes = async () => {
       setLoadingChoferes(true);
+      setLoadingPlantas(true);
       try {
         const response = await fetch(`${API}/api/traslados/choferes`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -70,10 +67,17 @@ const SolicitudTraslados = () => {
         const data = await response.json();
         if (!response.ok) throw new Error(data?.msg || 'No se pudieron cargar los choferes');
         setChoferes(data.choferes || []);
+        const plantasResponse = await fetch(`${API}/api/traslados/plantas`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const plantasData = await plantasResponse.json();
+        if (!plantasResponse.ok) throw new Error(plantasData?.msg || 'No se pudieron cargar las plantas');
+        setPlantas(plantasData.plantas || []);
       } catch (error) {
-        toast.error(error.message || 'No se pudieron cargar los choferes');
+        toast.error(error.message || 'No se pudieron cargar los catálogos');
       } finally {
         setLoadingChoferes(false);
+        setLoadingPlantas(false);
       }
     };
 
@@ -178,10 +182,10 @@ const SolicitudTraslados = () => {
               <label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">Hora de salida</span><input type="time" {...register('hora_salida', { required: 'La hora de salida es obligatoria' })} className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" />{errors.hora_salida && <span className="text-xs text-red-600">{errors.hora_salida.message}</span>}</label>
               {tabIndex === 'EMPRESARIAL' && <label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">Hora de llegada *</span><input type="time" {...register('hora_llegada', { required: 'La hora de llegada es obligatoria' })} className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" />{errors.hora_llegada && <span className="text-xs text-red-600">{errors.hora_llegada.message}</span>}</label>}
 
-              {tabIndex === 'PERSONAL' && <><label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">KM inicial</span><input type="number" min="0" step="0.01" {...register('km_inicial', { required: 'El KM inicial es obligatorio', valueAsNumber: true })} className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" />{errors.km_inicial && <span className="text-xs text-red-600">{errors.km_inicial.message}</span>}</label><label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">KM final</span><input type="number" min={form.km_inicial || 0} step="0.01" {...register('km_final', { required: 'El KM final es obligatorio', valueAsNumber: true })} className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" />{errors.km_final && <span className="text-xs text-red-600">{errors.km_final.message}</span>}</label></>}
+              {tabIndex === 'PERSONAL' && <><label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">KM inicial</span><input type="number" min="0" step="0.01" {...register('km_inicial', { required: 'El KM inicial es obligatorio', valueAsNumber: true })} className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" />{errors.km_inicial && <span className="text-xs text-red-600">{errors.km_inicial.message}</span>}</label><label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">KM final</span><input type="number" min={form.km_inicial !== '' ? Number(form.km_inicial) + 0.01 : 0} step="0.01" {...register('km_final', { required: 'El KM final es obligatorio', valueAsNumber: true, validate: (value) => Number(value) > Number(form.km_inicial) || 'El KM final debe ser mayor que el KM inicial' })} className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" />{errors.km_final && <span className="text-xs text-red-600">{errors.km_final.message}</span>}</label></>}
 
-              <label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">Planta de origen</span><select {...register('id_planta_origen', { required: 'La planta de origen es obligatoria' })} className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="" disabled>Ingrese la Planta de Origen</option>{PLANTAS.map((planta) => <option key={planta.id} value={planta.id}>{planta.nombre}</option>)}</select>{errors.id_planta_origen && <span className="text-xs text-red-600">{errors.id_planta_origen.message}</span>}</label>
-              <label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">Planta de destino</span><select {...register('id_planta_destino', { required: 'La planta de destino es obligatoria' })} className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="" disabled>Ingrese la Planta de Destino</option>{PLANTAS.map((planta) => <option key={planta.id} value={planta.id}>{planta.nombre}</option>)}</select>{errors.id_planta_destino && <span className="text-xs text-red-600">{errors.id_planta_destino.message}</span>}</label>
+              <label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">Planta de origen</span><select {...register('id_planta_origen', { required: 'La planta de origen es obligatoria' })} disabled={loadingPlantas} className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="" disabled>{loadingPlantas ? 'Cargando plantas...' : 'Ingrese la Planta de Origen'}</option>{plantas.map((planta) => <option key={planta.id} value={planta.id} disabled={String(planta.id) === String(form.id_planta_destino)}>{planta.nombre}</option>)}</select>{errors.id_planta_origen && <span className="text-xs text-red-600">{errors.id_planta_origen.message}</span>}</label>
+              <label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">Planta de destino</span><select {...register('id_planta_destino', { required: 'La planta de destino es obligatoria' })} disabled={loadingPlantas} className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="" disabled>{loadingPlantas ? 'Cargando plantas...' : 'Ingrese la Planta de Destino'}</option>{plantas.map((planta) => <option key={planta.id} value={planta.id} disabled={String(planta.id) === String(form.id_planta_origen)}>{planta.nombre}</option>)}</select>{errors.id_planta_destino && <span className="text-xs text-red-600">{errors.id_planta_destino.message}</span>}</label>
 
               <label className="space-y-1.5 md:col-span-2"><span className="text-xs font-bold text-[#17243d]">Motivo</span><textarea {...register('motivo_viaje', { required: 'El motivo es obligatorio', validate: (value) => value.trim() !== '' || 'El motivo es obligatorio' })} rows={2} placeholder="Ingrese el motivo de la salida..." className="w-full resize-none rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none placeholder:text-slate-400 focus:border-[#315b86]" />{errors.motivo_viaje && <span className="text-xs text-red-600">{errors.motivo_viaje.message}</span>}</label>
               {(tabIndex === 'PERSONAL' || tabIndex === 'PRIVADO') && <label className="space-y-1.5"><span className="text-xs font-bold text-[#17243d]">Monto</span><input type="number" min="0.01" step="0.01" {...register('monto_solicitado', { required: 'El monto es obligatorio', min: { value: 0.01, message: 'El monto debe ser mayor que cero' }, valueAsNumber: true })} placeholder="Ingrese el monto" className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none placeholder:text-slate-400 focus:border-[#315b86]" />{errors.monto_solicitado && <span className="text-xs text-red-600">{errors.monto_solicitado.message}</span>}</label>}
