@@ -20,6 +20,7 @@ const extensionPorTipo = {
   'image/png': '.png',
   'image/webp': '.webp',
   'image/gif': '.gif',
+  'application/pdf': '.pdf',
 };
 
 const asegurarBucket = async () => {
@@ -32,7 +33,7 @@ const asegurarBucket = async () => {
 const subirImagen = async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ msg: 'Debes enviar una imagen en el campo "imagen"' });
+      return res.status(400).json({ msg: 'Debes enviar una imagen o pdf en el campo "imagen"' });
     }
 
     await asegurarBucket();
@@ -54,7 +55,7 @@ const subirImagen = async (req, res) => {
     const url = await minioClient.presignedGetObject(bucket, objectName, 24 * 60 * 60);
 
     return res.status(201).json({
-      msg: 'Imagen subida correctamente',
+      msg: 'Imagen o pdf subido correctamente',
       imagen: {
         bucket,
         objectName,
@@ -66,7 +67,7 @@ const subirImagen = async (req, res) => {
     });
   } catch (error) {
     console.error('Error subiendo imagen a MinIO:', error);
-    return res.status(500).json({ msg: 'No se pudo subir la imagen' });
+    return res.status(500).json({ msg: 'No se pudo subir la imagen o pdf' });
   }
 };
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { LoaderCircle, Search } from 'lucide-react';
+import { LoaderCircle, Search, ChevronDown } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useParams } from 'react-router-dom';
 import storeAuth from '../../context/storeAuth';
@@ -29,12 +29,16 @@ const MODULES = {
 };
 
 const isCompleted = (status) => {
-  const normalizedStatus = String(status || '').toUpperCase();
-  return normalizedStatus.includes('FINALIZ')
-    || normalizedStatus.includes('COMPLET')
-    || normalizedStatus === 'ESCANEADO_DESTINO'
-    || normalizedStatus === 'LLEGADA';
+  return status === 'Finalizado';
 };
+
+const normalizarEstado = (estado) => {
+  return estado || 'Solicitado';
+};
+
+const ubicacionSolicitud = (item, modulo) => (
+  modulo === 'externo' ? item.destination : `${item.origin} → ${item.destination}`
+);
 
 const normalizeRequest = (item, modulo) => {
   if (modulo === 'transporte') {
@@ -44,9 +48,10 @@ const normalizeRequest = (item, modulo) => {
       requester: item.ID_Solicitante || 'Sin solicitante',
       requesterId: item.ID_Solicitante || item.ID_Usuario || item.id_solicitante || item.id,
       area: item.Tipo_Traslado || 'Transporte',
-      destination: `Planta ${item.ID_Planta_Destino}`,
+      origin: item.Planta_Origen_Nombre || item.planta_origen_nombre || `Planta ${item.ID_Planta_Origen}`,
+      destination: item.Planta_Destino_Nombre || item.planta_destino_nombre || `Planta ${item.ID_Planta_Destino}`,
       date: item.Fecha_Salida,
-      status: item.Estado_Actual,
+      status: normalizarEstado(item.Estado_Actual),
     };
   }
 
@@ -57,9 +62,10 @@ const normalizeRequest = (item, modulo) => {
       requester: item.responsable_nombre || item.nombre_solicitante || 'Sin responsable',
       requesterId: item.ID_Usuario || item.ID_Solicitante || item.ID_Responsable || item.id,
       area: item.area_destino_nombre || 'Paquetería',
+      origin: item.planta_origen_nombre || 'Sin origen',
       destination: item.planta_destino_nombre || 'Sin destino',
       date: item.Fecha_Salida,
-      status: item.Estado_Actual,
+      status: normalizarEstado(item.Estado_Actual),
     };
   }
 
@@ -69,9 +75,10 @@ const normalizeRequest = (item, modulo) => {
     requester: item.empleado_nombre || item.nombre_solicitante || 'Sin solicitante',
     requesterId: item.ID_Empleado || item.ID_Solicitante || item.ID_Usuario || item.id,
     area: item.Area_Visita || 'Acceso externo',
+    origin: item.planta_origen_nombre || 'Sin origen',
     destination: item.planta_destino_nombre || 'Sin destino',
     date: item.Fecha_Visita,
-    status: item.Estado_Actual,
+    status: normalizarEstado(item.Estado_Actual),
   };
 };
 
@@ -98,6 +105,7 @@ const HistoricoSolicitudes = () => {
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState('TODOS'); // 'TODOS' | 'MIS_SOLICITUDES'
   const [loading, setLoading] = useState(true);
+  const [expandedRequestId, setExpandedRequestId] = useState(null);
 
   useEffect(() => {
     setScope(soloMis ? 'MIS_SOLICITUDES' : 'TODOS');
@@ -210,7 +218,46 @@ const HistoricoSolicitudes = () => {
               {config.empty}
             </div>
           ) : (
-            <div className="mt-4 overflow-x-auto">
+            <>
+            <div className="mt-4 md:hidden">
+              <div className="divide-y divide-slate-200 border-y border-slate-200">
+                {filteredRequests.map((item) => {
+                  const isExpanded = expandedRequestId === item.id;
+                  return (
+                    <div key={item.id} className="bg-white">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedRequestId(isExpanded ? null : item.id)}
+                        className="flex w-full items-center gap-3 px-2 py-3 text-left"
+                        aria-expanded={isExpanded}
+                      >
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#17243d] text-white">
+                          <ChevronDown size={15} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center justify-between gap-2 text-[10px] text-slate-500">
+                            <span className="font-semibold">Código</span>
+                            <span className="font-semibold">Solicitante</span>
+                          </span>
+                          <span className="mt-1 flex items-start justify-between gap-3 text-[11px] text-[#17243d]">
+                            <span className="font-bold">{item.code}</span>
+                            <span className="truncate text-right">{item.requester}</span>
+                          </span>
+                        </span>
+                      </button>
+                      {isExpanded && (
+                        <div className="grid grid-cols-2 gap-3 bg-slate-50 px-11 pb-3 pr-3 text-[11px] text-slate-600">
+                          <div><p className="text-[10px] font-semibold uppercase text-slate-400">{modulo === 'externo' ? 'Área / planta de visita' : 'Área / plantas'}</p><p>{item.area}</p><p>{ubicacionSolicitud(item, modulo)}</p></div>
+                          <div><p className="text-[10px] font-semibold uppercase text-slate-400">Fecha</p><p>{String(item.date || '').slice(0, 10)}</p></div>
+                          <div><p className="text-[10px] font-semibold uppercase text-slate-400">Estado</p><span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">Finalizado</span></div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="mt-4 hidden overflow-x-auto md:block">
               <table className="min-w-full text-left text-xs">
                 <thead className="border-y border-slate-200 bg-slate-50 text-[10px] uppercase text-slate-500">
                   <tr>
@@ -227,7 +274,7 @@ const HistoricoSolicitudes = () => {
                       <td className="px-3 py-4 font-bold text-[#17243d]">{item.code}</td>
                       <td className="px-3 py-4 text-slate-600">{item.requester}</td>
                       <td className="px-3 py-4 text-slate-600">
-                        <div>{item.destination}</div>
+                        <div>{ubicacionSolicitud(item, modulo)}</div>
                         <div className="mt-1 text-[10px] text-slate-400">{item.area}</div>
                       </td>
                       <td className="px-3 py-4 text-slate-600">{String(item.date || '').slice(0, 10)}</td>
@@ -241,6 +288,7 @@ const HistoricoSolicitudes = () => {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </section>
       </div>

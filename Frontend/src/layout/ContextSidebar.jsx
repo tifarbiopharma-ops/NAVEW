@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { ClipboardList, Globe2, Package, QrCode } from "lucide-react";
 
-const ContextSidebar = ({ role, path, search }) => {
+const ContextSidebar = ({ role, path, search, mobileMenuOpen, sidebarCollapsed, onNavigate }) => {
   const esSolicitante = role.includes("solicitante");
   const esJefe = role.includes("jefe");
   const esSupervisor = role.includes("supervisor");
@@ -16,7 +16,11 @@ const ContextSidebar = ({ role, path, search }) => {
   const prefijoSeguimiento = esHistorico ? "historico" : "proceso";
 
   return (
-    <aside className="hidden w-48.25 shrink-0 border-r border-[#e5eaf0] bg-white px-4 py-8 lg:block">
+    <aside className={`z-40 w-36 shrink-0 border-r border-[#e5eaf0] bg-white px-2 py-5 transition-all duration-300 lg:static lg:block lg:w-48.25 lg:px-4 lg:py-8 ${
+      mobileMenuOpen
+        ? `fixed bottom-0 top-0 block ${sidebarCollapsed ? "left-16" : "left-[102px]"}`
+        : `fixed bottom-0 top-0 hidden ${sidebarCollapsed ? "left-16" : "left-[102px]"} lg:static lg:block`
+    }`}>
       <p className="mb-6 px-2 text-[10px] font-bold uppercase tracking-[0.04em] text-[#718098]">
         {esProceso ? "Proceso" : esHistorico ? "Histórico" : "Solicitud"}
       </p>
@@ -25,7 +29,8 @@ const ContextSidebar = ({ role, path, search }) => {
           <>
             <Link
               to={`/dashboard/${prefijoSeguimiento}/transporte`}
-              className={`flex items-center gap-3 rounded-md px-3 py-3 text-xs font-bold transition ${
+              onClick={onNavigate}
+              className={`flex items-center gap-2 rounded-md px-2 py-2.5 text-[10px] font-bold transition lg:gap-3 lg:px-3 lg:py-3 lg:text-xs ${
                 path === `/dashboard/${prefijoSeguimiento}/transporte`
                   ? "bg-[#e5effd] text-[#315b86]"
                   : "text-[#4f5d70] hover:bg-slate-50"
@@ -36,7 +41,8 @@ const ContextSidebar = ({ role, path, search }) => {
             </Link>
             <Link
               to={`/dashboard/${prefijoSeguimiento}/paqueteria`}
-              className={`flex items-center gap-3 rounded-md px-3 py-3 text-xs font-bold transition ${
+              onClick={onNavigate}
+              className={`flex items-center gap-2 rounded-md px-2 py-2.5 text-[10px] font-bold transition lg:gap-3 lg:px-3 lg:py-3 lg:text-xs ${
                 path === `/dashboard/${prefijoSeguimiento}/paqueteria`
                   ? "bg-[#e5effd] text-[#315b86]"
                   : "text-[#4f5d70] hover:bg-slate-50"
@@ -47,7 +53,8 @@ const ContextSidebar = ({ role, path, search }) => {
             </Link>
             <Link
               to={`/dashboard/${prefijoSeguimiento}/externo`}
-              className={`flex items-center gap-3 rounded-md px-3 py-3 text-xs font-bold transition ${
+              onClick={onNavigate}
+              className={`flex items-center gap-2 rounded-md px-2 py-2.5 text-[10px] font-bold transition lg:gap-3 lg:px-3 lg:py-3 lg:text-xs ${
                 path === `/dashboard/${prefijoSeguimiento}/externo`
                   ? "bg-[#e5effd] text-[#315b86]"
                   : "text-[#4f5d70] hover:bg-slate-50"
@@ -65,7 +72,8 @@ const ContextSidebar = ({ role, path, search }) => {
             {(esSolicitante || esJefe) && (
               <Link
                 to="/dashboard/transporte"
-                className={`flex items-center gap-3 rounded-md px-3 py-3 text-xs font-bold transition ${
+                onClick={onNavigate}
+                className={`flex items-center gap-2 rounded-md px-2 py-2.5 text-[10px] font-bold transition lg:gap-3 lg:px-3 lg:py-3 lg:text-xs ${
                   esTransporte
                     ? "bg-[#e5effd] text-[#315b86]"
                     : "text-[#4f5d70] hover:bg-slate-50"
@@ -79,7 +87,8 @@ const ContextSidebar = ({ role, path, search }) => {
             {/* Paquetería: visible para solicitante, jefe y supervisor */}
             <Link
               to="/dashboard/paqueteria"
-              className={`flex items-center gap-3 rounded-md px-3 py-3 text-xs font-bold transition ${
+              onClick={onNavigate}
+              className={`flex items-center gap-2 rounded-md px-2 py-2.5 text-[10px] font-bold transition lg:gap-3 lg:px-3 lg:py-3 lg:text-xs ${
                 path === "/dashboard/paqueteria"
                   ? "bg-[#e5effd] text-[#315b86]"
                   : "text-[#4f5d70] hover:bg-slate-50"
@@ -93,7 +102,8 @@ const ContextSidebar = ({ role, path, search }) => {
             {(esSolicitante || esJefe ) && (
               <Link
                 to="/dashboard/externo"
-                className={`flex items-center gap-3 rounded-md px-3 py-3 text-xs font-bold transition ${
+                onClick={onNavigate}
+                className={`flex items-center gap-2 rounded-md px-2 py-2.5 text-[10px] font-bold transition lg:gap-3 lg:px-3 lg:py-3 lg:text-xs ${
                   path === "/dashboard/externo"
                     ? "bg-[#e5effd] text-[#315b86]"
                     : "text-[#4f5d70] hover:bg-slate-50"

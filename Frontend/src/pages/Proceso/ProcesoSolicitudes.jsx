@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { LoaderCircle, Search, QrCode, X, ScanQrCode, Eye, Check, XCircle } from 'lucide-react';
+import { LoaderCircle, Search, QrCode, X, ScanQrCode, Eye, Check, XCircle, ChevronDown } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'react-toastify';
 import { useParams } from 'react-router-dom';
@@ -43,9 +43,10 @@ const normalizeRequest = (item, module) => {
       requester: item.Solicitante_Nombre || item.NOMBRE || 'Sin solicitante',
       requesterId: item.ID_Solicitante || item.ID_Usuario || item.id_solicitante || item.id,
       area: item.Tipo_Traslado || 'Transporte',
-      destination: `Planta ${item.ID_Planta_Destino}`,
+      origin: item.Planta_Origen_Nombre || item.planta_origen_nombre || `Planta ${item.ID_Planta_Origen}`,
+      destination: item.Planta_Destino_Nombre || item.planta_destino_nombre || `Planta ${item.ID_Planta_Destino}`,
       date: item.Fecha_Salida,
-      status: item.Estado_Actual,
+      status: normalizarEstado(item.Estado_Actual),
       qrToken: item.QR_Token || item.ID_Traslado,
     };
   }
@@ -57,9 +58,10 @@ const normalizeRequest = (item, module) => {
       requester: item.responsable_nombre || item.nombre_solicitante || 'Sin responsable',
       requesterId: item.ID_Usuario || item.ID_Solicitante || item.ID_Responsable || item.id,
       area: item.area_destino_nombre || 'Paquetería',
+      origin: item.planta_origen_nombre || 'Sin origen',
       destination: item.planta_destino_nombre || 'Sin destino',
       date: item.Fecha_Salida,
-      status: item.Estado_Actual,
+      status: normalizarEstado(item.Estado_Actual),
       qrToken: item.qrToken || item.QR_Token || item.Token_QR || item.ID_Paquete,
     };
   }
@@ -74,31 +76,41 @@ const normalizeRequest = (item, module) => {
     identification: item.externo_cedula || 'Sin cédula',
     phone: item.externo_telefono || 'Sin teléfono',
     area: item.Area_Visita || 'Acceso externo',
+    origin: item.planta_origen_nombre || 'Sin origen',
     destination: item.planta_destino_nombre || 'Sin destino',
     date: item.Fecha_Visita,
     entryTime: item.Hora_Ingreso || 'Sin hora',
     exitTime: item.Hora_Salida || 'Sin hora',
     reason: item.Motivo || 'Sin motivo indicado',
-    status: item.Estado_Actual,
+    status: normalizarEstado(item.Estado_Actual),
     qrToken: item.QR_Token || null,
   };
 };
 
 const estadoEtiqueta = (estado) => {
-  if (estado === 'EN_CAMINO') return 'En camino';
-  if (estado === 'FINALIZADO') return 'Finalizado';
-  if (estado === 'APROBADO_JEFE') return 'Aprobado';
+  if (estado === 'En camino') return 'En camino';
+  if (estado === 'Finalizado') return 'Finalizado';
+  if (estado === 'Aprobado') return 'Aprobado';
+  if (estado === 'Solicitado') return 'Solicitado';
   return estado || 'SIN ESTADO';
 };
 
 const estadoClase = (estado) => {
-  if (estado === 'EN_CAMINO') {
+  if (estado === 'En camino') {
     return 'bg-amber-50 text-amber-700';
   }
-  if (estado === 'APROBADO_JEFE') return 'bg-emerald-100 text-emerald-700';
-  if (estado === 'FINALIZADO') return 'bg-emerald-50 text-emerald-700';
+  if (estado === 'Aprobado' || estado === 'Finalizado') return 'bg-emerald-50 text-emerald-700';
+  if (estado === 'Solicitado') return 'bg-blue-50 text-[#315b86]';
   return 'bg-blue-50 text-[#315b86]';
 };
+
+const normalizarEstado = (estado) => {
+  return estado || 'Solicitado';
+};
+
+const ubicacionSolicitud = (item, modulo) => (
+  modulo === 'externo' ? item.destination : `${item.origin} → ${item.destination}`
+);
 
 const ProcesoSolicitudes = () => {
   const { modulo = 'transporte' } = useParams();
@@ -130,6 +142,7 @@ const ProcesoSolicitudes = () => {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [approvingId, setApprovingId] = useState(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [expandedRequestId, setExpandedRequestId] = useState(null);
 
   useEffect(() => {
     setScope(soloMis ? 'MIS_SOLICITUDES' : 'TODOS');
@@ -168,7 +181,7 @@ const ProcesoSolicitudes = () => {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.msg || 'No se pudo procesar la solicitud');
-      toast.success(accion === 'APROBADO_JEFE' ? 'Solicitud aprobada y QR generado' : 'Solicitud rechazada');
+      toast.success(accion === 'Aprobado' ? 'Solicitud aprobada y QR generado' : 'Solicitud rechazada');
       setSelectedRequest(null);
       await loadRequests();
     } catch (error) {
@@ -190,7 +203,7 @@ const ProcesoSolicitudes = () => {
     const normalizedQuery = query.trim().toLowerCase();
 
     return requests.filter((item) => {
-      if (modulo === 'paqueteria' && item.status === 'FINALIZADO') return false;
+      if (modulo === 'paqueteria' && item.status === 'Finalizado') return false;
       const matchesQuery = !normalizedQuery || Object.values(item).some((value) => String(value || '').toLowerCase().includes(normalizedQuery));
       const matchesStatus = status === 'TODOS' || item.status === status;
       
@@ -294,7 +307,62 @@ const ProcesoSolicitudes = () => {
               {config.empty}
             </div>
           ) : (
-            <div className="mt-4 overflow-x-auto">
+            <>
+            <div className="mt-4 md:hidden">
+              <div className="divide-y divide-slate-200 border-y border-slate-200">
+                {filteredRequests.map((item) => {
+                  const isExpanded = expandedRequestId === item.id;
+                  return (
+                    <div key={item.id} className="bg-white">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedRequestId(isExpanded ? null : item.id)}
+                        className="flex w-full items-center gap-3 px-2 py-3 text-left"
+                        aria-expanded={isExpanded}
+                      >
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#17243d] text-white">
+                          <ChevronDown size={15} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center justify-between gap-2 text-[10px] text-slate-500">
+                            <span className="font-semibold">Código</span>
+                            <span className="font-semibold">Solicitante</span>
+                          </span>
+                          <span className="mt-1 flex items-start justify-between gap-3 text-[11px] text-[#17243d]">
+                            <span className="font-bold">{item.code}</span>
+                            <span className="truncate text-right">{item.requester}</span>
+                          </span>
+                        </span>
+                      </button>
+                      {isExpanded && (
+                        <div className="grid gap-2 bg-slate-50 px-11 pb-3 pr-3 text-[11px] text-slate-600">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div><p className="text-[10px] font-semibold uppercase text-slate-400">{modulo === 'externo' ? 'Área / planta de visita' : 'Área / plantas'}</p><p>{item.area}</p><p>{ubicacionSolicitud(item, modulo)}</p></div>
+                            <div><p className="text-[10px] font-semibold uppercase text-slate-400">Fecha</p><p>{String(item.date || '').slice(0, 10)}</p></div>
+                          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <div><p className="text-[10px] font-semibold uppercase text-slate-400">Estado</p><span className={`inline-flex rounded-full px-2.5 py-1 font-semibold ${estadoClase(item.status)}`}>{estadoEtiqueta(item.status)}</span></div>
+                            {!isSupervisor && (
+                              <div className="flex flex-wrap justify-end gap-1.5">
+                                {isJefe && <button onClick={() => setSelectedRequest(item)} className="rounded-lg border border-slate-200 bg-white p-1.5 text-[#315b86]" title="Ver datos"><Eye size={15} /></button>}
+                                {isJefe && (modulo === 'transporte' || modulo === 'externo') && item.status === 'Solicitado' && (
+                                  <>
+                                    <button onClick={() => handleApproval(item, 'Aprobado')} disabled={approvingId === item.id} className="rounded-lg bg-[#315b86] p-1.5 text-white disabled:opacity-50" title="Aprobar"><Check size={15} /></button>
+                                    <button onClick={() => handleApproval(item, 'RECHAZADO')} disabled={approvingId === item.id} className="rounded-lg border border-[#77a8d2] bg-[#e5effd] p-1.5 text-[#17243d] disabled:opacity-50" title="Rechazar"><XCircle size={15} /></button>
+                                  </>
+                                )}
+                                {!isJefe && item.qrToken && (modulo === 'paqueteria' || item.status === 'Aprobado') && <button onClick={() => setSelectedQr({ code: item.code, token: item.qrToken })} className="rounded-lg border border-slate-200 bg-white p-1.5 text-[#17243d]" title="Ver Código QR"><QrCode size={15} /></button>}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="mt-4 hidden overflow-x-auto md:block">
               <table className="min-w-full text-left text-xs">
                 <thead className="border-y border-slate-200 bg-slate-50 text-[10px] uppercase text-slate-500">
                   <tr>
@@ -312,7 +380,7 @@ const ProcesoSolicitudes = () => {
                       <td className="px-3 py-4 font-bold text-[#17243d]">{item.code}</td>
                       <td className="px-3 py-4 text-slate-600">{item.requester}</td>
                       <td className="px-3 py-4 text-slate-600">
-                        <div>{item.destination}</div>
+                        <div>{ubicacionSolicitud(item, modulo)}</div>
                         <div className="mt-1 text-[10px] text-slate-400">{item.area}</div>
                       </td>
                       <td className="px-3 py-4 text-slate-600">{String(item.date || '').slice(0, 10)}</td>
@@ -333,10 +401,10 @@ const ProcesoSolicitudes = () => {
                             >
                               <Eye size={15} />
                             </button>}
-                            {isJefe && (modulo === 'transporte' || modulo === 'externo') && item.status === 'SOLICITADO' && (
+                            {isJefe && (modulo === 'transporte' || modulo === 'externo') && item.status === 'Solicitado' && (
                               <>
                                 <button
-                                  onClick={() => handleApproval(item, 'APROBADO_JEFE')}
+                                  onClick={() => handleApproval(item, 'Aprobado')}
                                   disabled={approvingId === item.id}
                                   className="inline-flex items-center gap-1.5 rounded-lg bg-[#315b86] px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-[#223a5d] disabled:opacity-50"
                                   title="Aprobar"
@@ -353,7 +421,7 @@ const ProcesoSolicitudes = () => {
                                 </button>
                               </>
                             )}
-                            {!isJefe && item.qrToken && (modulo === 'paqueteria' || item.status === 'APROBADO_JEFE') && (
+                            {!isJefe && item.qrToken && (modulo === 'paqueteria' || item.status === 'Aprobado') && (
                               <button
                                 onClick={() => setSelectedQr({ code: item.code, token: item.qrToken })}
                                 className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 font-semibold text-[#17243d] transition hover:bg-[#17243d] hover:text-white"
@@ -371,6 +439,7 @@ const ProcesoSolicitudes = () => {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </section>
       </div>

@@ -123,14 +123,14 @@ const crearAccesoExterno = async (req, res) => {
 			`INSERT INTO Accesos_Externos
 			 (ID_Acceso, ID_Externo, ID_Empleado_Visitado, Area_Visita, ID_Planta_Destino,
 			  Fecha_Visita, Hora_Ingreso, Hora_Salida, Motivo, Estado_Actual)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'SOLICITADO')`,
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Solicitado')`,
 			[idAcceso, idExterno, id_empleado_visitado, area_visita.trim(), id_planta_destino, fecha_visita, hora_ingreso || null, hora_salida || null, motivo?.trim() || null]
 		);
 
 		await connection.query(
 			`INSERT INTO Eventos_Process_Mining
 			 (ID_Transaccion, Tipo_Modulo, Fase_Estado, ID_Usuario_Actor, Detalles_Extra)
-			 VALUES (?, 'EXTERNO', 'SOLICITADO', ?, ?)`,
+			 VALUES (?, 'EXTERNO', 'Solicitado', ?, ?)`,
 			[idAcceso, req.user.id, JSON.stringify({ empresa: empresa.trim(), visitante: nombre_apellido.trim() })]
 		);
 
@@ -165,7 +165,7 @@ const obtenerAccesosExternos = async (req, res) => {
 				filtro = 'WHERE 1 = 0';
 			} else {
 				filtro = `WHERE a.ID_Empleado_Visitado IN (${idsSubordinados.map(() => '?').join(', ')})
-					AND a.Estado_Actual = 'SOLICITADO'`;
+					AND a.Estado_Actual = 'Solicitado'`;
 				params.push(...idsSubordinados);
 			}
 		} else if (!['administrador', 'supervisor'].includes(rol)) {
@@ -206,9 +206,9 @@ const aprobarAccesoExterno = async (req, res) => {
 
 		const { id } = req.params;
 		const { accion } = req.body;
-		const aprobado = accion === 'APROBADO_JEFE';
-		const estado = aprobado ? 'APROBADO_JEFE' : 'RECHAZADO';
-		const estadoAprobacion = aprobado ? 'APROBADO' : 'RECHAZADO';
+		const aprobado = accion === 'Aprobado';
+		const estado = aprobado ? 'Aprobado' : 'RECHAZADO';
+		const estadoAprobacion = estado;
 
 		await connection.beginTransaction();
 		const [aprobaciones] = await connection.query(
@@ -227,7 +227,7 @@ const aprobarAccesoExterno = async (req, res) => {
 				`SELECT ID_Acceso FROM Accesos_Externos
 				 WHERE ID_Acceso = ?
 				   AND ID_Empleado_Visitado IN (${idsSubordinados.map(() => '?').join(', ')})
-				   AND Estado_Actual = 'SOLICITADO'`,
+				   AND Estado_Actual = 'Solicitado'`,
 				[id, ...idsSubordinados]
 			);
 

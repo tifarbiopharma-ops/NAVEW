@@ -77,7 +77,7 @@ const verificarQRPaquetería = async (req, res) => {
     }
 
     const campoActualizar = esPrimerEscaneo ? 'QR_Salida' : 'QR_Llegada';
-    const nuevoEstado = esPrimerEscaneo ? 'EN_CAMINO' : 'FINALIZADO';
+    const nuevoEstado = esPrimerEscaneo ? 'En camino' : 'Finalizado';
 
     await connection.beginTransaction();
 

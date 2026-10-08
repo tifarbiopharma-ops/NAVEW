@@ -103,7 +103,7 @@ const crearEnvioPaqueteria = async (req, res) => {
 				(ID_Paquete, Fecha_Salida, Hora_Entrega, Tipo_Contenido, Comentario,
 					 ID_Planta_Origen, ID_Area_Origen, ID_Responsable,
 					 ID_Planta_Destino, ID_Area_Destino, ID_Destinatario, Estado_Actual, QR_Token)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SOLICITADO', ?)`,
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Solicitado', ?)`,
 			[
 				idPaquete,
 				fecha_salida,
@@ -120,7 +120,7 @@ const crearEnvioPaqueteria = async (req, res) => {
 			]
 		);
 
-		await registrarEvento(connection, idPaquete, 'SOLICITADO', req.user.id, { tipo_contenido: tipo_contenido.trim() });
+		await registrarEvento(connection, idPaquete, 'Solicitado', req.user.id, { tipo_contenido: tipo_contenido.trim() });
 
 		await connection.commit();
 		return res.status(201).json({ success: true, msg: 'Solicitud de paquetería creada', idPaquete, qrToken });
@@ -170,4 +170,3 @@ const obtenerEnviosPaqueteria = async (req, res) => {
 };
 
 export { obtenerCatalogosEnvio, crearEnvioPaqueteria, obtenerEnviosPaqueteria, registrarEvento };
-

@@ -3,7 +3,7 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import storeAuth from "../context/storeAuth";
 import useFetch from "../hooks/useFetch";
 import { getAuthClaims } from "../utils/authClaims";
-import { ChevronRight, ClipboardList, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Users, Workflow, X } from "lucide-react";
+import { ChevronRight, ClipboardList, History, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Users, Workflow, X } from "lucide-react";
 import ContextSidebar from "./ContextSidebar";
 import TopBar from "./TopBar";
 
@@ -14,7 +14,9 @@ const Dashboard = () => {
   const { fetchDataBackend } = useFetch();
 
   const [perfilUsuario, setPerfilUsuario] = useState(null);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => (
+    typeof window !== "undefined" && window.innerWidth < 768
+  ));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Extracción segura de roles
@@ -76,6 +78,18 @@ const Dashboard = () => {
   const toggleSidebar = () => setIsCollapsed(!isCollapsed);
   const handleMenuItemClick = () => setMobileMenuOpen(false);
 
+  useEffect(() => {
+    const handleViewportChange = () => {
+      if (window.innerWidth >= 768) {
+        setIsCollapsed(false);
+      }
+    };
+
+    handleViewportChange();
+    window.addEventListener("resize", handleViewportChange);
+    return () => window.removeEventListener("resize", handleViewportChange);
+  }, []);
+
   function getHDImage(url) {
     if (!url) return url;
     if (url.includes("googleusercontent.com") || url.includes("gstatic.com")) {
@@ -97,7 +111,7 @@ const Dashboard = () => {
     };
   }, []);
 
-  const navItemClass = (active) => `group flex items-center gap-3 rounded-md px-3 py-3 text-sm transition ${
+  const navItemClass = (active) => `group flex items-center gap-1 rounded-md px-1.5 py-2 text-[9px] transition md:gap-3 md:px-3 md:py-3 md:text-sm [&>svg]:h-3 [&>svg]:w-3 md:[&>svg]:h-[18px] md:[&>svg]:w-[18px] ${
     active ? "bg-[#285789] font-bold text-white" : "text-[#aab8cf] hover:bg-[#1d3558] hover:text-white"
   } ${isCollapsed ? "justify-center" : ""}`;
 
@@ -118,45 +132,47 @@ const Dashboard = () => {
 
       {/* SIDEBAR */}
       <aside
-        className={`fixed md:relative z-40 transition-all duration-300 ease-in-out bg-[#142744] flex flex-col h-full
+        className={`fixed md:relative z-50 transition-all duration-300 ease-in-out bg-[#142744] flex flex-col h-full
           ${mobileMenuOpen ? "left-0" : "-left-full"} md:left-0 
-          ${isCollapsed ? "md:w-20" : "md:w-50.5"} w-64`}
+          ${isCollapsed ? "w-16 md:w-20" : "w-[102px] md:w-50.5"}`}
       >
-        <div className="flex h-full flex-col px-3 py-6">
-          <div className={`mb-8 px-3 ${isCollapsed ? "text-center" : ""}`}>
-            <div className="text-xl font-black tracking-tight text-white">NA<span className="text-[#77a8d2]">VE</span>W</div>
-            {!isCollapsed && <p className="mt-1 text-[9px] font-medium tracking-[0.08em] text-[#9aacbf]">Farbiopharma</p>}
+        <div className="flex h-full flex-col px-1 py-3 md:px-3 md:py-6">
+          <div className={`mb-4 px-1 md:mb-8 md:px-3 ${isCollapsed ? "text-center" : ""}`}>
+            <div className="text-[11px] font-black tracking-tight text-white md:text-xl">NA<span className="text-[#77a8d2]">VE</span>W</div>
+            {!isCollapsed && <p className="mt-0.5 text-[5px] font-medium tracking-[0.08em] text-[#9aacbf] md:mt-1 md:text-[9px]">Farbiopharma</p>}
           </div>
 
           {/* Botón Colapsar (Desktop) */}
           <button
             onClick={toggleSidebar}
             aria-label={isCollapsed ? "Expandir menú" : "Colapsar menú"}
-            className="absolute -right-3 top-6 hidden h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-[#17243d] shadow-sm transition hover:bg-slate-100 md:flex"
+            className={`absolute -right-3 top-6 z-50 h-7 w-7 items-center justify-center rounded-full border border-[#17243d] bg-[#17243d] text-white shadow-sm transition hover:bg-slate-100 text-[#17243d] hover:text-[#17243d] hover:border-white ${
+              mobileMenuOpen ? "flex" : "hidden md:flex"
+            }`}
           >
             {isCollapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
           </button>
 
           {/* Perfil Usuario */}
-          <div className={`mb-6 flex items-center transition-all ${isCollapsed ? "justify-center" : "px-2"}`}>
+          <div className={`mb-3 flex items-center transition-all ${isCollapsed ? "justify-center" : "px-0.5 md:mb-6 md:px-2"}`}>
             <img
               src={getHDImage(perfilUsuario?.avatarUsuario) || "/usuarioSinfoto.jpg"}
               alt="Avatar"
-              className="h-10 w-10 rounded-full border-2 border-[#dce9f7] object-cover shadow-sm"
+              className="h-5 w-5 rounded-full border border-[#dce9f7] object-cover shadow-sm md:h-10 md:w-10 md:border-2"
             />
             {!isCollapsed && (
-              <div className="ml-3 overflow-hidden">
-                <p className="truncate text-xs font-bold text-white">{nombreUsuario}</p>
-                <p className="text-[10px] capitalize text-[#91a4bd]">{userRole || "usuario"}</p>
+              <div className="ml-1 min-w-0 overflow-hidden md:ml-3">
+                <p className="truncate text-[7px] font-bold text-white md:text-xs">{nombreUsuario}</p>
+                <p className="text-[6px] capitalize text-[#91a4bd] md:text-[10px]">{userRole || "usuario"}</p>
               </div>
             )}
           </div>
 
-          <hr className="mb-6 border-[#2b4162]" />
+          <hr className="mb-3 border-[#2b4162] md:mb-6" />
 
           {/* Navegación */}
           <nav className="flex-1 overflow-y-auto">
-            <ul className="space-y-2 text-sm">
+            <ul className="space-y-0.5 text-[9px] md:space-y-2 md:text-sm">
               
               {/* Menú Usuario Estándar (No Admins) */}
               {!esAdministrador && (
@@ -168,7 +184,7 @@ const Dashboard = () => {
                       className={navItemClass(urlActual.startsWith("/dashboard/transporte"))}
                     >
                       <ClipboardList size={18} />
-                      {!isCollapsed && <span className="ml-3">Solicitud</span>}
+                      {!isCollapsed && <span className="ml-0 md:ml-3">Solicitud</span>}
                       {!isCollapsed && <ChevronRight className="ml-auto" size={14} />}
                     </Link>
                   </li>
@@ -179,7 +195,18 @@ const Dashboard = () => {
                       className={navItemClass(urlActual.startsWith("/dashboard/proceso"))}
                     >
                       <Workflow size={18} />
-                      {!isCollapsed && <span className="ml-3">Proceso</span>}
+                      {!isCollapsed && <span className="ml-0 md:ml-3">Proceso</span>}
+                      {!isCollapsed && <ChevronRight className="ml-auto" size={14} />}
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      to="/dashboard/historico/transporte"
+                      onClick={handleMenuItemClick}
+                      className={navItemClass(urlActual.startsWith("/dashboard/historico"))}
+                    >
+                      <History size={18} />
+                      {!isCollapsed && <span className="ml-0 md:ml-3">Histórico</span>}
                       {!isCollapsed && <ChevronRight className="ml-auto" size={14} />}
                     </Link>
                   </li>
@@ -197,28 +224,36 @@ const Dashboard = () => {
                         className={navItemClass(urlActual === "/dashboard/admin/usuarios")}
                     >
                       <Users size={18} />
-                      {!isCollapsed && <span className="ml-3">Usuarios</span>}
+                      {!isCollapsed && <span className="ml-0 md:ml-3">Usuarios</span>}
                     </Link>
                   </li>
                 </>
               )}
+
             </ul>
           </nav>
 
           {/* Logout */}
-          <div className="mt-auto pt-4">
+          <div className="mt-auto pt-3 md:pt-4">
             <button
               onClick={handleLogout}
-              className={`flex w-full items-center gap-3 rounded-md px-3 py-3 text-sm text-[#aab8cf] transition hover:bg-[#6d2932] hover:text-white ${isCollapsed ? "justify-center" : ""}`}
+              className={`flex w-full items-center gap-1 rounded-md px-1 py-2 text-[9px] text-[#aab8cf] transition hover:bg-[#6d2932] hover:text-white md:gap-3 md:px-3 md:py-3 md:text-sm [&>svg]:h-3 [&>svg]:w-3 md:[&>svg]:h-[18px] md:[&>svg]:w-[18px] ${isCollapsed ? "justify-center" : ""}`}
             >
               <LogOut size={18} />
-              {!isCollapsed && <span className="ml-3 font-medium">Cerrar Sesión</span>}
+              {!isCollapsed && <span className="ml-0 font-medium md:ml-3">Cerrar Sesión</span>}
             </button>
           </div>
         </div>
       </aside>
       
-      <ContextSidebar role={userRole} path={urlActual} search={location.search} />
+      <ContextSidebar
+        role={userRole}
+        path={urlActual}
+        search={location.search}
+        mobileMenuOpen={mobileMenuOpen}
+        sidebarCollapsed={isCollapsed}
+        onNavigate={handleMenuItemClick}
+      />
 
       {/* CONTENIDO PRINCIPAL */}
       <div className="flex min-w-0 flex-1 flex-col">

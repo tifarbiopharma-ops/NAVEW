@@ -60,7 +60,7 @@ const setupTraslado = async (req, res, connection, tipoTraslado, extraFields, ex
   
   await connection.query(
     `INSERT INTO Traslados_Personal (${insertFields}) VALUES (${placeholders})`,
-    [idTraslado, tipoTraslado, fecha_salida, hora_salida, motivo_viaje, observaciones || null, 'SOLICITADO', idSolicitante, id_planta_origen, id_planta_destino, ...actualExtraValues]
+    [idTraslado, tipoTraslado, fecha_salida, hora_salida, motivo_viaje, observaciones || null, 'Solicitado', idSolicitante, id_planta_origen, id_planta_destino, ...actualExtraValues]
   );
 
   await connection.query(
@@ -68,7 +68,7 @@ const setupTraslado = async (req, res, connection, tipoTraslado, extraFields, ex
     [idTraslado, idAprobador]
   );
 
-  await insertEventLog(connection, idTraslado, 'TRASLADO', 'SOLICITADO', idSolicitante);
+  await insertEventLog(connection, idTraslado, 'TRASLADO', 'Solicitado', idSolicitante);
 
   // Si hubo desviación de tiempo, insertar el log de minería de procesos
   if (extraFields.includes('desviacion')) {
@@ -191,9 +191,11 @@ const getTraslados = async (req, res) => {
     const idUsuario = req.user.id;
     const rol = req.user.rol.toLowerCase();
 
-    let query = `SELECT t.*, col.NOMBRE AS Solicitante_Nombre
+    let query = `SELECT t.*, col.NOMBRE AS Solicitante_Nombre, po.Nombre_Planta AS Planta_Origen_Nombre, pd.Nombre_Planta AS Planta_Destino_Nombre
            FROM Traslados_Personal t
            LEFT JOIN Colaboradores col ON col.ID_COLABORADOR = t.ID_Solicitante
+           LEFT JOIN Plantas po ON po.ID_Planta = t.ID_Planta_Origen
+           LEFT JOIN Plantas pd ON pd.ID_Planta = t.ID_Planta_Destino
            ORDER BY t.Fecha_Creacion DESC`;
     let params = [];
 
@@ -202,18 +204,22 @@ const getTraslados = async (req, res) => {
         const idsSubordinados = await obtenerColaboradoresACargo(idUsuario);
         idsSubordinados.push(idUsuario);
         query = idsSubordinados.length
-          ? `SELECT t.*, col.NOMBRE AS Solicitante_Nombre
+          ? `SELECT t.*, col.NOMBRE AS Solicitante_Nombre, po.Nombre_Planta AS Planta_Origen_Nombre, pd.Nombre_Planta AS Planta_Destino_Nombre
              FROM Traslados_Personal t
              LEFT JOIN Colaboradores col ON col.ID_COLABORADOR = t.ID_Solicitante
+             LEFT JOIN Plantas po ON po.ID_Planta = t.ID_Planta_Origen
+             LEFT JOIN Plantas pd ON pd.ID_Planta = t.ID_Planta_Destino
              WHERE t.ID_Solicitante IN (${idsSubordinados.map(() => '?').join(', ')})
-               AND t.Estado_Actual IN ('SOLICITADO', 'PENDIENTE')
+               AND t.Estado_Actual IN ('Solicitado', 'PENDIENTE')
              ORDER BY t.Fecha_Creacion DESC`
-          : 'SELECT t.*, col.NOMBRE AS Solicitante_Nombre FROM Traslados_Personal t LEFT JOIN Colaboradores col ON col.ID_COLABORADOR = t.ID_Solicitante WHERE 1 = 0';
+          : 'SELECT t.*, col.NOMBRE AS Solicitante_Nombre, po.Nombre_Planta AS Planta_Origen_Nombre, pd.Nombre_Planta AS Planta_Destino_Nombre FROM Traslados_Personal t LEFT JOIN Colaboradores col ON col.ID_COLABORADOR = t.ID_Solicitante LEFT JOIN Plantas po ON po.ID_Planta = t.ID_Planta_Origen LEFT JOIN Plantas pd ON pd.ID_Planta = t.ID_Planta_Destino WHERE 1 = 0';
         params = idsSubordinados;
       } else {
-        query = `SELECT t.*, col.NOMBRE AS Solicitante_Nombre
+        query = `SELECT t.*, col.NOMBRE AS Solicitante_Nombre, po.Nombre_Planta AS Planta_Origen_Nombre, pd.Nombre_Planta AS Planta_Destino_Nombre
            FROM Traslados_Personal t
            LEFT JOIN Colaboradores col ON col.ID_COLABORADOR = t.ID_Solicitante
+           LEFT JOIN Plantas po ON po.ID_Planta = t.ID_Planta_Origen
+           LEFT JOIN Plantas pd ON pd.ID_Planta = t.ID_Planta_Destino
            WHERE t.ID_Solicitante = ? ORDER BY t.Fecha_Creacion DESC`;
         params = [idUsuario];
       }
@@ -252,10 +258,10 @@ const approveTraslado = async (req, res) => {
   try {
     const { id } = req.params;
     const idAprobador = req.user.id;
-    const { accion, comentario } = req.body; // 'APROBADO_JEFE' o 'RECHAZADO'
+    const { accion, comentario } = req.body; // 'APROBADO' o 'RECHAZADO'
 
-    const dbEstado = accion === 'APROBADO_JEFE' ? 'APROBADO_JEFE' : 'RECHAZADO';
-    const estadoAprobacion = accion === 'APROBADO_JEFE' ? 'APROBADO' : 'RECHAZADO';
+    const dbEstado = accion === 'Aprobado' ? 'Aprobado' : 'RECHAZADO';
+    const estadoAprobacion = dbEstado;
 
     await connection.beginTransaction();
 
@@ -275,14 +281,14 @@ const approveTraslado = async (req, res) => {
       [estadoAprobacion, comentario || null, aprobaciones[0].ID_APROBACION]
     );
 
-    const updateQuery = dbEstado === 'APROBADO_JEFE'
+    const updateQuery = dbEstado === 'Aprobado'
       ? `UPDATE Traslados_Personal
          SET Estado_Actual = ?, QR_Token = ?
          WHERE ID_Traslado = ?`
       : `UPDATE Traslados_Personal
          SET Estado_Actual = ?
          WHERE ID_Traslado = ?`;
-    const updateParams = dbEstado === 'APROBADO_JEFE'
+    const updateParams = dbEstado === 'Aprobado'
       ? [dbEstado, id, id]
       : [dbEstado, id];
 
@@ -294,7 +300,7 @@ const approveTraslado = async (req, res) => {
     res.status(200).json({
       success: true,
       msg: `Solicitud ${dbEstado.toLowerCase()}`,
-      qrToken: dbEstado === 'APROBADO_JEFE' ? id : null,
+      qrToken: dbEstado === 'Aprobado' ? id : null,
     });
   } catch (error) {
     await connection.rollback();
@@ -317,14 +323,14 @@ const registrarSalidaGarita = async (req, res) => {
 
     await connection.beginTransaction();
     
-    // Solo actualizar si estaba APROBADO_JEFE
+    // Solo actualizar si estaba aprobado
     const [traslado] = await connection.query(`SELECT Estado_Actual, Tipo_Traslado FROM Traslados_Personal WHERE ID_Traslado = ?`, [id]);
-    if (!traslado.length || traslado[0].Estado_Actual !== 'APROBADO_JEFE') {
+    if (!traslado.length || traslado[0].Estado_Actual !== 'Aprobado') {
       await connection.rollback();
       return res.status(400).json({ msg: "El traslado no está aprobado o ya salió." });
     }
 
-    let updates = `Estado_Actual = 'ESCANEADO_ORIGEN', Observaciones = CONCAT_WS(' | ', Observaciones, ?)`;
+    let updates = `Estado_Actual = 'En camino', Observaciones = CONCAT_WS(' | ', Observaciones, ?)`;
     let params = [observaciones || 'Salida en garita', id];
 
     if (traslado[0].Tipo_Traslado === 'EMPRESARIAL' || traslado[0].Tipo_Traslado === 'PERSONAL') {
@@ -332,12 +338,12 @@ const registrarSalidaGarita = async (req, res) => {
         await connection.rollback();
         return res.status(400).json({ msg: "Debe ingresar Km Inicial para este tipo de transporte." });
       }
-      updates = `Estado_Actual = 'ESCANEADO_ORIGEN', Km_Inicial = ?, Observaciones = CONCAT_WS(' | ', Observaciones, ?)`;
+      updates = `Estado_Actual = 'En camino', Km_Inicial = ?, Observaciones = CONCAT_WS(' | ', Observaciones, ?)`;
       params = [km_inicial, observaciones || 'Salida en garita', id];
     }
 
     await connection.query(`UPDATE Traslados_Personal SET ${updates} WHERE ID_Traslado = ?`, params);
-    await insertEventLog(connection, id, 'TRASLADO', 'ESCANEADO_ORIGEN', idGuardia, { km_inicial, observaciones });
+    await insertEventLog(connection, id, 'TRASLADO', 'En camino', idGuardia, { km_inicial, observaciones });
 
     await connection.commit();
     res.status(200).json({ success: true, msg: "Salida registrada en garita exitosamente." });
@@ -359,12 +365,12 @@ const registrarLlegadaGarita = async (req, res) => {
     await connection.beginTransaction();
     
     const [traslado] = await connection.query(`SELECT Estado_Actual, Tipo_Traslado FROM Traslados_Personal WHERE ID_Traslado = ?`, [id]);
-    if (!traslado.length || traslado[0].Estado_Actual !== 'ESCANEADO_ORIGEN') {
+    if (!traslado.length || traslado[0].Estado_Actual !== 'En camino') {
       await connection.rollback();
       return res.status(400).json({ msg: "El traslado no ha salido o ya llegó." });
     }
 
-    let updates = `Estado_Actual = 'ESCANEADO_DESTINO', Hora_Llegada = CURRENT_TIME(), Observaciones = CONCAT_WS(' | ', Observaciones, ?)`;
+    let updates = `Estado_Actual = 'Finalizado', Hora_Llegada = CURRENT_TIME(), Observaciones = CONCAT_WS(' | ', Observaciones, ?)`;
     let params = [observaciones || 'Llegada en garita', id];
 
     if (traslado[0].Tipo_Traslado === 'EMPRESARIAL' || traslado[0].Tipo_Traslado === 'PERSONAL') {
@@ -372,12 +378,12 @@ const registrarLlegadaGarita = async (req, res) => {
         await connection.rollback();
         return res.status(400).json({ msg: "Debe ingresar Km Final para este tipo de transporte." });
       }
-      updates = `Estado_Actual = 'ESCANEADO_DESTINO', Hora_Llegada = CURRENT_TIME(), Km_Final = ?, Observaciones = CONCAT_WS(' | ', Observaciones, ?)`;
+      updates = `Estado_Actual = 'Finalizado', Hora_Llegada = CURRENT_TIME(), Km_Final = ?, Observaciones = CONCAT_WS(' | ', Observaciones, ?)`;
       params = [km_final, observaciones || 'Llegada en garita', id];
     }
 
     await connection.query(`UPDATE Traslados_Personal SET ${updates} WHERE ID_Traslado = ?`, params);
-    await insertEventLog(connection, id, 'TRASLADO', 'ESCANEADO_DESTINO', idGuardia, { km_final, observaciones });
+    await insertEventLog(connection, id, 'TRASLADO', 'Finalizado', idGuardia, { km_final, observaciones });
 
     await connection.commit();
     res.status(200).json({ success: true, msg: "Llegada registrada en garita exitosamente." });
