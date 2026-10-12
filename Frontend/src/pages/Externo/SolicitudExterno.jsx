@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useFieldArray, useForm } from 'react-hook-form';
 import { LoaderCircle, Send, UserRound } from 'lucide-react';
 import { ToastContainer, toast } from 'react-toastify';
 import storeAuth from '../../context/storeAuth';
@@ -23,6 +23,8 @@ const initialForm = {
   hora_ingreso: '',
   hora_salida: '',
   motivo: '',
+  numero_acompanantes: 0,
+  acompanantes: [],
 };
 
 const SolicitudExterno = () => {
@@ -33,8 +35,12 @@ const SolicitudExterno = () => {
     reset,
     setValue,
     getValues,
+    watch,
+    control,
     formState: { errors },
   } = useForm({ defaultValues: initialForm });
+  const { fields, replace } = useFieldArray({ control, name: 'acompanantes' });
+  const numeroAcompanantes = watch('numero_acompanantes', 0);
   const [catalogos, setCatalogos] = useState({ plantas: [], areas: [], colaboradores: [] });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -68,6 +74,17 @@ const SolicitudExterno = () => {
 
     loadCatalogos();
   }, [token, getValues, setValue]);
+
+  useEffect(() => {
+    const cantidad = Math.max(0, Math.min(20, Number(numeroAcompanantes) || 0));
+    const actuales = getValues('acompanantes') || [];
+    if (actuales.length !== cantidad) {
+      replace(Array.from({ length: cantidad }, (_, index) => actuales[index] || {
+        nombre_apellido: '',
+        cedula: '',
+      }));
+    }
+  }, [numeroAcompanantes, getValues, replace]);
 
   const onSubmit = async (formData) => {
     setSaving(true);
@@ -125,6 +142,14 @@ const SolicitudExterno = () => {
               <label className="space-y-1.5"><span className="text-xs font-semibold text-[#17243d]">Nombre y Apellido *</span><input {...register('nombre_apellido', { required: 'El nombre es obligatorio', maxLength: 150, validate: (value) => value.trim() !== '' || 'El nombre es obligatorio' })} placeholder="Ingrese el nombre del funcionario" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" />{errors.nombre_apellido && <span className="text-xs text-red-600">{errors.nombre_apellido.message}</span>}</label>
               <label className="space-y-1.5"><span className="text-xs font-semibold text-[#17243d]">N° Cédula *</span><input {...register('cedula', { required: 'La cédula es obligatoria', maxLength: 20, validate: (value) => value.trim() !== '' || 'La cédula es obligatoria' })} placeholder="Ingrese el número de Cédula" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" />{errors.cedula && <span className="text-xs text-red-600">{errors.cedula.message}</span>}</label>
               <label className="space-y-1.5"><span className="text-xs font-semibold text-[#17243d]">Teléfono *</span><input {...register('telefono', { required: 'El teléfono es obligatorio', maxLength: 20, validate: (value) => value.trim() !== '' || 'El teléfono es obligatorio' })} placeholder="Ingrese el número de teléfono" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" />{errors.telefono && <span className="text-xs text-red-600">{errors.telefono.message}</span>}</label>
+              <label className="space-y-1.5"><span className="text-xs font-semibold text-[#17243d]">Número de acompañantes</span><input type="number" min="0" max="20" {...register('numero_acompanantes', { valueAsNumber: true, min: { value: 0, message: 'El mínimo es 0' }, max: { value: 20, message: 'El máximo es 20' } })} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" />{errors.numero_acompanantes && <span className="text-xs text-red-600">{errors.numero_acompanantes.message}</span>}</label>
+              {fields.map((field, index) => (
+                <div key={field.id} className="grid gap-4 rounded-lg border border-blue-100 bg-blue-50/40 p-4 md:col-span-2 md:grid-cols-2">
+                  <p className="text-xs font-bold text-[#315b86] md:col-span-2">Acompañante {index + 1}</p>
+                  <label className="space-y-1.5"><span className="text-xs font-semibold text-[#17243d]">Nombre y Apellido *</span><input {...register(`acompanantes.${index}.nombre_apellido`, { required: 'El nombre es obligatorio', maxLength: 150, validate: (value) => value.trim() !== '' || 'El nombre es obligatorio' })} placeholder="Ingrese el nombre del acompañante" className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" />{errors.acompanantes?.[index]?.nombre_apellido && <span className="text-xs text-red-600">{errors.acompanantes[index].nombre_apellido.message}</span>}</label>
+                  <label className="space-y-1.5"><span className="text-xs font-semibold text-[#17243d]">N° Cédula *</span><input {...register(`acompanantes.${index}.cedula`, { required: 'La cédula es obligatoria', maxLength: 20, validate: (value) => value.trim() !== '' || 'La cédula es obligatoria' })} placeholder="Ingrese la cédula del acompañante" className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" />{errors.acompanantes?.[index]?.cedula && <span className="text-xs text-red-600">{errors.acompanantes[index].cedula.message}</span>}</label>
+                </div>
+              ))}
               <label className="space-y-1.5"><span className="text-xs font-semibold text-[#17243d]">Persona a quién visita *</span><select {...register('id_empleado_visitado', { required: 'El colaborador es obligatorio', onChange: (event) => {
                 const colaborador = catalogos.colaboradores.find((item) => String(item.id) === event.target.value);
                 const area = catalogos.areas.find((item) => String(item.id) === String(colaborador?.areaId));

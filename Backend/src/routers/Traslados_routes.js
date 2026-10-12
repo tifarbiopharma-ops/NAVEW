@@ -8,6 +8,7 @@ import {
   approveTraslado,
   registrarSalidaGarita,
   registrarLlegadaGarita,
+  finalizarTraslado,
   obtenerChoferes,
   obtenerPlantas,
 } from '../controllers/Traslados_controllers.js';
@@ -32,5 +33,6 @@ router.put('/approve/:id', verificarTokenJWT, approveTraslado);
 // Operaciones en Garita (Seguridad)
 router.put('/garita/salida/:id', verificarTokenJWT, registrarSalidaGarita);
 router.put('/garita/llegada/:id', verificarTokenJWT, registrarLlegadaGarita);
+router.put('/finalizar/:id', verificarTokenJWT, finalizarTraslado);
 
 export default router;

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import PropTypes from 'prop-types';
 import { Camera, CheckCircle2, AlertCircle, RefreshCw, XCircle } from 'lucide-react';
 import { BrowserQRCodeReader } from '@zxing/library';
 import storeAuth from '../../context/storeAuth';
@@ -7,7 +8,7 @@ import Formato from './Formato';
 const API = import.meta.env.VITE_BACKEND_URL;
 const TIEMPO_MINIMO_VALIDACION_MS = 5000;
 
-const Escanear = ({ isOpen = true, onClose, onSuccess }) => {
+const Escanear = ({ isOpen = true, onClose, onSuccess, tipo = 'paqueteria' }) => {
   const token = storeAuth((state) => state.token);
   const [scanning, setScanning] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -17,6 +18,10 @@ const Escanear = ({ isOpen = true, onClose, onSuccess }) => {
   const [formatoSalida, setFormatoSalida] = useState(null);
   const [aprobado, setAprobado] = useState(false);
   const [qrFinalizado, setQrFinalizado] = useState(false);
+  const [finalizacion, setFinalizacion] = useState(null);
+  const [kmFinal, setKmFinal] = useState('');
+  const [archivo, setArchivo] = useState(null);
+  const [guardandoFinalizacion, setGuardandoFinalizacion] = useState(false);
 
   const videoRef = useRef(null);
   const codeReaderRef = useRef(null);
@@ -74,7 +79,7 @@ const Escanear = ({ isOpen = true, onClose, onSuccess }) => {
         await codeReader.decodeFromVideoDevice(
           selectedDeviceId,
           videoRef.current,
-          (result, err) => {
+          (result) => {
             if (result && isSubscribed) {
               handleProcessCode(result.getText());
             }
@@ -120,7 +125,8 @@ const Escanear = ({ isOpen = true, onClose, onSuccess }) => {
         setScanning(false);
       }
 
-      const response = await fetch(`${API}/api/escaner/paqueteria`, {
+      const endpoint = tipo === 'transporte' ? 'transporte' : tipo === 'externo' ? 'externo' : 'paqueteria';
+      const response = await fetch(`${API}/api/escaner/${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -152,7 +158,7 @@ const Escanear = ({ isOpen = true, onClose, onSuccess }) => {
             }
           );
           setScanning(true);
-        } catch (_) {
+        } catch {
           /* ignore */
         }
       }
@@ -162,7 +168,24 @@ const Escanear = ({ isOpen = true, onClose, onSuccess }) => {
       if (tiempoRestante > 0) {
         await new Promise((resolve) => setTimeout(resolve, tiempoRestante));
       }
-      if (mensajeResultado?.type === 'success' && datosResultado?.escaneos === 1) {
+      if (mensajeResultado?.type === 'success' && tipo === 'transporte' && datosResultado?.escaneos === 2 && (datosResultado.requiereKmFinal || datosResultado.requiereFactura)) {
+        setFinalizacion(datosResultado);
+      } else if (mensajeResultado?.type === 'success' && (tipo === 'transporte' || tipo === 'externo') && datosResultado?.escaneos === 1) {
+        setMessage({
+          type: 'success',
+          text: tipo === 'externo'
+            ? 'Entrada registrada. Escanea nuevamente al salir.'
+            : 'Salida registrada. Escanea nuevamente al llegar al destino.',
+        });
+        if (selectedDeviceId) {
+          const nextReader = new BrowserQRCodeReader();
+          codeReaderRef.current = nextReader;
+          await nextReader.decodeFromVideoDevice(selectedDeviceId, videoRef.current, (result) => {
+            if (result) handleProcessCode(result.getText());
+          });
+          setScanning(true);
+        }
+      } else if (mensajeResultado?.type === 'success' && tipo === 'paqueteria' && datosResultado?.escaneos === 1) {
         setFormatoSalida({ token: code, data: datosResultado });
       } else if (mensajeResultado?.type === 'success' && datosResultado?.escaneos === 2) {
         setAprobado(true);
@@ -174,6 +197,65 @@ const Escanear = ({ isOpen = true, onClose, onSuccess }) => {
       setLoading(false);
     }
   };
+
+  const guardarFinalizacion = async (event) => {
+    event.preventDefault();
+    if (!finalizacion?.traslado?.ID_Traslado) return;
+    setGuardandoFinalizacion(true);
+    try {
+      let evidenciaCosto;
+      if (finalizacion.requiereFactura) {
+        if (!archivo) throw new Error('Selecciona una foto o PDF de la factura');
+        const formData = new FormData();
+        formData.append('imagen', archivo);
+        const uploadResponse = await fetch(`${API}/api/imagenes`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+        const uploadData = await uploadResponse.json();
+        if (!uploadResponse.ok) throw new Error(uploadData?.msg || 'No se pudo subir la factura');
+        evidenciaCosto = uploadData.imagen?.url;
+      }
+      const response = await fetch(`${API}/api/traslados/finalizar/${finalizacion.traslado.ID_Traslado}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `******`,
+        },
+        body: JSON.stringify({ km_final: kmFinal, evidencia_costo: evidenciaCosto }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.msg || 'No se pudo finalizar el traslado');
+      setFinalizacion(null);
+      setAprobado(true);
+      onSuccess?.(data);
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message });
+    } finally {
+      setGuardandoFinalizacion(false);
+    }
+  };
+
+  if (finalizacion) {
+    const esFactura = finalizacion.requiereFactura;
+    return (
+      <form onSubmit={guardarFinalizacion} className="rounded-xl bg-white p-6">
+        <h2 className="text-xl font-bold text-[#17243d]">Segundo QR registrado</h2>
+        <p className="mt-2 text-sm text-slate-500">
+          {esFactura ? 'Adjunta la factura del traslado.' : 'Ingresa el KM final del vehículo.'}
+        </p>
+        {esFactura ? (
+          <input type="file" accept="image/*,application/pdf" required onChange={(event) => setArchivo(event.target.files?.[0] || null)} className="mt-5 w-full rounded-lg border border-slate-200 p-3 text-sm" />
+        ) : (
+          <input type="number" min="0" step="0.01" required value={kmFinal} onChange={(event) => setKmFinal(event.target.value)} placeholder="KM final" className="mt-5 w-full rounded-lg border border-slate-200 p-3 text-sm" />
+        )}
+        <button type="submit" disabled={guardandoFinalizacion} className="mt-5 rounded-lg bg-[#17243d] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
+          {guardandoFinalizacion ? 'Guardando...' : 'Finalizar traslado'}
+        </button>
+      </form>
+    );
+  }
 
   if (formatoSalida) {
     return (
@@ -311,3 +393,10 @@ const Escanear = ({ isOpen = true, onClose, onSuccess }) => {
 };
 
 export default Escanear;
+
+Escanear.propTypes = {
+  isOpen: PropTypes.bool,
+  onClose: PropTypes.func,
+  onSuccess: PropTypes.func,
+  tipo: PropTypes.oneOf(['paqueteria', 'transporte', 'externo']),
+};

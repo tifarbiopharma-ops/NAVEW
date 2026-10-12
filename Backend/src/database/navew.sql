@@ -8,6 +8,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 
 DROP TABLE IF EXISTS `Eventos_Process_Mining`;
 DROP TABLE IF EXISTS `Aprobaciones`;
+DROP TABLE IF EXISTS `Accesos_Externos_Acompanantes`;
 DROP TABLE IF EXISTS `Accesos_Externos`;
 DROP TABLE IF EXISTS `Envios_Paqueteria`;
 DROP TABLE IF EXISTS `Traslados_Personal`;
@@ -281,6 +282,7 @@ CREATE TABLE `Celulares` (
 
 CREATE TABLE `Externos` (
     `ID_Externo` VARCHAR(64) NOT NULL,
+    `Es_Acompanante` TINYINT(1) NOT NULL DEFAULT 0,
     `Nombre_Apellido` VARCHAR(150) NOT NULL,
     `Cedula` VARCHAR(20) NOT NULL,
     `Telefono` VARCHAR(20) NOT NULL,
@@ -315,8 +317,8 @@ CREATE TABLE `Traslados_Personal` (
     `Estado_Actual` VARCHAR(30) NOT NULL,
 
     `QR_Token` TEXT NULL,
-    `QR_Salida` TEXT NULL,
-    `QR_Llegada` TEXT NULL,
+    `QR_Salida` DATETIME NULL,
+    `QR_Entrada` DATETIME NULL,
 
     `ID_Solicitante` INT NOT NULL,
     `ID_Chofer` INT NULL,
@@ -386,7 +388,7 @@ CREATE TABLE `Envios_Paqueteria` (
 
     `QR_Token` TEXT NULL,
     `QR_Salida` TEXT NULL,
-    `QR_Llegada` TEXT NULL,
+    `QR_Entrada` DATETIME NULL,
 
     `Fecha_Creacion` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `Fecha_Actualizacion` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -447,6 +449,7 @@ CREATE TABLE `Accesos_Externos` (
     `ID_Acceso` VARCHAR(36) NOT NULL,
     `ID_Externo` VARCHAR(64) NOT NULL,
     `ID_Empleado_Visitado` INT NOT NULL,
+    `Numero_Acompanantes` INT NOT NULL DEFAULT 0,
 
     `Area_Visita` VARCHAR(100) NOT NULL,
     `ID_Planta_Destino` VARCHAR(10) NOT NULL,
@@ -491,9 +494,32 @@ CREATE TABLE `Accesos_Externos` (
         ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- =========================================================
+-- 15. ACOMPAÑANTES DE ACCESOS EXTERNOS
+-- =========================================================
+
+CREATE TABLE `Accesos_Externos_Acompanantes` (
+    `ID_Acceso` VARCHAR(36) NOT NULL,
+    `ID_Externo` VARCHAR(64) NOT NULL,
+
+    PRIMARY KEY (`ID_Acceso`, `ID_Externo`),
+
+    CONSTRAINT `fk_acompanantes_acceso`
+        FOREIGN KEY (`ID_Acceso`)
+        REFERENCES `Accesos_Externos` (`ID_Acceso`)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+
+    CONSTRAINT `fk_acompanantes_externo`
+        FOREIGN KEY (`ID_Externo`)
+        REFERENCES `Externos` (`ID_Externo`)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 
 -- =========================================================
--- 15. APROBACIONES
+-- 16. APROBACIONES
 -- =========================================================
 
 CREATE TABLE `Aprobaciones` (

@@ -82,12 +82,14 @@ const normalizeRequest = (item, module) => {
     entryTime: item.Hora_Ingreso || 'Sin hora',
     exitTime: item.Hora_Salida || 'Sin hora',
     reason: item.Motivo || 'Sin motivo indicado',
+    companions: Number(item.Numero_Acompanantes || 0),
     status: normalizarEstado(item.Estado_Actual),
     qrToken: item.QR_Token || null,
   };
 };
 
 const estadoEtiqueta = (estado) => {
+  if (estado === 'Entrada registrada') return 'Entrada registrada';
   if (estado === 'En camino') return 'En camino';
   if (estado === 'Finalizado') return 'Finalizado';
   if (estado === 'Aprobado') return 'Aprobado';
@@ -96,6 +98,9 @@ const estadoEtiqueta = (estado) => {
 };
 
 const estadoClase = (estado) => {
+  if (estado === 'Entrada registrada') {
+    return 'bg-amber-50 text-amber-700';
+  }
   if (estado === 'En camino') {
     return 'bg-amber-50 text-amber-700';
   }
@@ -233,7 +238,7 @@ const ProcesoSolicitudes = () => {
           </div>
 
           {/* Botón Escanear QR para Supervisor en Paquetería y Externo */}
-          {isSupervisor && (modulo === 'paqueteria' || modulo === 'externo') && (
+          {isSupervisor && (modulo === 'paqueteria' || modulo === 'externo' || modulo === 'transporte') && (
             <div>
               <button
                 onClick={() => setIsScannerOpen(true)}
@@ -351,7 +356,7 @@ const ProcesoSolicitudes = () => {
                                     <button onClick={() => handleApproval(item, 'RECHAZADO')} disabled={approvingId === item.id} className="rounded-lg border border-[#77a8d2] bg-[#e5effd] p-1.5 text-[#17243d] disabled:opacity-50" title="Rechazar"><XCircle size={15} /></button>
                                   </>
                                 )}
-                                {!isJefe && item.qrToken && (modulo === 'paqueteria' || item.status === 'Aprobado') && <button onClick={() => setSelectedQr({ code: item.code, token: item.qrToken })} className="rounded-lg border border-slate-200 bg-white p-1.5 text-[#17243d]" title="Ver Código QR"><QrCode size={15} /></button>}
+                                {!isJefe && item.qrToken && (modulo === 'paqueteria' || item.status === 'Aprobado') && <button onClick={() => setSelectedQr({ code: item.code, token: item.qrToken, companions: item.companions })} className="rounded-lg border border-slate-200 bg-white p-1.5 text-[#17243d]" title="Ver Código QR"><QrCode size={15} /></button>}
                               </div>
                             )}
                           </div>
@@ -423,7 +428,7 @@ const ProcesoSolicitudes = () => {
                             )}
                             {!isJefe && item.qrToken && (modulo === 'paqueteria' || item.status === 'Aprobado') && (
                               <button
-                                onClick={() => setSelectedQr({ code: item.code, token: item.qrToken })}
+                                onClick={() => setSelectedQr({ code: item.code, token: item.qrToken, companions: item.companions })}
                                 className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 font-semibold text-[#17243d] transition hover:bg-[#17243d] hover:text-white"
                                 title="Ver Código QR"
                               >
@@ -457,7 +462,7 @@ const ProcesoSolicitudes = () => {
 
             <h3 className="mb-4 text-lg font-bold text-[#17243d]">Escanear Código QR</h3>
             <div className="overflow-hidden rounded-xl bg-slate-50 p-2 border border-slate-100">
-              <Escanear onClose={() => setIsScannerOpen(false)} />
+              <Escanear tipo={modulo} onClose={() => setIsScannerOpen(false)} />
             </div>
           </div>
         </div>
@@ -519,6 +524,11 @@ const ProcesoSolicitudes = () => {
               </div>
               <h3 className="text-lg font-bold text-[#17243d]">Código QR de Solicitud</h3>
               <p className="text-xs font-semibold text-[#315b86]">{selectedQr.code}</p>
+              {modulo === 'externo' && (
+                <p className="mt-1 text-sm font-semibold text-[#17243d]">
+                  Acompañantes: {selectedQr.companions}
+                </p>
+              )}
 
               <div className="my-5 rounded-xl border border-slate-100 bg-slate-50 p-4 shadow-inner">
                 <QRCodeSVG value={selectedQr.token} size={200} level="H" includeMargin />

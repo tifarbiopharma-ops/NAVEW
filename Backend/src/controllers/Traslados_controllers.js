@@ -142,16 +142,11 @@ const createTrasladoEmpresarial = async (req, res) => {
 const createTrasladoPersonal = async (req, res) => {
   const connection = await pool.getConnection();
   try {
-    const { km_inicial, km_final, monto_solicitado, evidencia_costo } = req.body;
-    if (km_inicial !== undefined && km_final !== undefined
-      && Number(km_final) <= Number(km_inicial)) {
-      connection.release();
-      return res.status(400).json({ msg: 'El KM final debe ser mayor que el KM inicial' });
-    }
+    const { km_inicial, monto_solicitado } = req.body;
     await connection.beginTransaction();
     const result = await setupTraslado(req, res, connection, 'PERSONAL', 
-      ['Km_Inicial', 'Km_Final', 'Monto_Solicitado', 'Evidencia_Costo'], 
-      [km_inicial || null, km_final || null, monto_solicitado || null, evidencia_costo || null]
+      ['Km_Inicial', 'Monto_Solicitado'],
+      [km_inicial || null, monto_solicitado || null]
     );
     await connection.commit();
     res.status(201).json({ success: true, msg: "Transporte Personal registrado", ...result });
@@ -395,6 +390,63 @@ const registrarLlegadaGarita = async (req, res) => {
   }
 };
 
+const finalizarTraslado = async (req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    const { id } = req.params;
+    const { km_final, evidencia_costo } = req.body;
+    await connection.beginTransaction();
+    const [rows] = await connection.query(
+      `SELECT Tipo_Traslado, Estado_Actual, Km_Inicial FROM Traslados_Personal WHERE ID_Traslado = ? FOR UPDATE`,
+      [id]
+    );
+    if (!rows.length) {
+      await connection.rollback();
+      return res.status(404).json({ msg: 'Traslado no encontrado' });
+    }
+    const traslado = rows[0];
+    if (!['PERSONAL', 'PRIVADO'].includes(traslado.Tipo_Traslado)) {
+      await connection.rollback();
+      return res.status(400).json({ msg: 'Este tipo de traslado no requiere información adicional' });
+    }
+    if (traslado.Estado_Actual !== 'Pendiente KM final' && traslado.Estado_Actual !== 'Pendiente factura') {
+      await connection.rollback();
+      return res.status(400).json({ msg: 'El traslado no está pendiente de finalización' });
+    }
+    if (traslado.Tipo_Traslado === 'PERSONAL') {
+      if (km_final === undefined || km_final === '' || Number(km_final) <= Number(traslado.Km_Inicial)) {
+        await connection.rollback();
+        return res.status(400).json({ msg: 'El KM final debe ser mayor que el KM inicial' });
+      }
+      await connection.query(
+        `UPDATE Traslados_Personal SET Km_Final = ?, Estado_Actual = 'Finalizado' WHERE ID_Traslado = ?`,
+        [km_final, id]
+      );
+    } else {
+      if (!evidencia_costo || typeof evidencia_costo !== 'string') {
+        await connection.rollback();
+        return res.status(400).json({ msg: 'Debes adjuntar la factura del traslado privado' });
+      }
+      await connection.query(
+        `UPDATE Traslados_Personal SET Evidencia_Costo = ?, Estado_Actual = 'Finalizado' WHERE ID_Traslado = ?`,
+        [evidencia_costo, id]
+      );
+    }
+    await insertEventLog(connection, id, 'TRASLADO', 'Finalizado', req.user.id, {
+      km_final: km_final || null,
+      evidencia_costo: evidencia_costo || null,
+      fecha_hora: new Date().toISOString(),
+    });
+    await connection.commit();
+    return res.json({ success: true, msg: 'Traslado finalizado correctamente' });
+  } catch (error) {
+    await connection.rollback();
+    return res.status(500).json({ msg: 'No se pudo finalizar el traslado', error: error.message });
+  } finally {
+    connection.release();
+  }
+};
+
 export {
   obtenerChoferes,
   obtenerPlantas,
@@ -406,4 +458,5 @@ export {
   approveTraslado,
   registrarSalidaGarita,
   registrarLlegadaGarita,
+  finalizarTraslado,
 };
