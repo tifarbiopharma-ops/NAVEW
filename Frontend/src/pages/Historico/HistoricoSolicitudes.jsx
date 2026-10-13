@@ -45,7 +45,7 @@ const normalizeRequest = (item, modulo) => {
     return {
       id: item.ID_Traslado,
       code: `SAL-${String(item.ID_Traslado).slice(0, 8).toUpperCase()}`,
-      requester: item.ID_Solicitante || 'Sin solicitante',
+      requester: item.Solicitante_Nombre || 'Sin solicitante',
       requesterId: item.ID_Solicitante || item.ID_Usuario || item.id_solicitante || item.id,
       area: item.Tipo_Traslado || 'Transporte',
       origin: item.Planta_Origen_Nombre || item.planta_origen_nombre || `Planta ${item.ID_Planta_Origen}`,
@@ -116,7 +116,8 @@ const HistoricoSolicitudes = () => {
       if (!token) return;
       setLoading(true);
       try {
-        const response = await fetch(`${API}${config.endpoint}`, {
+        const historyQuery = modulo === 'paqueteria' && isJefe ? '?historico=1' : '';
+        const response = await fetch(`${API}${config.endpoint}${historyQuery}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();
@@ -133,7 +134,7 @@ const HistoricoSolicitudes = () => {
     };
 
     loadHistory();
-  }, [token, modulo, config.endpoint, config.responseKey]);
+  }, [token, modulo, isJefe, config.endpoint, config.responseKey]);
 
   const filteredRequests = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();

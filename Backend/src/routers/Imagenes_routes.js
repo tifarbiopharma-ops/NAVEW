@@ -10,7 +10,7 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, callback) => {
     if (!extensionPorTipo[file.mimetype]) {
-      const error = new Error('Formato no permitido. Usa JPG, PNG, WEBP o GIF');
+      const error = new Error('Formato no permitido. Usa JPG, PNG, WEBP, GIF o PDF');
       error.code = 'UNSUPPORTED_IMAGE_TYPE';
       return callback(error);
     }

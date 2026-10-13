@@ -9,7 +9,9 @@ const verificarTokenJWT = async (req, res, next) => {
 	const { authorization } = req.headers
     if (!authorization) return res.status(401).json({ msg: "Acceso denegado: token no proporcionado" })
     try {
-        const token = authorization.split(" ")[1]
+        const [scheme, value] = authorization.trim().split(/\s+/)
+        const token = scheme?.toLowerCase() === 'bearer' ? value : authorization.trim()
+        if (!token) return res.status(401).json({ msg: "Acceso denegado: token inválido" })
         const { id, rol } = jwt.verify(token, process.env.JWT_SECRET)
         
         // Obtener datos del colaborador desde la base de datos

@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import pool from '../database.js';
+import { obtenerColaboradoresACargo } from '../utils/jerarquia.js';
 
 const ROLES_SOLICITUD = new Set(['solicitante', 'jefe', 'administrador']);
 
@@ -138,7 +139,18 @@ const obtenerEnviosPaqueteria = async (req, res) => {
 		let filtro = '';
 		const params = [];
 
-		if (!['administrador', 'supervisor'].includes(rol)) {
+		if (rol === 'jefe' && req.query.historico === '1') {
+			filtro = 'WHERE e.ID_Responsable = ?';
+			params.push(req.user.id);
+		} else if (rol === 'jefe') {
+			const idsVisibles = await obtenerColaboradoresACargo(req.user.id);
+			idsVisibles.push(req.user.id);
+			filtro = idsVisibles.length
+				? `WHERE e.ID_Responsable IN (${idsVisibles.map(() => '?').join(', ')})
+				   OR e.ID_Destinatario IN (${idsVisibles.map(() => '?').join(', ')})`
+				: 'WHERE 1 = 0';
+			params.push(...idsVisibles, ...idsVisibles);
+		} else if (!['administrador', 'supervisor'].includes(rol)) {
 			filtro = 'WHERE e.ID_Responsable = ? OR e.ID_Destinatario = ?';
 			params.push(req.user.id, req.user.id);
 		}

@@ -207,7 +207,7 @@ const obtenerAccesosExternos = async (req, res) => {
 				filtro = 'WHERE 1 = 0';
 			} else {
 				filtro = `WHERE a.ID_Empleado_Visitado IN (${idsSubordinados.map(() => '?').join(', ')})
-					AND a.Estado_Actual = 'Solicitado'`;
+					`;
 				params.push(...idsSubordinados);
 			}
 		} else if (!['administrador', 'supervisor'].includes(rol)) {

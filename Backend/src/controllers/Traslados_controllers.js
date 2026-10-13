@@ -205,7 +205,6 @@ const getTraslados = async (req, res) => {
              LEFT JOIN Plantas po ON po.ID_Planta = t.ID_Planta_Origen
              LEFT JOIN Plantas pd ON pd.ID_Planta = t.ID_Planta_Destino
              WHERE t.ID_Solicitante IN (${idsSubordinados.map(() => '?').join(', ')})
-               AND t.Estado_Actual IN ('Solicitado', 'PENDIENTE')
              ORDER BY t.Fecha_Creacion DESC`
           : 'SELECT t.*, col.NOMBRE AS Solicitante_Nombre, po.Nombre_Planta AS Planta_Origen_Nombre, pd.Nombre_Planta AS Planta_Destino_Nombre FROM Traslados_Personal t LEFT JOIN Colaboradores col ON col.ID_COLABORADOR = t.ID_Solicitante LEFT JOIN Plantas po ON po.ID_Planta = t.ID_Planta_Origen LEFT JOIN Plantas pd ON pd.ID_Planta = t.ID_Planta_Destino WHERE 1 = 0';
         params = idsSubordinados;
@@ -414,13 +413,15 @@ const finalizarTraslado = async (req, res) => {
       return res.status(400).json({ msg: 'El traslado no está pendiente de finalización' });
     }
     if (traslado.Tipo_Traslado === 'PERSONAL') {
-      if (km_final === undefined || km_final === '' || Number(km_final) <= Number(traslado.Km_Inicial)) {
+      const kmFinal = Number(km_final);
+      const kmInicial = Number(traslado.Km_Inicial);
+      if (km_final === undefined || km_final === '' || !Number.isFinite(kmFinal) || !Number.isFinite(kmInicial) || kmFinal <= kmInicial) {
         await connection.rollback();
         return res.status(400).json({ msg: 'El KM final debe ser mayor que el KM inicial' });
       }
       await connection.query(
         `UPDATE Traslados_Personal SET Km_Final = ?, Estado_Actual = 'Finalizado' WHERE ID_Traslado = ?`,
-        [km_final, id]
+        [kmFinal, id]
       );
     } else {
       if (!evidencia_costo || typeof evidencia_costo !== 'string') {

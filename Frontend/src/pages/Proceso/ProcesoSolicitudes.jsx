@@ -46,6 +46,7 @@ const normalizeRequest = (item, module) => {
       origin: item.Planta_Origen_Nombre || item.planta_origen_nombre || `Planta ${item.ID_Planta_Origen}`,
       destination: item.Planta_Destino_Nombre || item.planta_destino_nombre || `Planta ${item.ID_Planta_Destino}`,
       date: item.Fecha_Salida,
+      reason: item.Motivo_Viaje || item.motivo_viaje || item.Motivo || item.motivo || 'Sin motivo indicado',
       status: normalizarEstado(item.Estado_Actual),
       qrToken: item.QR_Token || item.ID_Traslado,
     };
@@ -61,6 +62,7 @@ const normalizeRequest = (item, module) => {
       origin: item.planta_origen_nombre || 'Sin origen',
       destination: item.planta_destino_nombre || 'Sin destino',
       date: item.Fecha_Salida,
+      reason: item.Comentario || item.comentario || item.Motivo || item.motivo || 'Sin motivo indicado',
       status: normalizarEstado(item.Estado_Actual),
       qrToken: item.qrToken || item.QR_Token || item.Token_QR || item.ID_Paquete,
     };
@@ -132,7 +134,7 @@ const ProcesoSolicitudes = () => {
   const isJefe = userRole === 'jefe';
   const supervisorSoloTodas = isSupervisor && modulo !== 'paqueteria';
   const soloTodas = supervisorSoloTodas;
-  const soloMis = isJefe && modulo === 'paqueteria';
+  const soloMis = false;
 
   // Mostrar filtros a supervisores y jefes
   const mostrarFiltrosScope = isSupervisor || (isJefe && modulo !== 'paqueteria');
@@ -200,15 +202,18 @@ const ProcesoSolicitudes = () => {
     loadRequests();
   }, [token, modulo, config.endpoint, config.responseKey]);
 
-  const statuses = useMemo(() => ['TODOS', ...new Set(requests.map((item) => item.status).filter(Boolean))], [requests]);
+  const visibleRequests = useMemo(
+    () => requests.filter((item) => item.status !== 'Finalizado'),
+    [requests]
+  );
+  const statuses = useMemo(() => ['TODOS', ...new Set(visibleRequests.map((item) => item.status).filter(Boolean))], [visibleRequests]);
 
   const currentUserId = claims?.id || claims?.ID_Usuario || claims?.id_usuario;
 
   const filteredRequests = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
-    return requests.filter((item) => {
-      if (modulo === 'paqueteria' && item.status === 'Finalizado') return false;
+    return visibleRequests.filter((item) => {
       const matchesQuery = !normalizedQuery || Object.values(item).some((value) => String(value || '').toLowerCase().includes(normalizedQuery));
       const matchesStatus = status === 'TODOS' || item.status === status;
       
@@ -223,7 +228,7 @@ const ProcesoSolicitudes = () => {
 
       return matchesQuery && matchesStatus && matchesScope;
     });
-  }, [requests, query, status, scope, currentUserId, nombreUsuario, soloTodas, soloMis]);
+  }, [visibleRequests, query, status, scope, currentUserId, nombreUsuario, soloTodas, soloMis]);
 
   return (
     <div className="min-h-full bg-[#f4f7fa] p-4 md:p-8">
@@ -500,8 +505,8 @@ const ProcesoSolicitudes = () => {
               {modulo === 'externo' && <>
                 <div><dt className="text-xs font-semibold text-slate-400">Hora de ingreso</dt><dd className="font-medium text-slate-700">{selectedRequest.entryTime}</dd></div>
                 <div><dt className="text-xs font-semibold text-slate-400">Hora de salida</dt><dd className="font-medium text-slate-700">{selectedRequest.exitTime}</dd></div>
-                <div className="sm:col-span-2"><dt className="text-xs font-semibold text-slate-400">Motivo</dt><dd className="font-medium text-slate-700">{selectedRequest.reason}</dd></div>
               </>}
+              <div className="sm:col-span-2"><dt className="text-xs font-semibold text-slate-400">Motivo</dt><dd className="font-medium text-slate-700">{selectedRequest.reason || 'Sin motivo indicado'}</dd></div>
             </dl>
           </div>
         </div>

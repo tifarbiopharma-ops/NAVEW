@@ -11,7 +11,11 @@ const verificarQRExterno = async (req, res) => {
     const { token_qr } = req.body;
     const partes = String(token_qr || '').split('|');
     const idAcceso = partes[1];
-    const acompanantesQr = Number((partes.find((parte) => parte.startsWith('ACOMPANANTES:')) || '').split(':')[1]);
+    // Buscar la parte que contiene ACOMPANANTES (sin importar el separador exacto)
+    const parteAcompanantes = partes.find((parte) => /ACOMPANANTES\s*[:=]\s*\d+/i.test(parte));
+    const acompanantesQr = parteAcompanantes
+      ? Number(parteAcompanantes.split(/[:=]/)[1].trim())
+      : 0;
 
     if (partes[0] !== 'EXTERNO' || !idAcceso || !Number.isInteger(acompanantesQr)) {
       return res.status(400).json({ msg: 'El QR de acceso externo no tiene un formato válido' });
