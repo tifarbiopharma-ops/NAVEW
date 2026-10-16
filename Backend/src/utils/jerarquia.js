@@ -10,38 +10,38 @@ export const obtenerJefeDirecto = async (idColaborador) => {
     const query = `
       SELECT jefe.ID_COLABORADOR
       FROM Colaboradores emp
-      JOIN Cargos cargo_emp ON emp.CARGO = cargo_emp.ID_CARGOS
-      JOIN Colaboradores jefe ON jefe.CARGO = cargo_emp.ID_CARGO_SUPERIOR
-      JOIN usuarios usuario_jefe ON usuario_jefe.cedula = jefe.CEDULA
-      WHERE emp.ID_COLABORADOR = ? 
+      JOIN Jerarquia jer 
+        ON jer.CARGO = emp.CARGO
+      JOIN Colaboradores jefe 
+        ON jefe.CARGO = jer.SUPERIOR_JERARQUICO
+      JOIN usuarios usuario_jefe 
+        ON usuario_jefe.cedula = jefe.CEDULA
+      WHERE emp.ID_COLABORADOR = ?
+        AND jefe.ID_COLABORADOR <> emp.ID_COLABORADOR
         AND jefe.ESTADO = 'ACTIVO'
         AND usuario_jefe.rol IN ('jefe', 'administrador')
       LIMIT 1;
     `;
-    
+
     const [rows] = await pool.query(query, [idColaborador]);
-    
-    if (rows.length > 0) {
-      return rows[0].ID_COLABORADOR;
-    }
-    
-    // Fallback: Si no hay cargo superior explícito en la tabla Cargos, 
-    // buscar al jefe del mismo Área/Departamento.
+    if (rows.length > 0) return rows[0].ID_COLABORADOR;
+
+    // Fallback: jefe por mismo Departamento (vive en Cargos, no en Colaboradores)
     const fallbackQuery = `
       SELECT jefe.ID_COLABORADOR
       FROM Colaboradores emp
-      JOIN Colaboradores jefe ON 
-        (jefe.AREA = emp.AREA OR jefe.DEPARTAMENTO = emp.DEPARTAMENTO)
+      JOIN Cargos cargo_emp ON cargo_emp.ID_CARGOS = emp.CARGO
+      JOIN Cargos cargo_jefe ON cargo_jefe.DEPARTAMENTO = cargo_emp.DEPARTAMENTO
+      JOIN Colaboradores jefe ON jefe.CARGO = cargo_jefe.ID_CARGOS
       JOIN usuarios usuario_jefe ON usuario_jefe.cedula = jefe.CEDULA
-      WHERE emp.ID_COLABORADOR = ? 
-        AND jefe.ID_COLABORADOR != emp.ID_COLABORADOR
+      WHERE emp.ID_COLABORADOR = ?
+        AND jefe.ID_COLABORADOR <> emp.ID_COLABORADOR
         AND jefe.ESTADO = 'ACTIVO'
         AND usuario_jefe.rol = 'jefe'
       LIMIT 1;
     `;
-    
+
     const [fallbackRows] = await pool.query(fallbackQuery, [idColaborador]);
-    
     return fallbackRows.length > 0 ? fallbackRows[0].ID_COLABORADOR : null;
 
   } catch (error) {
@@ -53,26 +53,24 @@ export const obtenerJefeDirecto = async (idColaborador) => {
 export const obtenerColaboradoresACargo = async (idJefe) => {
   const [rows] = await pool.query(
     `WITH RECURSIVE cargos_subordinados AS (
-      SELECT subordinado.ID_CARGOS AS id_cargo
-      FROM Cargos subordinado
-      INNER JOIN Cargos superior ON superior.ID_CARGOS = subordinado.ID_CARGO_SUPERIOR
-      INNER JOIN Colaboradores jefe ON jefe.ID_COLABORADOR = ?
-        AND (
-          subordinado.ID_CARGO_SUPERIOR = jefe.CARGO
-          OR (
-            jefe.CARGO IS NULL
-            AND superior.AREA <=> jefe.AREA
-            AND superior.DEPARTAMENTO <=> jefe.DEPARTAMENTO
-          )
-        )
+      -- Nivel 1: cargos cuyo superior directo es el cargo del jefe
+      SELECT j.CARGO AS id_cargo
+      FROM Jerarquia j
+      JOIN Colaboradores jefe ON jefe.ID_COLABORADOR = ?
+      WHERE j.SUPERIOR_JERARQUICO = jefe.CARGO
+
       UNION ALL
-      SELECT cargo.ID_CARGOS
-      FROM Cargos cargo
-      INNER JOIN cargos_subordinados superior ON cargo.ID_CARGO_SUPERIOR = superior.id_cargo
+
+      -- Niveles siguientes
+      SELECT j.CARGO
+      FROM Jerarquia j
+      INNER JOIN cargos_subordinados padre 
+        ON j.SUPERIOR_JERARQUICO = padre.id_cargo
     )
     SELECT DISTINCT colaborador.ID_COLABORADOR
     FROM Colaboradores colaborador
-    INNER JOIN cargos_subordinados cargo ON cargo.id_cargo = colaborador.CARGO
+    INNER JOIN cargos_subordinados c 
+      ON c.id_cargo = colaborador.CARGO
     WHERE colaborador.ID_COLABORADOR <> ?
       AND colaborador.ESTADO = 'ACTIVO'`,
     [idJefe, idJefe]

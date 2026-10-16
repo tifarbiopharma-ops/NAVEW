@@ -111,8 +111,11 @@ const estadoClase = (estado) => {
   return 'bg-blue-50 text-[#315b86]';
 };
 
+// 🔧 CAMBIO 3: normalizarEstado capitaliza (Solamente primera letra mayúscula)
 const normalizarEstado = (estado) => {
-  return estado || 'Solicitado';
+  if (!estado) return 'Solicitado';
+  const e = String(estado).trim();
+  return e.charAt(0).toUpperCase() + e.slice(1).toLowerCase();
 };
 
 const ubicacionSolicitud = (item, modulo) => (
@@ -129,15 +132,30 @@ const ProcesoSolicitudes = () => {
   const userRole = claims?.rol?.toLowerCase() || "";
   const nombreUsuario = perfilUsuario?.nombre || claims?.nombre || "Usuario";
 
-  // Verificación del rol de Supervisor
   const isSupervisor = userRole === 'supervisor';
   const isJefe = userRole === 'jefe';
-  const supervisorSoloTodas = isSupervisor && modulo !== 'paqueteria';
-  const soloTodas = supervisorSoloTodas;
-  const soloMis = false;
+  // Cualquier otro rol (solicitante, encargado, etc.) → solo ve "Mis"
+  const isSolicitante = !isSupervisor && !isJefe;
 
-  // Mostrar filtros a supervisores y jefes
-  const mostrarFiltrosScope = isSupervisor || (isJefe && modulo !== 'paqueteria');
+  // --- Supervisor ---
+  // Solo "Todas" en Transporte/Externo; "Todas" y "Mis" en Paquetería
+  const supervisorSoloTodas = isSupervisor && modulo !== 'paqueteria';
+
+  // --- Jefe ---
+  // Solo "Mis" en Paquetería
+  const jefePaqueteriaSoloMis = isJefe && modulo === 'paqueteria';
+
+  // --- scope forzado ---
+  // Jefe y Solicitante en paquetería arrancan en "Mis"; el resto en "Todas"
+  const soloTodas = supervisorSoloTodas;
+  const soloMis = jefePaqueteriaSoloMis || isSolicitante;
+
+  // --- visibilidad del bloque de filtros ---
+  // Supervisor: siempre
+  // Jefe: siempre
+  // Solicitante: siempre (para mostrar solo el botón "Mis")
+  const mostrarFiltrosScope = isSupervisor || isJefe || isSolicitante;
+
 
   const config = MODULES[modulo] || MODULES.transporte;
   const [requests, setRequests] = useState([]);
@@ -163,6 +181,7 @@ const ProcesoSolicitudes = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
+
       if (!response.ok) throw new Error(data?.msg || 'No se pudieron cargar las solicitudes');
       const normalizedRequests = (data[config.responseKey] || []).map((item) => normalizeRequest(item, modulo));
       setRequests(normalizedRequests);
@@ -216,19 +235,17 @@ const ProcesoSolicitudes = () => {
     return visibleRequests.filter((item) => {
       const matchesQuery = !normalizedQuery || Object.values(item).some((value) => String(value || '').toLowerCase().includes(normalizedQuery));
       const matchesStatus = status === 'TODOS' || item.status === status;
-      
+
+      // 🔧 CAMBIO 2: filtro "Mis" solo por requesterId (sin comparar por nombre)
       const matchesScope =
         soloTodas ||
         (soloMis && scope === 'MIS_SOLICITUDES') ||
         scope === 'TODOS' ||
-        (scope === 'MIS_SOLICITUDES' && (
-          String(item.requesterId) === String(currentUserId) ||
-          String(item.requester).toLowerCase().includes(String(nombreUsuario).toLowerCase())
-        ));
+        (scope === 'MIS_SOLICITUDES' && String(item.requesterId) === String(currentUserId));
 
       return matchesQuery && matchesStatus && matchesScope;
     });
-  }, [visibleRequests, query, status, scope, currentUserId, nombreUsuario, soloTodas, soloMis]);
+  }, [visibleRequests, query, status, scope, currentUserId, soloTodas, soloMis]);
 
   return (
     <div className="min-h-full bg-[#f4f7fa] p-4 md:p-8">
@@ -242,7 +259,7 @@ const ProcesoSolicitudes = () => {
             <p className="mt-1 text-sm text-slate-500">{config.subtitle}</p>
           </div>
 
-          {/* Botón Escanear QR para Supervisor en Paquetería y Externo */}
+          {/* Botón Escanear QR para Supervisor */}
           {isSupervisor && (modulo === 'paqueteria' || modulo === 'externo' || modulo === 'transporte') && (
             <div>
               <button
@@ -257,7 +274,7 @@ const ProcesoSolicitudes = () => {
         </div>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
-          {/* Botones Azules de Filtro "Todas las Solicitudes" y "Mis Solicitudes" */}
+          {/* Botones de filtro: solo supervisor */}
           {mostrarFiltrosScope && (
             <div className="mb-5 flex flex-wrap gap-2.5">
               {!soloMis && <button
@@ -400,7 +417,6 @@ const ProcesoSolicitudes = () => {
                         </span>
                       </td>
 
-                      {/* No se renderiza la columna ni acciones si es Supervisor */}
                       {!isSupervisor && (
                         <td className="px-3 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
@@ -454,7 +470,7 @@ const ProcesoSolicitudes = () => {
         </section>
       </div>
 
-      {/* Modal Emergente para Escanear QR */}
+      {/* Modal Escanear QR */}
       {isScannerOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
           <div className="relative w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
@@ -500,7 +516,7 @@ const ProcesoSolicitudes = () => {
               </>}
               <div><dt className="text-xs font-semibold text-slate-400">Estado</dt><dd className="font-medium text-slate-700">{estadoEtiqueta(selectedRequest.status)}</dd></div>
               <div><dt className="text-xs font-semibold text-slate-400">Destino</dt><dd className="font-medium text-slate-700">{selectedRequest.destination}</dd></div>
-              <div><dt className="text-xs font-semibold text-slate-400">Área</dt><dd className="font-medium text-slate-700">{selectedRequest.area}</dd></div>
+              <div><dt className="text-xs font-semibold text-slate-400">Tipo</dt><dd className="font-medium text-slate-700">{selectedRequest.area}</dd></div>
               <div><dt className="text-xs font-semibold text-slate-400">Fecha</dt><dd className="font-medium text-slate-700">{String(selectedRequest.date || '').slice(0, 10)}</dd></div>
               {modulo === 'externo' && <>
                 <div><dt className="text-xs font-semibold text-slate-400">Hora de ingreso</dt><dd className="font-medium text-slate-700">{selectedRequest.entryTime}</dd></div>
@@ -512,7 +528,6 @@ const ProcesoSolicitudes = () => {
         </div>
       )}
 
-      {/* Modal Emergente para Mostrar el QR */}
       {selectedQr && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
           <div className="relative w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-xl transition-all">

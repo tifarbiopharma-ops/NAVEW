@@ -10,8 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@dagrejs/dagre": "^3.1.1",
     "@heroicons/react": "^2.2.0",
     "@tinymce/tinymce-react": "^6.3.0",
+    "@xyflow/react": "^12.12.0",
     "@zxing/browser": "^0.2.1",
     "aos": "^2.3.4",
     "axios": "^1.11.0",

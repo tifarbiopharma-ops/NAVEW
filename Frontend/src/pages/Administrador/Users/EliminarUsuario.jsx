@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'react-toastify';
-import useFetch from '../../hooks/useFetch';
+import useFetch from '../../../hooks/useFetch';
 
 const EliminarUsuario = ({ id, onDeleted, token }) => {
   const { fetchDataBackend } = useFetch();

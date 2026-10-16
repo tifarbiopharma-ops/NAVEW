@@ -124,7 +124,7 @@ const formatearUsuarioParaAuditoria = (usuario = {}) => ({
 };
 
 // Obtener mi perfil - REQUIERE AUTENTICACIÓN
-  const obtenerMiPerfil = async (req, res) => {
+const obtenerMiPerfil = async (req, res) => {
   const connection = await pool.getConnection();
 
   try {
@@ -137,10 +137,11 @@ const formatearUsuarioParaAuditoria = (usuario = {}) => ({
 
     const [colaboradores] = await connection.query(
       `SELECT col.ID_COLABORADOR, col.NOMBRE, col.CEDULA,
-              COALESCE(usu.email, col.EMAIL_CORPORATIVO) AS EMAIL_CORPORATIVO,
+              COALESCE(usu.email, cor.CORREO) AS EMAIL_CORPORATIVO,
               usu.rol AS ROL, usu.estado AS ESTADO, usu.created_at AS CREATED_AT
        FROM Colaboradores col
        LEFT JOIN usuarios usu ON usu.cedula = col.CEDULA
+       LEFT JOIN Correos cor ON cor.ID_COLABORADOR = col.ID_COLABORADOR
        WHERE col.ID_COLABORADOR = ?`,
       [usuarioId]
     );
@@ -182,10 +183,21 @@ const obtenerColaboradorPorCedula = async (req, res) => {
     }
 
     const { cedula } = req.params;
+
+    // Hacemos un LEFT JOIN para traer el correo desde la tabla Correos
     const [colaboradores] = await connection.query(
-      'SELECT ID_COLABORADOR, NOMBRE, CEDULA, EMAIL_CORPORATIVO AS email FROM Colaboradores WHERE CEDULA = ?',
+      `SELECT 
+        c.ID_COLABORADOR, 
+        c.NOMBRE, 
+        c.CEDULA, 
+        co.CORREO AS email 
+      FROM Colaboradores c
+      LEFT JOIN Correos co ON c.ID_CORREO_PRINCIPAL = co.ID_CORREOS
+      WHERE c.CEDULA = ?`,
       [cedula]
     );
+    
+    console.log(colaboradores);
 
     if (colaboradores.length === 0) {
       return res.status(404).json({ msg: 'No existe un colaborador con esa cédula' });
@@ -199,7 +211,6 @@ const obtenerColaboradorPorCedula = async (req, res) => {
     connection.release();
   }
 };
-
 
 // Registro de usuario - ROL ADMINISTRADOR
   const registro = async (req, res) => {
@@ -263,7 +274,7 @@ const obtenerColaboradorPorCedula = async (req, res) => {
     }
 
     const [colaboradorExistente] = await connection.query(
-      'SELECT ID_COLABORADOR, NOMBRE, CEDULA, EMAIL_CORPORATIVO FROM Colaboradores WHERE CEDULA = ?',
+      'SELECT ID_COLABORADOR, NOMBRE, CEDULA, ID_CORREO_PRINCIPAL FROM Colaboradores WHERE CEDULA = ?',
       [cedula]
     );
 
@@ -327,7 +338,7 @@ const obtenerColaboradorPorCedula = async (req, res) => {
 };
 
 // Obtener todos los usuarios - REQUIERE ROL ADMINISTRADOR
-  const obtenerUsuarios = async (req, res) => {
+const obtenerUsuarios = async (req, res) => {
   const connection = await pool.getConnection();
 
   try {
@@ -338,24 +349,22 @@ const obtenerColaboradorPorCedula = async (req, res) => {
       });
     }
 
-    const [colaboradores] = await connection.query(
-      `SELECT col.ID_COLABORADOR, col.NOMBRE, col.CEDULA,
-              COALESCE(usu.email, col.EMAIL_CORPORATIVO) AS EMAIL_CORPORATIVO,
-              usu.rol AS ROL, usu.estado AS ESTADO, usu.created_at AS CREATED_AT
-       FROM Colaboradores col
-       LEFT JOIN usuarios usu ON usu.cedula = col.CEDULA
-       ORDER BY col.NOMBRE`
+    // Consulta directa a la tabla usuarios (sin password por seguridad)
+    const [usuariosRaw] = await connection.query(
+      `SELECT id, cedula, email, rol, estado, created_at, updated_at
+       FROM usuarios
+       ORDER BY email`
     );
 
     // Normalizar la respuesta para el frontend
-    const usuarios = colaboradores.map(col => ({
-      id: col.ID_COLABORADOR,
-      nombre: col.NOMBRE,
-      cedula: col.CEDULA,
-      email: col.EMAIL_CORPORATIVO,
-      rol: col.ROL,
-      estado: col.ESTADO,
-      created_at: col.CREATED_AT,
+    const usuarios = usuariosRaw.map(usu => ({
+      id: usu.id,
+      cedula: usu.cedula,
+      email: usu.email,
+      rol: usu.rol,
+      estado: usu.estado,
+      created_at: usu.created_at,
+      updated_at: usu.updated_at,
     }));
 
     return res.status(200).json({
@@ -365,7 +374,10 @@ const obtenerColaboradorPorCedula = async (req, res) => {
 
   } catch (err) {
     console.error('Error obteniendo usuarios:', err);
-    return res.status(500).json({ msg: 'Ocurrió un error en el servidor', error: err.message });
+    return res.status(500).json({ 
+      msg: 'Ocurrió un error en el servidor', 
+      error: err.message 
+    });
   } finally {
     connection.release();
   }

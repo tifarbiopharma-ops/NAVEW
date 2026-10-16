@@ -11,9 +11,9 @@ import Dashboard from "./layout/Dashboard";
 
 // Pages
 import Login from "./pages/Autenticación/Login";
-import AdminUsuarios from "./pages/Administrador/AdminUsuarios";
-import CrearUsuarioPage from "./pages/Administrador/CrearUsuarioPage";
-import EditarUsuario from "./pages/Administrador/EditarUsuario";
+import AdminUsuarios from "./pages/Administrador/Users/AdminUsuarios";
+import CrearUsuarioPage from "./pages/Administrador/Users/CrearUsuarioPage";
+import EditarUsuario from "./pages/Administrador/Users/EditarUsuario";
 import TransporteDashboard from "./pages/Transporte/SolicitudTraslados";
 import SolicitudTraslados from "./pages/Transporte/SolicitudTraslados";
 import SolicitudPaqueteria from "./pages/Paqueteria/SolicitudPaqueteria";
@@ -21,6 +21,7 @@ import ProcesoSolicitudes from "./pages/Proceso/ProcesoSolicitudes";
 import HistoricoSolicitudes from "./pages/Historico/HistoricoSolicitudes";
 import SolicitudExterno from "./pages/Externo/SolicitudExterno";
 import NotFound from "./pages/NotFound";
+import Organigrama from "./pages/Administrador/Organigrama/Organigrama";
 
 // 🔹 Componente para manejar el Home inteligente del Dashboard
 const DashboardHomeRedirect = () => {
@@ -129,7 +130,20 @@ function App() {
             path="admin/usuarios/editar/:id"
             element={<PrivateRouteWithRole allowedRoles={["administrador"]}><EditarUsuario /></PrivateRouteWithRole>}
           />
+          {/* 🔹 Organigrama (solo admin) */}
+          <Route
+            path="admin/organigrama"
+            element={
+              <PrivateRouteWithRole allowedRoles={["administrador"]}>
+                <div style={{ width: "100%", height: "calc(100vh - 64px)" }}>
+                  <Organigrama />
+                </div>
+              </PrivateRouteWithRole>
+            }
+          />
         </Route>
+
+        
 
         {/* 🔹 Manejo de 404 */}
         <Route path="*" element={<NotFound />} />

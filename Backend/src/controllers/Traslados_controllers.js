@@ -17,6 +17,7 @@ const insertEventLog = async (connection, idTransaccion, tipoModulo, faseEstado,
 
 const setupTraslado = async (req, res, connection, tipoTraslado, extraFields, extraValues) => {
   const idSolicitante = req.user.id;
+  console.log(req.user.id);
   const { 
     fecha_salida, hora_salida, motivo_viaje, observaciones,
     id_planta_origen, id_planta_destino 
@@ -121,13 +122,13 @@ const obtenerPlantas = async (req, res) => {
 const createTrasladoEmpresarial = async (req, res) => {
   const connection = await pool.getConnection();
   try {
-    const { id_chofer, km_inicial, km_final } = req.body;
+    const { id_chofer} = req.body;
     if (!id_chofer) return res.status(400).json({ msg: "Falta ID de chofer para transporte empresarial" });
 
     await connection.beginTransaction();
     const result = await setupTraslado(req, res, connection, 'EMPRESARIAL', 
-      ['ID_Chofer', 'Km_Inicial', 'Km_Final'], 
-      [id_chofer, km_inicial || null, km_final || null]
+      ['ID_Chofer'], 
+      [id_chofer]
     );
     await connection.commit();
     res.status(201).json({ success: true, msg: "Transporte Empresarial registrado", ...result });

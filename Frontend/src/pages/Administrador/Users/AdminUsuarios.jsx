@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
-import useFetch from '../../hooks/useFetch';
-import storeAuth from '../../context/storeAuth';
+import useFetch from '../../../hooks/useFetch';
+import storeAuth from '../../../context/storeAuth';
 import UsuariosList from './UsuariosList';
 
 const AdminUsuarios = () => {

@@ -227,6 +227,17 @@ const Dashboard = () => {
                       {!isCollapsed && <span className="ml-0 md:ml-3">Usuarios</span>}
                     </Link>
                   </li>
+                  <li>
+                    <Link
+                      to="/dashboard/admin/organigrama"
+                      onClick={handleMenuItemClick}
+                      className={navItemClass(urlActual === "/dashboard/admin/organigrama")}
+                    >
+                      <Workflow size={18} />
+                      {!isCollapsed && <span className="ml-0 md:ml-3">Organigrama</span>}
+                      {!isCollapsed && <ChevronRight className="ml-auto" size={14} />}
+                    </Link>
+                  </li>
                 </>
               )}
 

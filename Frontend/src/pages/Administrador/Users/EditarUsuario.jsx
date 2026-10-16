@@ -1,14 +1,20 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { ToastContainer, toast } from 'react-toastify';
-import { useNavigate } from 'react-router-dom';
-import storeAuth from '../../context/storeAuth';
-import useFetch from '../../hooks/useFetch';
+import { useNavigate, useParams } from 'react-router-dom';
+import useFetch from '../../../hooks/useFetch';
+import storeAuth from '../../../context/storeAuth';
 
-const CrearUsuarioPage = () => {
+const EditarUsuario = () => {
+  const { id } = useParams();
   const navigate = useNavigate();
   const { token } = storeAuth();
   const { fetchDataBackend } = useFetch();
+
+  const [usuario, setUsuario] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [enviando, setEnviando] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const validateNombre = useCallback((value) => {
     if (!value || value.trim() === '') {
@@ -78,14 +84,14 @@ const CrearUsuarioPage = () => {
       return 'La cédula debe tener mínimo 10 dígitos';
     }
 
-    // Verificar que no exista
+    // Verificar que no exista (excepto el usuario actual)
     try {
       const url = `${import.meta.env.VITE_BACKEND_URL}/api/users/usuarios`;
       const response = await fetchDataBackend(url, null, 'GET', token);
       
       if (response?.usuarios && Array.isArray(response.usuarios)) {
         const exists = response.usuarios.some(
-          u => String(u.cedula).trim() === cedula && Boolean(u.rol)
+          u => String(u.cedula).trim() === cedula && Boolean(u.rol) && u.id !== usuario?.id
         );
         if (exists) {
           return 'Esta cédula ya está registrada';
@@ -96,7 +102,7 @@ const CrearUsuarioPage = () => {
     }
 
     return true;
-  }, [fetchDataBackend, token]);
+  }, [fetchDataBackend, token, usuario?.id]);
 
   const validateEmail = useCallback(async (value) => {
     if (!value || value.trim() === '') {
@@ -121,15 +127,13 @@ const CrearUsuarioPage = () => {
       return 'El email debe usar dominio @farbiopharma.com, @inpel.com o @clarel.com';
     }
 
-    // Verificar que no exista
+    // Verificar que no exista (excepto el usuario actual)
     try {
       const url = `${import.meta.env.VITE_BACKEND_URL}/api/users/usuarios`;
       const response = await fetchDataBackend(url, null, 'GET', token);
       
       if (response?.usuarios && Array.isArray(response.usuarios)) {
-        const exists = response.usuarios.some(
-          u => u.email?.toLowerCase() === email && Boolean(u.rol)
-        );
+        const exists = response.usuarios.some(u => u.email?.toLowerCase() === email && u.id !== usuario?.id);
         if (exists) {
           return 'Este email ya está registrado';
         }
@@ -139,11 +143,11 @@ const CrearUsuarioPage = () => {
     }
 
     return true;
-  }, [fetchDataBackend, token]);
+  }, [fetchDataBackend, token, usuario?.id]);
 
   const validatePassword = useCallback((value) => {
     if (!value || value === '') {
-      return 'La contraseña es obligatoria';
+      return true; // La contraseña es opcional en edición
     }
 
     if (value.length < 14) {
@@ -159,8 +163,6 @@ const CrearUsuarioPage = () => {
   const {
     register,
     handleSubmit,
-    setValue,
-    watch,
     formState: { errors, isValidating },
     reset,
   } = useForm({
@@ -172,83 +174,120 @@ const CrearUsuarioPage = () => {
       email: '',
       password: '',
       rol: 'solicitante',
+      estado: 'activo',
     },
   });
 
-  const [enviando, setEnviando] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [buscandoColaborador, setBuscandoColaborador] = useState(false);
-  const [colaboradorEncontrado, setColaboradorEncontrado] = useState(false);
-  const cedulaActual = watch('cedula');
-
   useEffect(() => {
-    const cedula = cedulaActual?.trim() || '';
+    const obtenerUsuario = async () => {
+      if (!token || !id) return;
 
-    if (!/^\d{10}$/.test(cedula)) {
-      setColaboradorEncontrado(false);
-      setValue('nombre', '');
-      setValue('email', '');
-      return undefined;
-    }
-
-    let activo = true;
-    const buscarColaborador = async () => {
-      setBuscandoColaborador(true);
+      setLoading(true);
       try {
-        const url = `${import.meta.env.VITE_BACKEND_URL}/api/users/colaboradores/cedula/${cedula}`;
+        const url = `${import.meta.env.VITE_BACKEND_URL}/api/users/usuarios/${id}`;
         const response = await fetchDataBackend(url, null, 'GET', token);
 
-        if (!activo) return;
-
-        if (response?.colaborador) {
-          setValue('nombre', response.colaborador.NOMBRE, { shouldValidate: true });
-          setValue('email', response.colaborador.email || response.colaborador.EMAIL_CORPORATIVO || '', { shouldValidate: true });
-          setColaboradorEncontrado(true);
+        if (response?.usuario) {
+          setUsuario(response.usuario);
         } else {
-          setValue('nombre', '');
-          setValue('email', '');
-          setColaboradorEncontrado(false);
+          toast.error(response?.msg || 'No se pudo cargar el usuario');
+          navigate('/dashboard/admin/usuarios');
         }
+      } catch (error) {
+        console.error('Error obteniendo el usuario:', error);
+        toast.error('Error cargando el usuario');
+        navigate('/dashboard/admin/usuarios');
       } finally {
-        if (activo) setBuscandoColaborador(false);
+        setLoading(false);
       }
     };
 
-    buscarColaborador();
-    return () => {
-      activo = false;
-    };
-  }, [cedulaActual, fetchDataBackend, setValue, token]);
+    obtenerUsuario();
+  }, [id, token, fetchDataBackend, navigate]);
+
+  useEffect(() => {
+    if (!usuario) return;
+
+    reset({
+      nombre: usuario.nombre || '',
+      cedula: usuario.cedula || '',
+      email: usuario.email || '',
+      password: '',
+      rol: usuario.rol || 'solicitante',
+      estado: usuario.estado || 'activo',
+    });
+  }, [usuario, reset]);
 
   const handleExit = () => {
     navigate('/dashboard/admin/usuarios');
   };
 
   const onSubmit = async (data) => {
+    if (!usuario) return;
+
     setEnviando(true);
 
     try {
-      const url = `${import.meta.env.VITE_BACKEND_URL}/api/users/registro`;
-      const response = await fetchDataBackend(url, data, 'POST', token);
+      const payload = {
+        nombre: data.nombre,
+        cedula: data.cedula,
+        email: data.email,
+        password: data.password || null,
+        rol: data.rol,
+        estado: data.estado,
+      };
+
+      const url = `${import.meta.env.VITE_BACKEND_URL}/api/users/usuarios/${usuario.id}`;
+      const response = await fetchDataBackend(url, payload, 'PUT', token);
 
       if (response?.usuario) {
-        toast.success('Usuario creado correctamente', {
-          onClose: () => {
-            reset();
-            handleExit();
-          },
+        toast.success('Usuario actualizado correctamente', {
+          onClose: handleExit,
           autoClose: 2000,
         });
       } else {
-        toast.error(response?.msg || 'No se pudo crear el usuario');
+        toast.error(response?.msg || 'No se pudo actualizar el usuario');
       }
     } catch (error) {
-      console.error('Error creando usuario:', error);
-      toast.error('Error creando el usuario');
+      console.error('Error actualizando usuario:', error);
+      toast.error('Error actualizando el usuario');
     } finally {
       setEnviando(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 text-slate-900">
+        <div className="max-w-6xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+          <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/50">
+            <div className="text-center py-16 text-slate-500">Cargando usuario...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!usuario) {
+    return (
+      <div className="min-h-screen bg-slate-50 text-slate-900">
+        <ToastContainer />
+        <div className="max-w-6xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+          <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/50">
+            <div className="text-center py-16 text-slate-500">No se encontró el usuario seleccionado.</div>
+            <div className="mt-6 text-center">
+              <button
+                onClick={handleExit}
+                className="rounded-3xl border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Volver
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -257,15 +296,14 @@ const CrearUsuarioPage = () => {
         <div className="space-y-4 mb-6">
           <div className="space-y-2">
             <p className="text-sm uppercase tracking-[0.22em] text-slate-500">Administración de usuarios</p>
-            <h1 className="text-4xl font-semibold text-slate-950">Crear nuevo usuario</h1>
-            <p className="max-w-2xl text-slate-600">Registra un nuevo usuario para que pueda acceder al sistema.</p>
+            <h1 className="text-4xl font-semibold text-slate-950">Editar usuario</h1>
+            <p className="max-w-2xl text-slate-600">Actualiza los datos del usuario seleccionado.</p>
           </div>
         </div>
 
-        <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/50">
+        <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/50 mb-8">
           <form onSubmit={handleSubmit(onSubmit)} className="grid gap-6">
             <div className="grid gap-6 md:grid-cols-2">
-              {/* Nombre */}
               <div className="flex flex-col">
                 <label className="text-slate-800 font-semibold mb-2">Nombre *</label>
                 <input
@@ -277,22 +315,12 @@ const CrearUsuarioPage = () => {
                       : 'border-slate-200 bg-slate-50 focus:border-slate-400 focus:ring-slate-200'
                   }`}
                   {...register('nombre', { validate: validateNombre })}
-                  readOnly={colaboradorEncontrado}
-                  aria-readonly={colaboradorEncontrado}
-                  title={colaboradorEncontrado ? 'Nombre tomado del registro del colaborador' : 'Puedes escribir el nombre manualmente'}
                 />
                 {errors.nombre && (
                   <p className="text-red-600 text-sm mt-2 font-medium">{errors.nombre.message}</p>
                 )}
-                {buscandoColaborador && (
-                  <p className="mt-2 text-xs text-slate-500">Buscando colaborador...</p>
-                )}
-                {!buscandoColaborador && cedulaActual?.length === 10 && !colaboradorEncontrado && (
-                  <p className="mt-2 text-xs font-medium text-red-600">No se encontró un colaborador con esa cédula.</p>
-                )}
               </div>
 
-              {/* Cédula */}
               <div className="flex flex-col">
                 <label className="text-slate-800 font-semibold mb-2">Cédula *</label>
                 <input
@@ -314,7 +342,6 @@ const CrearUsuarioPage = () => {
                 )}
               </div>
 
-              {/* Email */}
               <div className="flex flex-col">
                 <label className="text-slate-800 font-semibold mb-2">Email *</label>
                 <input
@@ -326,9 +353,6 @@ const CrearUsuarioPage = () => {
                       : 'border-slate-200 bg-slate-50 focus:border-slate-400 focus:ring-slate-200'
                   }`}
                   {...register('email', { validate: validateEmail })}
-                  readOnly={colaboradorEncontrado}
-                  aria-readonly={colaboradorEncontrado}
-                  title={colaboradorEncontrado ? 'Correo tomado del registro del colaborador' : 'Puedes escribir el correo manualmente'}
                 />
                 {errors.email && (
                   <p className="text-red-600 text-sm mt-2 font-medium">{errors.email.message}</p>
@@ -338,31 +362,22 @@ const CrearUsuarioPage = () => {
                 )}
               </div>
 
-              {/* Rol */}
               <div className="flex flex-col">
                 <label className="text-slate-800 font-semibold mb-2">Rol *</label>
                 <select
-                  className={`rounded-3xl border px-4 py-3 text-slate-900 outline-none transition focus:ring-2 ${
-                    errors.rol
-                      ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-100'
-                      : 'border-slate-200 bg-slate-50 focus:border-slate-400 focus:ring-slate-200'
-                  }`}
+                  className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
                   {...register('rol', { required: 'El rol es obligatorio' })}
                 >
-                  <option value="">Selecciona un rol</option>
                   <option value="administrador">Administrador</option>
                   <option value="jefe">Jefe</option>
                   <option value="solicitante">Solicitante</option>
                   <option value="supervisor">Supervisor</option>
                 </select>
-                {errors.rol && (
-                  <p className="text-red-600 text-sm mt-2 font-medium">{errors.rol.message}</p>
-                )}
+                {errors.rol && <p className="text-red-600 text-sm mt-1">{errors.rol.message}</p>}
               </div>
 
-              {/* Contraseña */}
-              <div className="flex flex-col md:col-span-2">
-                <label className="text-slate-800 font-semibold mb-2">Contraseña *</label>
+              <div className="flex flex-col md:col-span-1">
+                <label className="text-slate-800 font-semibold mb-2">Contraseña (opcional)</label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
@@ -398,6 +413,18 @@ const CrearUsuarioPage = () => {
                   <p className="text-red-600 text-sm mt-2 font-medium">{errors.password.message}</p>
                 )}
               </div>
+
+              <div className="flex flex-col">
+                <label className="text-slate-800 font-semibold mb-2">Estado *</label>
+                <select
+                  className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+                  {...register('estado', { required: 'El estado es obligatorio' })}
+                >
+                  <option value="activo">Activo</option>
+                  <option value="bloqueado">Bloqueado</option>
+                </select>
+                {errors.estado && <p className="text-red-600 text-sm mt-2 font-medium">{errors.estado.message}</p>}
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-4 justify-end mt-4">
@@ -413,7 +440,7 @@ const CrearUsuarioPage = () => {
                 disabled={enviando || isValidating}
                 className="rounded-3xl bg-[#17243D] px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {enviando ? 'Creando...' : isValidating ? 'Validando...' : 'Crear usuario'}
+                {enviando ? 'Actualizando...' : isValidating ? 'Validando...' : 'Guardar cambios'}
               </button>
             </div>
           </form>
@@ -423,5 +450,4 @@ const CrearUsuarioPage = () => {
   );
 };
 
-export default CrearUsuarioPage;
-
+export default EditarUsuario;

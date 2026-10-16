@@ -7,6 +7,7 @@ const crearTokenJWT = (id, rol, nombre) => {
 
 const verificarTokenJWT = async (req, res, next) => {
 	const { authorization } = req.headers
+        console.log('🔍 ENDPOINT:', req.method, req.originalUrl, '| AUTH:', JSON.stringify(authorization))   // ← unifica los dos logs
     if (!authorization) return res.status(401).json({ msg: "Acceso denegado: token no proporcionado" })
     try {
         const [scheme, value] = authorization.trim().split(/\s+/)
