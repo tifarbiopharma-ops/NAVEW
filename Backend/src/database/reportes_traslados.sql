@@ -10,5 +10,4 @@ CREATE TABLE IF NOT EXISTS reportes_traslados (
   fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_reporte_traslado (id_traslado, fecha_registro),
   INDEX idx_reporte_usuario (usuario_id)
-);
--- Ajusta usuario_id al tipo exacto de usuarios.id si no es INT.
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
