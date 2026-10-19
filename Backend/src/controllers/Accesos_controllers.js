@@ -1,10 +1,17 @@
 import pool from '../database.js';
 import crypto from 'node:crypto';
+import { registrarReporteAcceso } from '../utils/reportesAccesos.js';
 import { obtenerColaboradoresACargo, obtenerJefeDirecto } from '../utils/jerarquia.js';
 
 const ROLES_SOLICITUD = new Set(['solicitante', 'jefe', 'administrador']);
 //colaborador 
 const obtenerCatalogosAcceso = async (req, res) => {
+	const idColaborador = req.user?.idColaborador;
+	if (!idColaborador) {
+		return res.status(403).json({ msg: 'Tu usuario no tiene un colaborador asociado' });
+	}
+
+	
 	try {
 		const [plantas] = await pool.query(
 			'SELECT ID_Planta AS id, Nombre_Planta AS nombre FROM Plantas ORDER BY Nombre_Planta'
@@ -37,7 +44,7 @@ const obtenerCatalogosAcceso = async (req, res) => {
 				 LIMIT 1
 			 )
 			 WHERE c.ID_COLABORADOR = ?`,
-			[req.user.id]
+			[req.user.idColaborador]
 		);
 
 		return res.status(200).json({
@@ -48,11 +55,17 @@ const obtenerCatalogosAcceso = async (req, res) => {
 			perfilSolicitante: perfilRows[0] || null,
 		});
 	} catch (error) {
-		return res.status(500).json({ msg: 'No se pudieron cargar los catálogos de acceso', error: error.message });
+		return res.status(500).json({ msg: 'No se pudieron cargar los catálogos de acceso' });
 	}
 };
 
 const crearAccesoExterno = async (req, res) => {
+	const idColaborador = req.user?.idColaborador;
+	if (!idColaborador) {
+		return res.status(403).json({ msg: 'Tu usuario no tiene un colaborador asociado' });
+	}
+
+	
 	const connection = await pool.getConnection();
 
 	try {
@@ -128,7 +141,7 @@ const crearAccesoExterno = async (req, res) => {
 		}
 
 		const idAcceso = crypto.randomUUID();
-		const idAprobador = await obtenerJefeDirecto(req.user.id);
+		const idAprobador = await obtenerJefeDirecto(req.user.idColaborador);
 		if (!idAprobador) {
 			await connection.rollback();
 			return res.status(400).json({ msg: 'No se encontró un jefe para aprobar esta solicitud' });
@@ -173,7 +186,7 @@ const crearAccesoExterno = async (req, res) => {
 			`INSERT INTO Eventos_Process_Mining
 			 (ID_Transaccion, Tipo_Modulo, Fase_Estado, ID_Usuario_Actor, Detalles_Extra)
 			 VALUES (?, 'EXTERNO', 'Solicitado', ?, ?)`,
-			 [idAcceso, req.user.id, JSON.stringify({ empresa: empresa.trim(), visitante: nombre_apellido.trim(), acompanantes: Number(numero_acompanantes) })]
+			 [idAcceso, req.user.idColaborador, JSON.stringify({ empresa: empresa.trim(), visitante: nombre_apellido.trim(), acompanantes: Number(numero_acompanantes) })]
 		);
 
 		await connection.query(
@@ -184,24 +197,40 @@ const crearAccesoExterno = async (req, res) => {
 		);
 
 		await connection.commit();
+		// La auditoria utiliza usuarios.id, no ID_COLABORADOR.
+		await registrarReporteAcceso({
+			usuarioId: req.user.id,
+			usuarioNombre: req.user.nombre,
+			accion: 'CREAR_ACCESO',
+			idAcceso,
+			estadoAnterior: null,
+			estadoNuevo: 'Solicitado',
+			detalles: { numero_acompanantes: Number(numero_acompanantes) },
+		});
 		return res.status(201).json({ success: true, msg: 'Solicitud de acceso externo creada', idAcceso });
 	} catch (error) {
-		await connection.rollback();
-		return res.status(500).json({ msg: 'No se pudo crear la solicitud de acceso externo', error: error.message });
+		try { await connection.rollback(); } catch (rollbackError) { console.error('Error en rollback:', rollbackError); }
+		return res.status(500).json({ msg: 'No se pudo crear la solicitud de acceso externo' });
 	} finally {
 		connection.release();
 	}
 };
 
 const obtenerAccesosExternos = async (req, res) => {
+	const idColaborador = req.user?.idColaborador;
+	if (!idColaborador) {
+		return res.status(403).json({ msg: 'Tu usuario no tiene un colaborador asociado' });
+	}
+
+	
 	try {
 		const rol = (req.user?.rol || '').toLowerCase();
 		const params = [];
 		let filtro = '';
 
 		if (rol === 'jefe') {
-			const idsSubordinados = await obtenerColaboradoresACargo(req.user.id);
-			idsSubordinados.push(req.user.id);
+			const idsSubordinados = await obtenerColaboradoresACargo(req.user.idColaborador);
+			idsSubordinados.push(req.user.idColaborador);
 
 			if (!idsSubordinados.length) {
 				filtro = 'WHERE 1 = 0';
@@ -212,7 +241,7 @@ const obtenerAccesosExternos = async (req, res) => {
 			}
 		} else if (!['administrador', 'supervisor'].includes(rol)) {
 			filtro = 'WHERE a.ID_Empleado_Visitado = ?';
-			params.push(req.user.id);
+			params.push(req.user.idColaborador);
 		}
 
 		const [accesos] = await pool.query(
@@ -252,11 +281,17 @@ const obtenerAccesosExternos = async (req, res) => {
 
 		return res.status(200).json({ success: true, accesos });
 	} catch (error) {
-		return res.status(500).json({ msg: 'No se pudo cargar el proceso de accesos externos', error: error.message });
+		return res.status(500).json({ msg: 'No se pudo cargar el proceso de accesos externos' });
 	}
 };
 
 const aprobarAccesoExterno = async (req, res) => {
+	const idColaborador = req.user?.idColaborador;
+	if (!idColaborador) {
+		return res.status(403).json({ msg: 'Tu usuario no tiene un colaborador asociado' });
+	}
+
+	
 	const connection = await pool.getConnection();
 
 	try {
@@ -267,13 +302,16 @@ const aprobarAccesoExterno = async (req, res) => {
 
 		const { id } = req.params;
 		const { accion } = req.body;
+		if (!['Aprobado', 'Rechazado'].includes(accion)) {
+			return res.status(400).json({ msg: 'Acción de aprobación inválida' });
+		}
 		const aprobado = accion === 'Aprobado';
 		const estado = aprobado ? 'Aprobado' : 'RECHAZADO';
 		const estadoAprobacion = estado;
 
 		await connection.beginTransaction();
 		const [accesoRows] = await connection.query(
-			'SELECT Numero_Acompanantes FROM Accesos_Externos WHERE ID_Acceso = ?',
+			'SELECT Numero_Acompanantes, Estado_Actual FROM Accesos_Externos WHERE ID_Acceso = ? FOR UPDATE',
 			[id]
 		);
 		if (!accesoRows.length) {
@@ -281,18 +319,23 @@ const aprobarAccesoExterno = async (req, res) => {
 			return res.status(404).json({ msg: 'La solicitud de acceso externo no existe' });
 		}
 		const numeroAcompanantes = Number(accesoRows[0].Numero_Acompanantes || 0);
+		const estadoAnterior = accesoRows[0].Estado_Actual;
+		if (estadoAnterior !== 'Solicitado') {
+			await connection.rollback();
+			return res.status(409).json({ msg: 'La solicitud ya fue procesada' });
+		}
 		const [aprobaciones] = await connection.query(
 			`SELECT ID_APROBACION FROM Aprobaciones
 			 WHERE TIPO_SOLICITUD = 'EXTERNO'
 			   AND ID_SOLICITUD = ?
 			   AND ID_APROBADOR = ?
 			   AND ESTADO = 'PENDIENTE'`,
-			[id, req.user.id]
+			[id, req.user.idColaborador]
 		);
 
 		if (!aprobaciones.length && rol !== 'administrador') {
-			const idsSubordinados = await obtenerColaboradoresACargo(req.user.id);
-			idsSubordinados.push(req.user.id);
+			const idsSubordinados = await obtenerColaboradoresACargo(req.user.idColaborador);
+			idsSubordinados.push(req.user.idColaborador);
 			const [accesosPermitidos] = await connection.query(
 				`SELECT ID_Acceso FROM Accesos_Externos
 				 WHERE ID_Acceso = ?
@@ -328,17 +371,27 @@ const aprobarAccesoExterno = async (req, res) => {
 			`INSERT INTO Eventos_Process_Mining
 			 (ID_Transaccion, Tipo_Modulo, Fase_Estado, ID_Usuario_Actor, Detalles_Extra)
 			 VALUES (?, 'EXTERNO', ?, ?, ?)`,
-			[id, estado, req.user.id, JSON.stringify({
+			[id, estado, req.user.idColaborador, JSON.stringify({
 				accion: estado,
 				numero_acompanantes: numeroAcompanantes,
 			})]
 		);
 
 		await connection.commit();
+		// Registrar el cambio de estado sin guardar el token QR.
+		await registrarReporteAcceso({
+			usuarioId: req.user.id,
+			usuarioNombre: req.user.nombre,
+			accion: aprobado ? 'APROBAR_ACCESO' : 'RECHAZAR_ACCESO',
+			idAcceso: id,
+			estadoAnterior,
+			estadoNuevo: estado,
+			detalles: { numero_acompanantes: numeroAcompanantes },
+		});
 		return res.json({ success: true, estado, qrToken });
 	} catch (error) {
 		await connection.rollback();
-		return res.status(500).json({ msg: 'No se pudo procesar la aprobación', error: error.message });
+		return res.status(500).json({ msg: 'No se pudo procesar la aprobación' });
 	} finally {
 		connection.release();
 	}

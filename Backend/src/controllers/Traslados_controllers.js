@@ -1,23 +1,18 @@
 import pool from '../database.js';
 import crypto from 'node:crypto';
 import { obtenerColaboradoresACargo, obtenerJefeDirecto } from '../utils/jerarquia.js';
+import { registrarReporteTraslado } from '../utils/reportesTraslados.js';
+
+
 
 // ==========================================
 // 1. HELPERS
 // ==========================================
 
-const insertEventLog = async (connection, idTransaccion, tipoModulo, faseEstado, idActor, detallesExtra = null) => {
-  await connection.query(
-    `INSERT INTO Eventos_Process_Mining 
-    (ID_Transaccion, Tipo_Modulo, Fase_Estado, ID_Usuario_Actor, Detalles_Extra)
-    VALUES (?, ?, ?, ?, ?)`,
-    [idTransaccion, tipoModulo, faseEstado, idActor, detallesExtra ? JSON.stringify(detallesExtra) : null]
-  );
-};
 
 const setupTraslado = async (req, res, connection, tipoTraslado, extraFields, extraValues) => {
-  const idSolicitante = req.user.id;
-  console.log(req.user.id);
+  const idSolicitante = req.user.idColaborador;
+  if (!idSolicitante) throw new Error("Usuario sin colaborador asociado");
   const { 
     fecha_salida, hora_salida, motivo_viaje, observaciones,
     id_planta_origen, id_planta_destino 
@@ -69,13 +64,7 @@ const setupTraslado = async (req, res, connection, tipoTraslado, extraFields, ex
     [idTraslado, idAprobador]
   );
 
-  await insertEventLog(connection, idTraslado, 'TRASLADO', 'Solicitado', idSolicitante);
 
-  // Si hubo desviación de tiempo, insertar el log de minería de procesos
-  if (extraFields.includes('desviacion')) {
-    const diff = extraValues[extraFields.indexOf('desviacion')];
-    await insertEventLog(connection, idTraslado, 'TRASLADO', 'DESVIACION_TIEMPO', idSolicitante, { diferencia_minutos: diff, hora_planificada: hora_salida });
-  }
 
   return { idTraslado, idAprobador };
 };
@@ -99,7 +88,6 @@ const obtenerChoferes = async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       msg: 'No se pudieron cargar los choferes',
-      error: error.message,
     });
   }
 };
@@ -114,13 +102,13 @@ const obtenerPlantas = async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       msg: 'No se pudieron cargar las plantas',
-      error: error.message,
     });
   }
 };
 
 const createTrasladoEmpresarial = async (req, res) => {
   const connection = await pool.getConnection();
+  let committed = false;
   try {
     const { id_chofer} = req.body;
     if (!id_chofer) return res.status(400).json({ msg: "Falta ID de chofer para transporte empresarial" });
@@ -131,10 +119,12 @@ const createTrasladoEmpresarial = async (req, res) => {
       [id_chofer]
     );
     await connection.commit();
+    committed = true;
+    await registrarReporteTraslado({ usuarioId: req.user.id, usuarioNombre: req.user.nombre, accion: "CREAR_TRASLADO", idTraslado: result.idTraslado, estadoNuevo: "Solicitado", detalles: { tipo_traslado: "EMPRESARIAL" } });
     res.status(201).json({ success: true, msg: "Transporte Empresarial registrado", ...result });
   } catch (error) {
-    await connection.rollback();
-    res.status(500).json({ msg: error.message || "Error al crear", error });
+    if (!committed) await connection.rollback();
+    res.status(500).json({ msg: "No se pudo crear el traslado" });
   } finally {
     connection.release();
   }
@@ -142,6 +132,7 @@ const createTrasladoEmpresarial = async (req, res) => {
 
 const createTrasladoPersonal = async (req, res) => {
   const connection = await pool.getConnection();
+  let committed = false;
   try {
     const { km_inicial, monto_solicitado } = req.body;
     await connection.beginTransaction();
@@ -150,10 +141,12 @@ const createTrasladoPersonal = async (req, res) => {
       [km_inicial || null, monto_solicitado || null]
     );
     await connection.commit();
+    committed = true;
+    await registrarReporteTraslado({ usuarioId: req.user.id, usuarioNombre: req.user.nombre, accion: "CREAR_TRASLADO", idTraslado: result.idTraslado, estadoNuevo: "Solicitado", detalles: { tipo_traslado: "PERSONAL" } });
     res.status(201).json({ success: true, msg: "Transporte Personal registrado", ...result });
   } catch (error) {
-    await connection.rollback();
-    res.status(500).json({ msg: error.message || "Error al crear", error });
+    if (!committed) await connection.rollback();
+    res.status(500).json({ msg: "No se pudo crear el traslado" });
   } finally {
     connection.release();
   }
@@ -161,6 +154,7 @@ const createTrasladoPersonal = async (req, res) => {
 
 const createTrasladoPrivado = async (req, res) => {
   const connection = await pool.getConnection();
+  let committed = false;
   try {
     const { monto_solicitado, evidencia_costo } = req.body;
     await connection.beginTransaction();
@@ -169,10 +163,12 @@ const createTrasladoPrivado = async (req, res) => {
       [monto_solicitado || null, evidencia_costo || null]
     );
     await connection.commit();
+    committed = true;
+    await registrarReporteTraslado({ usuarioId: req.user.id, usuarioNombre: req.user.nombre, accion: "CREAR_TRASLADO", idTraslado: result.idTraslado, estadoNuevo: "Solicitado", detalles: { tipo_traslado: "PRIVADO" } });
     res.status(201).json({ success: true, msg: "Transporte Privado registrado", ...result });
   } catch (error) {
-    await connection.rollback();
-    res.status(500).json({ msg: error.message || "Error al crear", error });
+    if (!committed) await connection.rollback();
+    res.status(500).json({ msg: "No se pudo crear el traslado" });
   } finally {
     connection.release();
   }
@@ -184,7 +180,7 @@ const createTrasladoPrivado = async (req, res) => {
 
 const getTraslados = async (req, res) => {
   try {
-    const idUsuario = req.user.id;
+    const idUsuario = req.user.idColaborador;
     const rol = req.user.rol.toLowerCase();
 
     let query = `SELECT t.*, col.NOMBRE AS Solicitante_Nombre, po.Nombre_Planta AS Planta_Origen_Nombre, pd.Nombre_Planta AS Planta_Destino_Nombre
@@ -223,7 +219,7 @@ const getTraslados = async (req, res) => {
     const [rows] = await pool.query(query, params);
     res.status(200).json({ success: true, traslados: rows });
   } catch (error) {
-    res.status(500).json({ msg: "Error al consultar historial", error: error.message });
+    res.status(500).json({ msg: "Error al consultar historial" });
   }
 };
 
@@ -231,16 +227,14 @@ const getProgresoTraslado = async (req, res) => {
   try {
     const { id } = req.params; // ID_Traslado
     const [rows] = await pool.query(
-      `SELECT Fase_Estado, Timestamp_Evento, Detalles_Extra, col.NOMBRE as Actor
-       FROM Eventos_Process_Mining evt
-       LEFT JOIN Colaboradores col ON evt.ID_Usuario_Actor = col.ID_COLABORADOR
-       WHERE ID_Transaccion = ? AND Tipo_Modulo = 'TRASLADO'
-       ORDER BY Timestamp_Evento ASC`,
+      `SELECT estado_nuevo AS Fase_Estado, fecha_registro AS Timestamp_Evento,
+              detalles AS Detalles_Extra, usuario_nombre AS Actor, accion
+       FROM reportes_traslados WHERE id_traslado = ? ORDER BY fecha_registro ASC, id ASC`,
       [id]
     );
     res.status(200).json({ success: true, progreso: rows });
   } catch (error) {
-    res.status(500).json({ msg: "Error al consultar progreso", error: error.message });
+    res.status(500).json({ msg: "Error al consultar progreso" });
   }
 };
 
@@ -250,11 +244,13 @@ const getProgresoTraslado = async (req, res) => {
 
 const approveTraslado = async (req, res) => {
   const connection = await pool.getConnection();
+  let committed = false;
   try {
     const { id } = req.params;
-    const idAprobador = req.user.id;
+    const idAprobador = req.user.idColaborador;
     const { accion, comentario } = req.body; // 'APROBADO' o 'RECHAZADO'
 
+    if (!['Aprobado', 'Rechazado'].includes(accion)) return res.status(400).json({ msg: 'Acción inválida' });
     const dbEstado = accion === 'Aprobado' ? 'Aprobado' : 'RECHAZADO';
     const estadoAprobacion = dbEstado;
 
@@ -289,17 +285,21 @@ const approveTraslado = async (req, res) => {
 
     await connection.query(updateQuery, updateParams);
 
-    await insertEventLog(connection, id, 'TRASLADO', dbEstado, idAprobador, { comentario });
 
     await connection.commit();
+    committed = true;
+    await registrarReporteTraslado({ usuarioId: req.user.id, usuarioNombre: req.user.nombre,
+      accion: dbEstado === 'Aprobado' ? 'APROBAR_TRASLADO' : 'RECHAZAR_TRASLADO',
+      idTraslado: id, estadoAnterior: 'Solicitado', estadoNuevo: dbEstado,
+      detalles: comentario ? { comentario } : null });
     res.status(200).json({
       success: true,
       msg: `Solicitud ${dbEstado.toLowerCase()}`,
       qrToken: dbEstado === 'Aprobado' ? id : null,
     });
   } catch (error) {
-    await connection.rollback();
-    res.status(500).json({ msg: "Error", error: error.message });
+    if (!committed) await connection.rollback();
+    res.status(500).json({ msg: "Error" });
   } finally {
     connection.release();
   }
@@ -311,6 +311,7 @@ const approveTraslado = async (req, res) => {
 
 const registrarSalidaGarita = async (req, res) => {
   const connection = await pool.getConnection();
+  let committed = false;
   try {
     const { id } = req.params; // ID_Traslado (leído del QR)
     const idGuardia = req.user.id;
@@ -338,13 +339,14 @@ const registrarSalidaGarita = async (req, res) => {
     }
 
     await connection.query(`UPDATE Traslados_Personal SET ${updates} WHERE ID_Traslado = ?`, params);
-    await insertEventLog(connection, id, 'TRASLADO', 'En camino', idGuardia, { km_inicial, observaciones });
 
     await connection.commit();
+    committed = true;
+    await registrarReporteTraslado({ usuarioId: idGuardia, usuarioNombre: req.user.nombre, accion: 'SALIDA_GARITA', idTraslado: id, estadoAnterior: 'Aprobado', estadoNuevo: 'En camino', detalles: { km_inicial: km_inicial ?? null } });
     res.status(200).json({ success: true, msg: "Salida registrada en garita exitosamente." });
   } catch (error) {
-    await connection.rollback();
-    res.status(500).json({ msg: "Error", error: error.message });
+    if (!committed) await connection.rollback();
+    res.status(500).json({ msg: "Error" });
   } finally {
     connection.release();
   }
@@ -352,6 +354,7 @@ const registrarSalidaGarita = async (req, res) => {
 
 const registrarLlegadaGarita = async (req, res) => {
   const connection = await pool.getConnection();
+  let committed = false;
   try {
     const { id } = req.params;
     const idGuardia = req.user.id;
@@ -378,13 +381,14 @@ const registrarLlegadaGarita = async (req, res) => {
     }
 
     await connection.query(`UPDATE Traslados_Personal SET ${updates} WHERE ID_Traslado = ?`, params);
-    await insertEventLog(connection, id, 'TRASLADO', 'Finalizado', idGuardia, { km_final, observaciones });
 
     await connection.commit();
+    committed = true;
+    await registrarReporteTraslado({ usuarioId: idGuardia, usuarioNombre: req.user.nombre, accion: 'LLEGADA_GARITA', idTraslado: id, estadoAnterior: 'En camino', estadoNuevo: 'Finalizado', detalles: { km_final: km_final ?? null } });
     res.status(200).json({ success: true, msg: "Llegada registrada en garita exitosamente." });
   } catch (error) {
-    await connection.rollback();
-    res.status(500).json({ msg: "Error", error: error.message });
+    if (!committed) await connection.rollback();
+    res.status(500).json({ msg: "Error" });
   } finally {
     connection.release();
   }
@@ -392,6 +396,7 @@ const registrarLlegadaGarita = async (req, res) => {
 
 const finalizarTraslado = async (req, res) => {
   const connection = await pool.getConnection();
+  let committed = false;
   try {
     const { id } = req.params;
     const { km_final, evidencia_costo } = req.body;
@@ -434,16 +439,13 @@ const finalizarTraslado = async (req, res) => {
         [evidencia_costo, id]
       );
     }
-    await insertEventLog(connection, id, 'TRASLADO', 'Finalizado', req.user.id, {
-      km_final: km_final || null,
-      evidencia_costo: evidencia_costo || null,
-      fecha_hora: new Date().toISOString(),
-    });
     await connection.commit();
+    committed = true;
+    await registrarReporteTraslado({ usuarioId: req.user.id, usuarioNombre: req.user.nombre, accion: 'FINALIZAR_TRASLADO', idTraslado: id, estadoAnterior: traslado.Estado_Actual, estadoNuevo: 'Finalizado', detalles: { km_final: km_final ?? null } });
     return res.json({ success: true, msg: 'Traslado finalizado correctamente' });
   } catch (error) {
-    await connection.rollback();
-    return res.status(500).json({ msg: 'No se pudo finalizar el traslado', error: error.message });
+    if (!committed) await connection.rollback();
+    return res.status(500).json({ msg: 'No se pudo finalizar el traslado' });
   } finally {
     connection.release();
   }

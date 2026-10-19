@@ -3,622 +3,351 @@ import pool from '../database.js';
 import { crearTokenJWT } from '../middlewares/JWT.js';
 import { registrarReporteUsuario } from '../utils/reportesUsuarios.js';
 
-// Sistema de protección contra fuerza bruta
-const loginAttempts = new Map();
-const MAX_INTENTOS = 3; // Después de 3 intentos, la cuenta se bloquea permanentemente
 
-const registrarIntento = (email) => {
-  if (!loginAttempts.has(email)) {
-    loginAttempts.set(email, 0);
-  }
-  const intentos = loginAttempts.get(email);
-  loginAttempts.set(email, intentos + 1);
+const ROLES = ['administrador', 'jefe', 'solicitante', 'supervisor', 'subgerentegeneral', 'gerentegeneral', 'gerente', 'subgerente'];
+const DOMINIOS = ['@farbiopharma.com', '@inpel.com', '@clarel.com'];
+const ESTADOS = ['activo', 'bloqueado'];
+const MAX_INTENTOS = 3;
+const intentosLogin = new Map(); // Solo proceso actual; usar Redis/BD si hay varias instancias.
+const emailNormalizado = value => value.trim().toLowerCase();
+const emailPermitido = value => DOMINIOS.some(d => value.endsWith(d));
+const esAdmin = req => req.user?.rol === 'administrador';
+const errorInterno = (res, etiqueta, err) => {
+  console.error(etiqueta, err);
+  return res.status(500).json({ msg: 'Ocurrió un error en el servidor' });
 };
+const limpiarIntentosLogin = email => intentosLogin.delete(emailNormalizado(email));
 
-const obtenerIntentosFallidos = (email) => {
-  return loginAttempts.get(email) || 0;
-};
-
-const limpiarIntentosLogin = (email) => {
-  loginAttempts.delete(email);
-};
-
-const formatearUsuarioParaAuditoria = (usuario = {}) => ({
-  id: usuario.ID_COLABORADOR,
-  nombre: usuario.NOMBRE,
-  cedula: usuario.CEDULA,
-  email: usuario.EMAIL_CORPORATIVO,
-  rol: usuario.ROL,
-  estado: usuario.ESTADO,
+// Nunca incluir hashes ni contraseñas en respuestas o auditorías.
+const usuarioPublico = u => ({
+  id: u.id,
+  id_colaborador: u.ID_COLABORADOR ?? null,
+  nombre: u.NOMBRE ?? null,
+  cedula: u.cedula,
+  email: u.email,
+  rol: u.rol,
+  estado: u.estado,
+  created_at: u.created_at,
+  updated_at: u.updated_at
 });
 
-// Login de usuario - NO REQUIERE ROL
-  const login = async (req, res) => {
-  const connection = await pool.getConnection();
-
+// La auditoría es best-effort y no debe convertir una operación confirmada en error HTTP.
+const auditar = async datos => {
   try {
-    const { email, password } = req.body;
+    await registrarReporteUsuario(datos);
+  } catch (err) {
+    console.error('Fallo de auditoría:', err);
+  }
+};
 
-    // Validar campos
-    if (!email || !password) {
-      return res.status(400).json({ msg: "Email y contraseña son requeridos" });
+const login = async (req, res) => {
+  try {
+    const { email, password } = req.body ?? {};
+    if (typeof email !== 'string' || !email.trim() || typeof password !== 'string' || !password) {
+      return res.status(400).json({ msg: 'Email y contraseña son requeridos' });
     }
-
-    const emailLower = email.toLowerCase();
-
-    // Buscar colaborador por email corporativo
-    const [colaboradores] = await connection.query(
-      `SELECT col.*, usu.password AS password_hash, usu.rol AS ROL, usu.estado AS USUARIO_ESTADO
+    const correo = emailNormalizado(email);
+    const [rows] = await pool.query(
+      `SELECT usu.id, usu.cedula, usu.email, usu.password, usu.rol, usu.estado,
+              col.ID_COLABORADOR, col.NOMBRE
        FROM usuarios usu
-       INNER JOIN Colaboradores col ON col.CEDULA = usu.cedula
-       WHERE usu.email = ?`,
-      [emailLower]
+       LEFT JOIN Colaboradores col ON col.CEDULA = usu.cedula
+       WHERE usu.email = ? LIMIT 1`, [correo]
     );
+    const usuario = rows[0];
+    if (!usuario?.password) return res.status(401).json({ msg: 'Email o contraseña incorrectos' });
+    if (usuario.estado !== 'activo') return res.status(403).json({ msg: 'Cuenta inactiva o bloqueada' });
 
-    if (colaboradores.length === 0) {
-      return res.status(401).json({ msg: "Email o contraseña incorrectos" });
-    }
-
-    const usuario = colaboradores[0];
-
-    if (!usuario.password_hash) {
-      console.error(`El colaborador ${usuario.ID_COLABORADOR} no tiene una contraseña configurada`);
-      return res.status(401).json({ msg: "Email o contraseña incorrectos" });
-    }
-
-    // Verificar si la cuenta está bloqueada
-    if (usuario.USUARIO_ESTADO === 'bloqueado' || usuario.ESTADO === 'BLOQUEADO') {
-      return res.status(403).json({ 
-        msg: "Tu cuenta está bloqueada. Por favor contacta al administrador para desbloquearla." 
-      });
-    }
-
-    // Verificar contraseña
-    const passwordValida = await bcryptjs.compare(password, usuario.password_hash);
-    if (!passwordValida) {
-      const intentosActuales = obtenerIntentosFallidos(emailLower);
-      registrarIntento(emailLower);
-      const nuevoConteo = intentosActuales + 1;
-
-      // Si llega a 3 intentos fallidos, bloquear la cuenta de forma permanente
-      if (nuevoConteo >= MAX_INTENTOS) {
-        await connection.query(
-          'UPDATE usuarios SET estado = ? WHERE cedula = ?',
-          ['bloqueado', usuario.CEDULA]
-        );
-        limpiarIntentosLogin(emailLower);
-        return res.status(403).json({ 
-          msg: "Tu cuenta ha sido bloqueada por seguridad. Por favor contacta al administrador." 
-        });
+    const valida = await bcryptjs.compare(password, usuario.password);
+    if (!valida) {
+      const intentos = (intentosLogin.get(correo) || 0) + 1;
+      intentosLogin.set(correo, intentos);
+      if (intentos >= MAX_INTENTOS) {
+        await pool.query('UPDATE usuarios SET estado = ? WHERE id = ? AND estado = ?', ['bloqueado', usuario.id, 'activo']);
+        intentosLogin.delete(correo);
+        return res.status(403).json({ msg: 'Cuenta bloqueada por seguridad. Contacta al administrador.' });
       }
-
-      const intentosRestantes = MAX_INTENTOS - nuevoConteo;
-      return res.status(401).json({ 
-        msg: `Email o contraseña incorrectos. Tienes ${intentosRestantes} intento(s) restante(s) antes de que tu cuenta se bloquee.` 
-      });
+      return res.status(401).json({ msg: 'Email o contraseña incorrectos' });
     }
-
-    // Login exitoso - limpiar intentos de sesión
-    limpiarIntentosLogin(emailLower);
-
-    // Generar token JWT
-    const token = crearTokenJWT(usuario.ID_COLABORADOR, usuario.ROL, usuario.NOMBRE);
-
+    intentosLogin.delete(correo);
+    const token = crearTokenJWT(usuario.id, usuario.rol);
     return res.status(200).json({
-      msg: "Login exitoso",
-      token,
+      msg: 'Login exitoso', token,
       usuario: {
-        id: usuario.ID_COLABORADOR,
-        nombre: usuario.NOMBRE,
-        email: usuario.EMAIL_CORPORATIVO,
-        rol: usuario.ROL
+        id: usuario.id, nombre: usuario.NOMBRE ?? null,
+        email: usuario.email, rol: usuario.rol, estado: usuario.estado
       }
     });
-
-  } catch (err) {
-    console.error('Error en login:', err);
-    return res.status(500).json({ msg: 'Ocurrió un error en el servidor', error: err.message });
-  } finally {
-    connection.release();
-  }
+  } catch (err) { return errorInterno(res, 'Error en login:', err); }
 };
 
-// Obtener mi perfil - REQUIERE AUTENTICACIÓN
 const obtenerMiPerfil = async (req, res) => {
-  const connection = await pool.getConnection();
-
   try {
-    // El usuario autenticado viene en req.user desde el middleware (ya normalizado)
-    const usuarioId = req.user?.id;
-
-    if (!usuarioId) {
-      return res.status(401).json({ msg: 'No autenticado' });
-    }
-
-    const [colaboradores] = await connection.query(
-      `SELECT col.ID_COLABORADOR, col.NOMBRE, col.CEDULA,
-              COALESCE(usu.email, cor.CORREO) AS EMAIL_CORPORATIVO,
-              usu.rol AS ROL, usu.estado AS ESTADO, usu.created_at AS CREATED_AT
-       FROM Colaboradores col
-       LEFT JOIN usuarios usu ON usu.cedula = col.CEDULA
-       LEFT JOIN Correos cor ON cor.ID_COLABORADOR = col.ID_COLABORADOR
-       WHERE col.ID_COLABORADOR = ?`,
-      [usuarioId]
+    const [rows] = await pool.query(
+      `SELECT usu.id, usu.cedula, usu.email, usu.rol, usu.estado,
+              usu.created_at, usu.updated_at, col.ID_COLABORADOR, col.NOMBRE
+       FROM usuarios usu LEFT JOIN Colaboradores col ON col.CEDULA = usu.cedula
+       WHERE usu.id = ? LIMIT 1`, [req.user.id]
     );
-
-    if (colaboradores.length === 0) {
-      return res.status(404).json({ msg: "Usuario no encontrado" });
-    }
-
-    // Normalizar la respuesta para el frontend
-    const col = colaboradores[0];
-    return res.status(200).json({
-      msg: "Perfil obtenido exitosamente",
-      usuario: {
-        id: col.ID_COLABORADOR,
-        nombre: col.NOMBRE,
-        cedula: col.CEDULA,
-        email: col.EMAIL_CORPORATIVO,
-        rol: col.ROL,
-        estado: col.ESTADO,
-        created_at: col.CREATED_AT,
-      }
-    });
-
-  } catch (err) {
-    console.error('Error obteniendo perfil:', err);
-    return res.status(500).json({ msg: 'Ocurrió un error en el servidor', error: err.message });
-  } finally {
-    connection.release();
-  }
+    if (!rows.length) return res.status(404).json({ msg: 'Usuario no encontrado' });
+    return res.status(200).json({ msg: 'Perfil obtenido exitosamente', usuario: usuarioPublico(rows[0]) });
+  } catch (err) { return errorInterno(res, 'Error obteniendo perfil:', err); }
 };
 
-// Buscar colaborador por cédula para la creación de usuarios
 const obtenerColaboradorPorCedula = async (req, res) => {
-  const connection = await pool.getConnection();
-
+  if (!esAdmin(req)) return res.status(403).json({ msg: 'Acceso denegado' });
   try {
-    if (req.user?.rol !== 'administrador') {
-      return res.status(403).json({ msg: 'Acceso denegado' });
-    }
-
     const { cedula } = req.params;
-
-    // Hacemos un LEFT JOIN para traer el correo desde la tabla Correos
-    const [colaboradores] = await connection.query(
-      `SELECT 
-        c.ID_COLABORADOR, 
-        c.NOMBRE, 
-        c.CEDULA, 
-        co.CORREO AS email 
-      FROM Colaboradores c
-      LEFT JOIN Correos co ON c.ID_CORREO_PRINCIPAL = co.ID_CORREOS
-      WHERE c.CEDULA = ?`,
-      [cedula]
+    const [rows] = await pool.query(
+      `SELECT c.ID_COLABORADOR, c.NOMBRE, c.CEDULA, co.CORREO AS email
+       FROM Colaboradores c LEFT JOIN Correos co ON co.ID_CORREOS = c.ID_CORREO_PRINCIPAL
+       WHERE c.CEDULA = ? LIMIT 1`, [cedula]
     );
-    
-    console.log(colaboradores);
-
-    if (colaboradores.length === 0) {
-      return res.status(404).json({ msg: 'No existe un colaborador con esa cédula' });
-    }
-
-    return res.status(200).json({ colaborador: colaboradores[0] });
-  } catch (err) {
-    console.error('Error buscando colaborador:', err);
-    return res.status(500).json({ msg: 'Ocurrió un error en el servidor' });
-  } finally {
-    connection.release();
-  }
+    if (!rows.length) return res.status(404).json({ msg: 'No existe un colaborador con esa cédula' });
+    return res.status(200).json({ colaborador: rows[0] });
+  } catch (err) { return errorInterno(res, 'Error buscando colaborador:', err); }
 };
 
-// Registro de usuario - ROL ADMINISTRADOR
-  const registro = async (req, res) => {
-  const connection = await pool.getConnection();
-  
+const registro = async (req, res) => {
+  if (!esAdmin(req)) return res.status(403).json({ msg: 'Solo administradores pueden registrar usuarios' });
+  let connection;
+  let enTransaccion = false;
   try {
-    // Validar que el usuario sea administrador
-    if (req.user?.rol !== 'administrador') {
-      return res.status(403).json({ 
-        msg: 'Acceso denegado: solo administradores pueden registrar nuevos usuarios' 
-      });
+    const { email, password, nombre, cedula, rol } = req.body ?? {};
+    if (![email, password, cedula, rol].every(v => typeof v === 'string' && v.trim())) {
+      return res.status(400).json({ msg: 'Email, contraseña, cédula y rol son requeridos' });
     }
-
-    const { email, password, nombre, cedula, rol } = req.body;
-    const rolesPermitidos = ['administrador', 'jefe', 'solicitante', 'supervisor'];
-
-    // Validar que todos los campos requeridos estén presentes
-    if (!email || !password || !nombre || !cedula || !rol) {
-      return res.status(400).json({ msg: "Debes llenar todos los campos requeridos: email, password, nombre, cedula, rol" });
-    }
-
-    if (!rolesPermitidos.includes(rol)) {
-      return res.status(400).json({ msg: 'El rol solo puede ser: administrador, jefe, solicitante o supervisor' });
-    }
-
-    // Validar que el email pertenezca a uno de los dominios permitidos
-    const emailLower = email.toString().toLowerCase();
-    const dominiosValidos = ["@farbiopharma.com", "@inpel.com"];
-    const dominioValido = dominiosValidos.some(dominio => emailLower.endsWith(dominio));
-    
-    if (!dominioValido) {
-      return res.status(400).json({ msg: `El correo debe pertenecer a uno de estos dominios: ${dominiosValidos.join(" o ")}` });
-    }
-
-    // Validar que la contraseña tenga al menos 14 caracteres
-    if (password.length < 14) {
-      return res.status(400).json({ msg: "La contraseña debe tener al menos 14 caracteres" });
-    }
-
-    // Validar que la cédula sea válida y tenga 10 dígitos
-    if (!/^\d{10}$/.test(cedula)) {
-      return res.status(400).json({ msg: "La cédula debe tener exactamente 10 dígitos" });
-    }
-
-    // Verificar que el email no esté registrado
-    const [emailExistente] = await connection.query(
-      'SELECT id FROM usuarios WHERE email = ?',
-      [emailLower]
+    const correo = emailNormalizado(email);
+    if (!emailPermitido(correo)) return res.status(400).json({ msg: 'Dominio de correo no permitido' });
+    if (!ROLES.includes(rol)) return res.status(400).json({ msg: 'Rol no válido' });
+    if (!/^\d{10}$/.test(cedula)) return res.status(400).json({ msg: 'La cédula debe tener 10 dígitos' });
+    if (password.length < 14 || password.length > 20) return res.status(400).json({ msg: 'La contraseña debe tener entre 14 y 20 caracteres' });
+    connection = await pool.getConnection();
+    const [colaboradores] = await connection.query(
+      'SELECT ID_COLABORADOR, NOMBRE, CEDULA FROM Colaboradores WHERE CEDULA = ? LIMIT 1', [cedula]
     );
-    if (emailExistente.length > 0) {
-      return res.status(400).json({ msg: "El email ya se encuentra registrado" });
-    }
-
-    // Verificar que la cédula no esté registrada
-    const [cedulaExistente] = await connection.query(
-      'SELECT id FROM usuarios WHERE cedula = ?',
-      [cedula]
+    if (!colaboradores.length) return res.status(404).json({ msg: 'No existe un colaborador con esa cédula' });
+    // El nombre proviene de Colaboradores; no se sobrescribe al registrar usuarios.
+    const [duplicados] = await connection.query(
+      'SELECT id FROM usuarios WHERE cedula = ? OR email = ? LIMIT 1', [cedula, correo]
     );
-    if (cedulaExistente.length > 0) {
-      return res.status(400).json({ msg: "La cédula ya está registrada" });
-    }
-
-    const [colaboradorExistente] = await connection.query(
-      'SELECT ID_COLABORADOR, NOMBRE, CEDULA, ID_CORREO_PRINCIPAL FROM Colaboradores WHERE CEDULA = ?',
-      [cedula]
-    );
-
-    if (colaboradorExistente.length === 0) {
-      return res.status(404).json({ msg: "No existe un colaborador con esa cédula" });
-    }
-
-    const colaborador = colaboradorExistente[0];
-
-
-    // Encriptar contraseña
-    const passwordEncriptada = await bcryptjs.hash(password, 10);
-
-    await connection.beginTransaction();
-
-    await connection.query(
+    if (duplicados.length) return res.status(409).json({ msg: 'La cédula o el correo ya están registrados' });
+    const hash = await bcryptjs.hash(password, 10);
+    await connection.beginTransaction(); enTransaccion = true;
+    const [result] = await connection.query(
       'INSERT INTO usuarios (cedula, email, password, rol, estado) VALUES (?, ?, ?, ?, ?)',
-      [cedula, emailLower, passwordEncriptada, rol, 'activo']
+      [cedula, correo, hash, rol, 'activo']
     );
-
-    await connection.commit();
-
-    const usuarioCreado = formatearUsuarioParaAuditoria({
-      ID_COLABORADOR: colaborador.ID_COLABORADOR,
-      NOMBRE: colaborador.NOMBRE,
-      CEDULA: cedula,
-      EMAIL_CORPORATIVO: emailLower,
-      ROL: rol,
-    });
-
-    await registrarReporteUsuario({
-      usuarioId: req.user?.id,
-      usuarioNombre: req.user?.nombre,
-      accion: 'crear_usuario',
-      modulo: 'usuarios',
-      campoAfectado: 'usuario',
-      valorAnterior: null,
-      valorNuevo: usuarioCreado,
-      targetUserId: colaborador.ID_COLABORADOR,
-      targetUserName: colaborador.NOMBRE,
-    });
-
-    return res.status(201).json({
-      msg: "Usuario registrado exitosamente",
-      usuario: {
-        id: colaborador.ID_COLABORADOR,
-        nombre: colaborador.NOMBRE,
-        cedula,
-        email: emailLower,
-        rol,
-        estado: 'ACTIVO'
-      }
-    });
-
-  } catch (err) {
-    console.error('Error en registro:', err);
-    return res.status(500).json({ msg: 'Ocurrió un error en el servidor', error: err.message });
-  } finally {
-    connection.release();
-  }
-};
-
-// Obtener todos los usuarios - REQUIERE ROL ADMINISTRADOR
-const obtenerUsuarios = async (req, res) => {
-  const connection = await pool.getConnection();
-
-  try {
-    // Validar que el usuario sea administrador
-    if (req.user?.rol !== 'administrador') {
-      return res.status(403).json({ 
-        msg: 'Acceso denegado: solo administradores pueden obtener la lista de usuarios' 
-      });
-    }
-
-    // Consulta directa a la tabla usuarios (sin password por seguridad)
-    const [usuariosRaw] = await connection.query(
-      `SELECT id, cedula, email, rol, estado, created_at, updated_at
-       FROM usuarios
-       ORDER BY email`
-    );
-
-    // Normalizar la respuesta para el frontend
-    const usuarios = usuariosRaw.map(usu => ({
-      id: usu.id,
-      cedula: usu.cedula,
-      email: usu.email,
-      rol: usu.rol,
-      estado: usu.estado,
-      created_at: usu.created_at,
-      updated_at: usu.updated_at,
-    }));
-
-    return res.status(200).json({
-      msg: "Usuarios obtenidos exitosamente",
-      usuarios
-    });
-
-  } catch (err) {
-    console.error('Error obteniendo usuarios:', err);
-    return res.status(500).json({ 
-      msg: 'Ocurrió un error en el servidor', 
-      error: err.message 
-    });
-  } finally {
-    connection.release();
-  }
-};
-
-// Obtener usuario por ID - REQUIERE ROL ADMINISTRADOR
-  const obtenerUsuario = async (req, res) => {
-  const connection = await pool.getConnection();
-
-  try {
-    // Validar que el usuario sea administrador
-    if (req.user?.rol !== 'administrador') {
-      return res.status(403).json({ 
-        msg: 'Acceso denegado: solo administradores pueden obtener datos de usuarios' 
-      });
-    }
-
-    const { id } = req.params;
-
-    const [colaboradores] = await connection.query(
-      `SELECT col.ID_COLABORADOR, col.NOMBRE, col.CEDULA,
-              COALESCE(usu.email, col.EMAIL_CORPORATIVO) AS EMAIL_CORPORATIVO,
-              usu.rol AS ROL, usu.estado AS ESTADO, usu.created_at AS CREATED_AT
-       FROM Colaboradores col
-       LEFT JOIN usuarios usu ON usu.cedula = col.CEDULA
-       WHERE col.ID_COLABORADOR = ?`,
-      [id]
-    );
-
-    if (colaboradores.length === 0) {
-      return res.status(404).json({ msg: "Usuario no encontrado" });
-    }
-
-    const col = colaboradores[0];
-    return res.status(200).json({
-      msg: "Usuario obtenido exitosamente",
-      usuario: {
-        id: col.ID_COLABORADOR,
-        nombre: col.NOMBRE,
-        cedula: col.CEDULA,
-        email: col.EMAIL_CORPORATIVO,
-        rol: col.ROL,
-        estado: col.ESTADO,
-        created_at: col.CREATED_AT,
-      }
-    });
-
-  } catch (err) {
-    console.error('Error obteniendo usuario:', err);
-    return res.status(500).json({ msg: 'Ocurrió un error en el servidor', error: err.message });
-  } finally {
-    connection.release();
-  }
-};
-
-
-// Actualizar usuario - REQUIERE ROL ADMINISTRADOR
-  const actualizarUsuario = async (req, res) => {
-  const connection = await pool.getConnection();
-
-  try {
-    const { id } = req.params;
-    const { nombre, cedula, email, rol, password, estado } = req.body;
-    const rolesPermitidos = ['administrador', 'jefe', 'solicitante', 'supervisor'];
-
-    if (rol && !rolesPermitidos.includes(rol)) {
-      return res.status(400).json({ msg: 'El rol solo puede ser: administrador, jefe, solicitante o supervisor' });
-    }
-
-    // Validar que el colaborador exista
-    const [colaboradorExistente] = await connection.query(
-      `SELECT col.*, usu.email AS USUARIO_EMAIL, usu.rol AS ROL, usu.estado AS USUARIO_ESTADO
-       FROM Colaboradores col
-       INNER JOIN usuarios usu ON usu.cedula = col.CEDULA
-       WHERE col.ID_COLABORADOR = ?`,
-      [id]
-    );
-
-    if (colaboradorExistente.length === 0) {
-      return res.status(404).json({ msg: "Usuario no encontrado" });
-    }
-
-    const usuarioAntes = formatearUsuarioParaAuditoria(colaboradorExistente[0]);
-
-    // Preparar datos a actualizar
-    const actualizaciones = {};
-    if (nombre) actualizaciones.NOMBRE = nombre;
-    if (cedula) actualizaciones.CEDULA = cedula;
-    if (email) actualizaciones.email = email.toLowerCase();
-    if (rol) actualizaciones.rol = rol;
-    if (estado && ['activo', 'bloqueado', 'ACTIVO', 'BLOQUEADO'].includes(estado)) {
-      actualizaciones.estado = estado.toLowerCase();
-    }
-    if (password) actualizaciones.password = await bcryptjs.hash(password, 10);
-
-    // Si no hay cambios
-    if (Object.keys(actualizaciones).length === 0) {
-      return res.status(400).json({ msg: "No hay campos para actualizar" });
-    }
-
-    // Construir query dinámicamente
-    const datosColaborador = {};
-    if (nombre) datosColaborador.NOMBRE = nombre;
-    if (cedula) datosColaborador.CEDULA = cedula;
-    if (email) datosColaborador.EMAIL_CORPORATIVO = email.toLowerCase();
-
-    await connection.beginTransaction();
-    if (Object.keys(datosColaborador).length > 0) {
-      const camposColaborador = Object.keys(datosColaborador).map(key => `${key} = ?`).join(', ');
-      await connection.query(
-        `UPDATE Colaboradores SET ${camposColaborador}, UPDATED_AT = NOW() WHERE ID_COLABORADOR = ?`,
-        [...Object.values(datosColaborador), id]
-      );
-    }
-    const datosUsuario = Object.fromEntries(
-      Object.entries(actualizaciones).filter(([key]) => ['email', 'rol', 'estado', 'password'].includes(key))
-    );
-    if (cedula) datosUsuario.cedula = cedula;
-    if (Object.keys(datosUsuario).length > 0) {
-      const camposUsuario = Object.keys(datosUsuario).map(key => `${key} = ?`).join(', ');
-      await connection.query(
-        `UPDATE usuarios SET ${camposUsuario}, updated_at = NOW() WHERE cedula = ?`,
-        [...Object.values(datosUsuario), colaboradorExistente[0].CEDULA]
-      );
-    }
-    await connection.commit();
-
-    // Si se cambia el estado a ACTIVO, limpiar intentos de sesión
-    if (actualizaciones.estado === 'activo') {
-      const emailUsuario = (colaboradorExistente[0].USUARIO_EMAIL || '').toLowerCase();
-      limpiarIntentosLogin(emailUsuario);
-    }
-
-    const colaboradorDespues = {
-      ...usuarioAntes,
-      nombre: actualizaciones.NOMBRE ?? usuarioAntes.nombre,
-      cedula: actualizaciones.CEDULA ?? usuarioAntes.cedula,
-      email: actualizaciones.EMAIL_CORPORATIVO ?? usuarioAntes.email,
-      rol: actualizaciones.rol ?? usuarioAntes.rol,
-      estado: actualizaciones.estado ?? usuarioAntes.estado,
-      ...(actualizaciones.password ? { password: 'actualizada' } : {}),
+    await connection.commit(); enTransaccion = false;
+    const creado = {
+      id: result.insertId, nombre: colaboradores[0].NOMBRE,
+      cedula, email: correo, rol, estado: 'activo'
     };
-
-    await registrarReporteUsuario({
-      usuarioId: req.user?.id,
-      usuarioNombre: req.user?.nombre,
-      accion: 'editar_usuario',
-      modulo: 'usuarios',
-      campoAfectado: Object.keys(actualizaciones).join(', ') || 'usuario',
-      valorAnterior: {
-        ...usuarioAntes,
-        ...(actualizaciones.password ? { password: 'actualizada' } : {}),
-      },
-      valorNuevo: colaboradorDespues,
-      targetUserId: Number(id),
-      targetUserName: colaboradorDespues.nombre,
+    await auditar({
+      usuarioId: req.user.id, usuarioNombre: req.user.nombre,
+      accion: 'crear_usuario', modulo: 'usuarios', campoAfectado: 'usuario',
+      valorAnterior: null, valorNuevo: creado,
+      targetUserId: result.insertId, targetUserName: creado.nombre
     });
-
-    return res.status(200).json({
-      msg: "Usuario actualizado exitosamente",
-      usuario: { 
-        id, 
-        nombre: actualizaciones.NOMBRE || colaboradorExistente[0].NOMBRE, 
-        cedula: actualizaciones.CEDULA || colaboradorExistente[0].CEDULA,
-        email: actualizaciones.email || colaboradorExistente[0].USUARIO_EMAIL,
-        rol: actualizaciones.rol || colaboradorExistente[0].ROL,
-        estado: actualizaciones.estado || colaboradorExistente[0].USUARIO_ESTADO
-      }
-    });
-
+    return res.status(201).json({ msg: 'Usuario registrado exitosamente', usuario: creado });
   } catch (err) {
-    console.error('Error actualizando usuario:', err);
-    return res.status(500).json({ msg: 'Ocurrió un error en el servidor', error: err.message });
-  } finally {
-    connection.release();
-  }
+    if (enTransaccion) await connection.rollback().catch(console.error);
+    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ msg: 'La cédula o el correo ya están registrados' });
+    return errorInterno(res, 'Error registrando usuario:', err);
+  } finally { connection?.release(); }
 };
 
-// Eliminar usuario - REQUIERE ROL ADMINISTRADOR
-  const eliminarUsuario = async (req, res) => {
-  const connection = await pool.getConnection();
-
+const obtenerUsuarios = async (req, res) => {
+  if (!esAdmin(req)) return res.status(403).json({ msg: 'Acceso denegado' });
   try {
-    // Validar que el usuario sea administrador
-    if (req.user?.rol !== 'administrador') {
-      return res.status(403).json({ 
-        msg: 'Acceso denegado: solo administradores pueden eliminar usuarios' 
+    const [rows] = await pool.query(
+      `SELECT usu.id, usu.cedula, usu.email, usu.rol, usu.estado,
+              usu.created_at, usu.updated_at, col.ID_COLABORADOR, col.NOMBRE
+       FROM usuarios usu LEFT JOIN Colaboradores col ON col.CEDULA = usu.cedula
+       ORDER BY usu.email`
+    );
+    return res.status(200).json({ msg: 'Usuarios obtenidos exitosamente', usuarios: rows.map(usuarioPublico) });
+  } catch (err) { return errorInterno(res, 'Error obteniendo usuarios:', err); }
+};
+
+const obtenerUsuario = async (req, res) => {
+  if (!esAdmin(req)) return res.status(403).json({ msg: 'Acceso denegado' });
+  try {
+    const [rows] = await pool.query(
+      `SELECT usu.id, usu.cedula, usu.email, usu.rol, usu.estado,
+              usu.created_at, usu.updated_at, col.ID_COLABORADOR, col.NOMBRE
+       FROM usuarios usu LEFT JOIN Colaboradores col ON col.CEDULA = usu.cedula
+       WHERE usu.id = ? LIMIT 1`, [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ msg: 'Usuario no encontrado' });
+    return res.status(200).json({ msg: 'Usuario obtenido exitosamente', usuario: usuarioPublico(rows[0]) });
+  } catch (err) { return errorInterno(res, 'Error obteniendo usuario:', err); }
+};
+
+const actualizarUsuario = async (req, res) => {
+  if (!esAdmin(req)) return res.status(403).json({ msg: 'Solo administradores pueden actualizar usuarios' });
+  let connection;
+  let enTransaccion = false;
+  try {
+    const { id } = req.params;
+    const { nombre, cedula, email, rol, password, estado } = req.body ?? {};
+    if (rol !== undefined && !ROLES.includes(rol)) return res.status(400).json({ msg: 'El rol no es válido' });
+    if (estado !== undefined && (typeof estado !== 'string' || !ESTADOS.includes(estado.toLowerCase()))) {
+      return res.status(400).json({ msg: 'El estado no es válido' });
+    }
+    connection = await pool.getConnection();
+    const [rows] = await connection.query(
+      `SELECT id, cedula, email, rol, estado, password FROM usuarios WHERE id = ? LIMIT 1`, [id]
+    );
+    if (!rows.length) return res.status(404).json({ msg: 'Usuario no encontrado' });
+    const actual = rows[0];
+    const cedulaOriginal = actual.cedula;
+    const [colaboradores] = await connection.query(
+      'SELECT ID_COLABORADOR, NOMBRE, CEDULA FROM Colaboradores WHERE CEDULA = ? LIMIT 1', [cedulaOriginal]
+    );
+    const colaborador = colaboradores[0] ?? null;
+    const datosUsuario = {};
+    const datosColaborador = {};
+    const datosAuditoria = {};
+
+    if (cedula !== undefined && cedula !== cedulaOriginal) {
+      if (typeof cedula !== 'string' || !/^\d{10}$/.test(cedula)) return res.status(400).json({ msg: 'La cédula debe tener 10 dígitos' });
+      if (!colaborador) return res.status(409).json({ msg: 'No hay colaborador asociado a la cédula actual' });
+      const [dupUsuarios] = await connection.query('SELECT id FROM usuarios WHERE cedula = ? AND id <> ? LIMIT 1', [cedula, id]);
+      const [dupColaboradores] = await connection.query('SELECT ID_COLABORADOR FROM Colaboradores WHERE CEDULA = ? AND ID_COLABORADOR <> ? LIMIT 1', [cedula, colaborador.ID_COLABORADOR]);
+      if (dupUsuarios.length || dupColaboradores.length) return res.status(409).json({ msg: 'La cédula ya está registrada' });
+      datosUsuario.cedula = cedula;
+      datosColaborador.CEDULA = cedula;
+      datosAuditoria.cedula = cedula;
+    }
+    if (email !== undefined) {
+      if (typeof email !== 'string' || !email.trim()) return res.status(400).json({ msg: 'Email inválido' });
+      const correo = emailNormalizado(email);
+      if (!emailPermitido(correo)) return res.status(400).json({ msg: 'Dominio de correo no permitido' });
+      if (correo !== emailNormalizado(actual.email)) {
+        const [dup] = await connection.query('SELECT id FROM usuarios WHERE email = ? AND id <> ? LIMIT 1', [correo, id]);
+        if (dup.length) return res.status(409).json({ msg: 'El email ya está registrado' });
+        datosUsuario.email = correo;
+        datosAuditoria.email = correo;
+      }
+    }
+    if (rol !== undefined && rol !== actual.rol) { datosUsuario.rol = rol; datosAuditoria.rol = rol; }
+    if (estado !== undefined && estado.toLowerCase() !== actual.estado) {
+      datosUsuario.estado = estado.toLowerCase(); datosAuditoria.estado = datosUsuario.estado;
+    }
+    if (password !== undefined && password !== null && password !== '') {
+      if (typeof password !== 'string' || password.length < 14 || password.length > 20) {
+        return res.status(400).json({ msg: 'La contraseña debe tener entre 14 y 20 caracteres' });
+      }
+      if (await bcryptjs.compare(password, actual.password)) {
+        return res.status(400).json({ msg: 'La nueva contraseña no puede ser igual a la actual' });
+      }
+      datosUsuario.password = await bcryptjs.hash(password, 10);
+      datosAuditoria.password = 'actualizada';
+    }
+    if (nombre !== undefined) {
+      if (typeof nombre !== 'string' || !nombre.trim()) return res.status(400).json({ msg: 'Nombre inválido' });
+      if (!colaborador) return res.status(404).json({ msg: 'No existe colaborador asociado a la cédula' });
+      if (nombre.trim() !== colaborador.NOMBRE) {
+        datosColaborador.NOMBRE = nombre.trim();
+        datosAuditoria.nombre = nombre.trim();
+      }
+    }
+    if (!Object.keys(datosUsuario).length && !Object.keys(datosColaborador).length) {
+      return res.status(400).json({ msg: 'No se detectaron cambios para actualizar' });
+    }
+    const anteriores = {
+      nombre: colaborador?.NOMBRE ?? null, cedula: actual.cedula,
+      email: actual.email, rol: actual.rol, estado: actual.estado, password: null
+    };
+    await connection.beginTransaction(); enTransaccion = true;
+    // IMPORTANTE: el cambio de cédula requiere FK ON UPDATE CASCADE o un orden compatible con el esquema.
+    if (Object.keys(datosUsuario).length) {
+      const columnas = Object.keys(datosUsuario);
+      await connection.query(
+        `UPDATE usuarios SET ${columnas.map(c => `${c} = ?`).join(', ')}, updated_at = NOW() WHERE id = ?`,
+        [...Object.values(datosUsuario), id]
+      );
+    }
+    if (Object.keys(datosColaborador).length) {
+      const columnas = Object.keys(datosColaborador);
+      await connection.query(
+        `UPDATE Colaboradores SET ${columnas.map(c => `${c} = ?`).join(', ')}, UPDATED_AT = NOW() WHERE CEDULA = ?`,
+        [...Object.values(datosColaborador), cedulaOriginal]
+      );
+    }
+    await connection.commit(); enTransaccion = false;
+    if (datosUsuario.estado === 'activo') limpiarIntentosLogin(actual.email);
+    for (const [campo, valorNuevo] of Object.entries(datosAuditoria)) {
+      await auditar({
+        usuarioId: req.user.id, usuarioNombre: req.user.nombre,
+        accion: 'ACTUALIZAR_USUARIO', modulo: 'usuarios', campoAfectado: campo,
+        valorAnterior: anteriores[campo] ?? null,
+        valorNuevo: campo === 'password' ? 'CONTRASEÑA MODIFICADA' : valorNuevo,
+        targetUserId: Number(id), targetUserName: datosColaborador.NOMBRE ?? colaborador?.NOMBRE ?? null
       });
     }
-
-    const { id } = req.params;
-
-    const [colaboradorExistente] = await connection.query(
-      'SELECT * FROM Colaboradores WHERE ID_COLABORADOR = ?',
-      [id]
-    );
-
-    if (colaboradorExistente.length === 0) {
-      return res.status(404).json({ msg: "Usuario no encontrado" });
-    }
-
-    const usuarioAntes = formatearUsuarioParaAuditoria(colaboradorExistente[0]);
-
-    await connection.beginTransaction();
-    await connection.query('DELETE FROM usuarios WHERE cedula = ?', [colaboradorExistente[0].CEDULA]);
-    const [resultado] = await connection.query('DELETE FROM Colaboradores WHERE ID_COLABORADOR = ?', [id]);
-    await connection.commit();
-
-    if (resultado.affectedRows === 0) {
-      return res.status(404).json({ msg: "Usuario no encontrado" });
-    }
-
-    await registrarReporteUsuario({
-      usuarioId: req.user?.id,
-      usuarioNombre: req.user?.nombre,
-      accion: 'eliminar_usuario',
-      modulo: 'usuarios',
-      campoAfectado: 'usuario',
-      valorAnterior: usuarioAntes,
-      valorNuevo: null,
-      targetUserId: Number(id),
-      targetUserName: usuarioAntes.nombre,
-    });
-
-    return res.status(200).json({ msg: "Usuario eliminado exitosamente" });
-
+    const usuario = {
+      id: Number(id), nombre: datosColaborador.NOMBRE ?? colaborador?.NOMBRE ?? null,
+      cedula: datosUsuario.cedula ?? actual.cedula,
+      email: datosUsuario.email ?? actual.email,
+      rol: datosUsuario.rol ?? actual.rol,
+      estado: datosUsuario.estado ?? actual.estado
+    };
+    return res.status(200).json({ msg: 'Usuario actualizado correctamente', usuario, cambios: datosAuditoria });
   } catch (err) {
-    console.error('Error eliminando usuario:', err);
-    return res.status(500).json({ msg: 'Ocurrió un error en el servidor', error: err.message });
-  } finally {
-    connection.release();
-  }
+    if (enTransaccion) await connection.rollback().catch(console.error);
+    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ msg: 'La cédula o el email ya están registrados' });
+    return errorInterno(res, 'Error actualizando usuario:', err);
+  } finally { connection?.release(); }
+};
+
+const eliminarUsuario = async (req, res) => {
+  if (!esAdmin(req)) return res.status(403).json({ msg: 'Solo administradores pueden eliminar usuarios' });
+  let connection;
+  let enTransaccion = false;
+  try {
+    const { id } = req.params;
+    if (Number(id) === Number(req.user.id)) {
+      return res.status(409).json({ msg: 'No puedes eliminar tu propia cuenta' });
+    }
+    connection = await pool.getConnection();
+    const [rows] = await connection.query(
+      `SELECT usu.id, usu.cedula, usu.email, usu.rol, usu.estado,
+              col.NOMBRE FROM usuarios usu
+       LEFT JOIN Colaboradores col ON col.CEDULA = usu.cedula
+       WHERE usu.id = ? LIMIT 1`, [id]
+    );
+    if (!rows.length) return res.status(404).json({ msg: 'Usuario no encontrado' });
+    const anterior = rows[0];
+    await connection.beginTransaction(); enTransaccion = true;
+    // Nunca borrar Colaboradores al eliminar una cuenta de acceso.
+    await connection.query('DELETE FROM usuarios WHERE id = ?', [id]);
+    await connection.commit(); enTransaccion = false;
+    limpiarIntentosLogin(anterior.email);
+    await auditar({
+      usuarioId: req.user.id, usuarioNombre: req.user.nombre,
+      accion: 'eliminar_usuario', modulo: 'usuarios', campoAfectado: 'usuario',
+      valorAnterior: {
+        id: anterior.id, nombre: anterior.NOMBRE, cedula: anterior.cedula,
+        email: anterior.email, rol: anterior.rol, estado: anterior.estado
+      },
+      valorNuevo: null, targetUserId: Number(id), targetUserName: anterior.NOMBRE ?? null
+    });
+    return res.status(200).json({ msg: 'Usuario eliminado exitosamente' });
+  } catch (err) {
+    if (enTransaccion) await connection.rollback().catch(console.error);
+    return errorInterno(res, 'Error eliminando usuario:', err);
+  } finally { connection?.release(); }
 };
 
 export {
-  login,
-  obtenerMiPerfil,
-  obtenerColaboradorPorCedula,
+  login, 
+  obtenerMiPerfil, 
+  obtenerColaboradorPorCedula, 
   registro,
-  obtenerUsuarios,
-  obtenerUsuario,
-  actualizarUsuario,
-  eliminarUsuario,
+  obtenerUsuarios, 
+  obtenerUsuario, 
+  actualizarUsuario, 
+  eliminarUsuario
 };

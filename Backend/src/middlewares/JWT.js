@@ -1,51 +1,117 @@
-import jwt from "jsonwebtoken"
-import pool from "../database.js"
+import jwt from "jsonwebtoken";
+import pool from "../database.js";
 
-const crearTokenJWT = (id, rol, nombre) => {
-    return jwt.sign({ id, rol, nombre }, process.env.JWT_SECRET, { expiresIn: "8h" })
-}
+const crearTokenJWT = (id, rol) => {
+  return jwt.sign(
+    { id, rol },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: "8h",
+      algorithm: "HS256"
+    }
+  );
+};
 
 const verificarTokenJWT = async (req, res, next) => {
-	const { authorization } = req.headers
-        console.log('🔍 ENDPOINT:', req.method, req.originalUrl, '| AUTH:', JSON.stringify(authorization))   // ← unifica los dos logs
-    if (!authorization) return res.status(401).json({ msg: "Acceso denegado: token no proporcionado" })
-    try {
-        const [scheme, value] = authorization.trim().split(/\s+/)
-        const token = scheme?.toLowerCase() === 'bearer' ? value : authorization.trim()
-        if (!token) return res.status(401).json({ msg: "Acceso denegado: token inválido" })
-        const { id, rol } = jwt.verify(token, process.env.JWT_SECRET)
-        
-        // Obtener datos del colaborador desde la base de datos
-        const [rows] = await pool.query(`
-            SELECT col.*, usu.rol AS ROL, usu.estado AS USUARIO_ESTADO
-            FROM Colaboradores col
-            INNER JOIN usuarios usu ON usu.cedula = col.CEDULA
-            WHERE col.ID_COLABORADOR = ?
-        `, [id])
-        
-        if (rows.length === 0) return res.status(401).json({ msg: "Usuario no encontrado" })
-        
-        // Normalizar propiedades para que el resto del backend
-        // use nombres consistentes (lowercase) sin acoplarse
-        // a los nombres de columna de la BD.
-        const col = rows[0]
-        req.user = {
-            id: col.ID_COLABORADOR,
-            nombre: col.NOMBRE,
-            cedula: col.CEDULA,
-            email: col.EMAIL_CORPORATIVO,
-            rol: col.ROL,
-            estado: col.USUARIO_ESTADO || col.ESTADO,
-        }
-        req.user.rolDesdeToken = rol
-        next()
-    } catch (error) {
-        console.log(error)
-        return res.status(401).json({ msg: `Token inválido o expirado - ${error.message}` })
+  try {
+    // 1. Validar encabezado Authorization
+    const authorization = req.headers.authorization;
+
+    if (!authorization) {
+      return res.status(401).json({
+        msg: "Acceso denegado: token no proporcionado"
+      });
     }
-}
+
+    const match = authorization.match(/^Bearer\s+(\S+)$/i);
+
+    if (!match) {
+      return res.status(401).json({
+        msg: "Formato de autorización inválido"
+      });
+    }
+
+    const token = match[1];
+
+    // 2. Verificar firma y expiración
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET,
+      { algorithms: ["HS256"] }
+    );
+
+    if (!Number.isSafeInteger(decoded.id) || decoded.id <= 0) {
+      return res.status(401).json({
+        msg: "Token inválido"
+      });
+    }
+
+    // 3. Consultar solamente los campos necesarios
+    const [usuarios] = await pool.query(
+      `SELECT
+          usu.id,
+          usu.cedula,
+          usu.email,
+          usu.rol,
+          usu.estado,
+          col.ID_COLABORADOR,
+          col.NOMBRE
+       FROM usuarios usu
+       LEFT JOIN Colaboradores col
+         ON col.CEDULA = usu.cedula
+       WHERE usu.id = ?
+       LIMIT 1`,
+      [decoded.id]
+    );
+
+    if (usuarios.length === 0) {
+      return res.status(401).json({
+        msg: "Usuario no encontrado"
+      });
+    }
+
+    const usuario = usuarios[0];
+
+    // 4. Validar estado de cuenta
+    if (usuario.estado !== "activo") {
+      return res.status(403).json({
+        msg: "Cuenta inactiva o bloqueada"
+      });
+    }
+
+    // 5. Exponer solo información autorizada
+    // Este objeto permanece en el servidor.
+    req.user = {
+      id: usuario.id,
+      idColaborador: usuario.ID_COLABORADOR ?? null,
+      nombre: usuario.NOMBRE ?? null,
+      cedula: usuario.cedula,
+      email: usuario.email,
+      rol: usuario.rol,
+      estado: usuario.estado
+    };
+
+    next();
+
+  } catch (error) {
+    if (
+      error instanceof jwt.TokenExpiredError ||
+      error instanceof jwt.JsonWebTokenError
+    ) {
+      return res.status(401).json({
+        msg: "Token inválido o expirado"
+      });
+    }
+
+    console.error("Error interno verificando JWT:", error);
+
+    return res.status(500).json({
+      msg: "Error interno de autenticación"
+    });
+  }
+};
 
 export {
-    crearTokenJWT,
-    verificarTokenJWT
-}
+  crearTokenJWT,
+  verificarTokenJWT
+};

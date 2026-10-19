@@ -223,38 +223,45 @@ const EditarUsuario = () => {
   };
 
   const onSubmit = async (data) => {
-    if (!usuario) return;
+  if (!usuario) return;
 
-    setEnviando(true);
+  setEnviando(true);
 
-    try {
-      const payload = {
-        nombre: data.nombre,
-        cedula: data.cedula,
-        email: data.email,
-        password: data.password || null,
-        rol: data.rol,
-        estado: data.estado,
-      };
+  try {
+    const payload = {
+      nombre: data.nombre,
+      cedula: data.cedula,
+      email: data.email,
+      password: data.password || null,
+      rol: data.rol,
+      estado: data.estado,
+    };
 
-      const url = `${import.meta.env.VITE_BACKEND_URL}/api/users/usuarios/${usuario.id}`;
-      const response = await fetchDataBackend(url, payload, 'PUT', token);
+    const url = `${import.meta.env.VITE_BACKEND_URL}/api/users/usuarios/${usuario.id}`;
 
-      if (response?.usuario) {
-        toast.success('Usuario actualizado correctamente', {
-          onClose: handleExit,
-          autoClose: 2000,
-        });
-      } else {
-        toast.error(response?.msg || 'No se pudo actualizar el usuario');
-      }
-    } catch (error) {
-      console.error('Error actualizando usuario:', error);
-      toast.error('Error actualizando el usuario');
-    } finally {
-      setEnviando(false);
+    const response = await fetchDataBackend(
+      url,
+      payload,
+      'PUT',
+      token
+    );
+
+    if (response?.msg === 'Usuario actualizado correctamente') {
+      toast.success(response.msg, {
+        autoClose: 2000,
+        onClose: handleExit,
+      });
+    } else {
+      toast.error(response?.msg || 'No se pudo actualizar el usuario');
     }
-  };
+
+  } catch (error) {
+    console.error('Error actualizando usuario:', error);
+    toast.error('Error actualizando el usuario');
+  } finally {
+    setEnviando(false);
+  }
+};
 
   if (loading) {
     return (
@@ -372,6 +379,10 @@ const EditarUsuario = () => {
                   <option value="jefe">Jefe</option>
                   <option value="solicitante">Solicitante</option>
                   <option value="supervisor">Supervisor</option>
+                  <option value="subgerentegeneral">Subgerente General</option>
+                  <option value="gerentegeneral">Gerente General</option>
+                  <option value="gerente">Gerente</option>
+                  <option value="subgerente">Subgerente</option>
                 </select>
                 {errors.rol && <p className="text-red-600 text-sm mt-1">{errors.rol.message}</p>}
               </div>

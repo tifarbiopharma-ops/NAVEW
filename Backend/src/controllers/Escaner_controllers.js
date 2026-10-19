@@ -1,13 +1,26 @@
 import pool from '../database.js';
-import { registrarEvento } from './Envios_controllers.js';
+import { registrarReporteAcceso } from '../utils/reportesAccesos.js';
+import { registrarReporteTraslado } from '../utils/reportesTraslados.js';
+import { registrarReporteEnvio } from '../utils/reportesEnvios.js';
 import { notificarLlegadaPedido } from '../telegram/telegramService.js';
 
 const MINUTOS_COOLDOWN = 5; // 5 minutos anti-duplicado (mismo escaneo)
-const intentosRecientes = new Map(); // idPaquete -> timestamp del último intento
+const intentosRecientes = new Map(); // idPaquete:tipoEscaneo -> timestamp
+
+const auditar = async (helper, datos) => {
+  try {
+    const ok = await helper(datos);
+    if (!ok) console.error('Auditoría QR no registrada:', datos.accion);
+  } catch (error) {
+    console.error('Error en auditoría QR:', error.code || 'ERROR');
+  }
+};
 
 const verificarQRExterno = async (req, res) => {
   const connection = await pool.getConnection();
+  let enTransaccion = false;
   try {
+    if (!req.user?.id) return res.status(401).json({ msg: 'Autenticación requerida' });
     const { token_qr } = req.body;
     const partes = String(token_qr || '').split('|');
     const idAcceso = partes[1];
@@ -48,40 +61,38 @@ const verificarQRExterno = async (req, res) => {
     const campo = esEntrada ? 'QR_Entrada' : 'QR_Salida';
     const estado = esEntrada ? 'Entrada registrada' : 'Finalizado';
     await connection.beginTransaction();
+    enTransaccion = true;
     const [resultado] = await connection.query(
       `UPDATE Accesos_Externos
        SET ${campo} = NOW(), Estado_Actual = ?,
            Hora_Ingreso = IF(? = 'Entrada registrada', CURRENT_TIME(), Hora_Ingreso),
            Hora_Salida = IF(? = 'Finalizado', CURRENT_TIME(), Hora_Salida)
-       WHERE ID_Acceso = ? AND ${campo} IS NULL`,
-      [estado, estado, estado, acceso.ID_Acceso]
+       WHERE ID_Acceso = ? AND ${campo} IS NULL AND Estado_Actual = ?`,
+      [estado, estado, estado, acceso.ID_Acceso, acceso.Estado_Actual]
     );
     if (!resultado.affectedRows) {
-      await connection.rollback();
+      if (enTransaccion) { await connection.rollback(); enTransaccion = false; }
       return res.status(409).json({ msg: 'El escaneo ya fue registrado, intenta nuevamente' });
     }
-    await connection.query(
-      `INSERT INTO Eventos_Process_Mining
-       (ID_Transaccion, Tipo_Modulo, Fase_Estado, ID_Usuario_Actor, Detalles_Extra)
-       VALUES (?, 'EXTERNO', ?, ?, ?)`,
-      [acceso.ID_Acceso, estado, req.user.id, JSON.stringify({
-        escaneo: esEntrada ? 'ENTRADA' : 'SALIDA',
-        numero_acompanantes: acompanantesQr,
-        fecha_hora: new Date().toISOString(),
-      })]
-    );
     await connection.commit();
+    enTransaccion = false;
+    await auditar(registrarReporteAcceso, {
+      usuarioId: req.user.id, usuarioNombre: req.user.nombre,
+      accion: esEntrada ? 'ENTRADA_QR' : 'SALIDA_QR', idAcceso: acceso.ID_Acceso,
+      estadoAnterior: acceso.Estado_Actual, estadoNuevo: estado,
+      detalles: { escaneo: esEntrada ? 'ENTRADA' : 'SALIDA', numero_acompanantes: acompanantesQr }
+    });
     return res.json({
       success: true,
       escaneos: esEntrada ? 1 : 2,
       restantes: esEntrada ? 1 : 0,
       estado,
       numeroAcompanantes: acompanantesQr,
-      acceso: { ...acceso, [campo]: new Date().toISOString(), Estado_Actual: estado },
+      acceso: { ID_Acceso: acceso.ID_Acceso, Estado_Actual: estado, [campo]: new Date().toISOString() },
     });
   } catch (error) {
-    await connection.rollback();
-    return res.status(500).json({ msg: 'Error al verificar QR de acceso externo', error: error.message });
+    if (enTransaccion) await connection.rollback();
+    return res.status(500).json({ msg: 'Error al verificar QR de acceso externo' });
   } finally {
     connection.release();
   }
@@ -89,7 +100,9 @@ const verificarQRExterno = async (req, res) => {
 
 const verificarQRTransporte = async (req, res) => {
   const connection = await pool.getConnection();
+  let enTransaccion = false;
   try {
+    if (!req.user?.id) return res.status(401).json({ msg: 'Autenticación requerida' });
     const { token_qr } = req.body;
     if (!token_qr) return res.status(400).json({ msg: 'El código QR es obligatorio' });
 
@@ -125,19 +138,25 @@ const verificarQRTransporte = async (req, res) => {
           : 'Pendiente factura';
 
     await connection.beginTransaction();
-    await connection.query(
+    enTransaccion = true;
+    const [resultado] = await connection.query(
       `UPDATE Traslados_Personal
        SET ${campo} = NOW(), Estado_Actual = ?, Hora_Llegada = IF(? = 'Finalizado', CURRENT_TIME(), Hora_Llegada)
-       WHERE ID_Traslado = ? AND ${campo} IS NULL`,
-      [estado, estado, traslado.ID_Traslado]
+       WHERE ID_Traslado = ? AND ${campo} IS NULL AND Estado_Actual = ?`,
+      [estado, estado, traslado.ID_Traslado, traslado.Estado_Actual]
     );
-    await connection.query(
-      `INSERT INTO Eventos_Process_Mining
-       (ID_Transaccion, Tipo_Modulo, Fase_Estado, ID_Usuario_Actor, Detalles_Extra)
-       VALUES (?, 'TRASLADO', ?, ?, ?)`,
-      [traslado.ID_Traslado, estado, req.user.id, JSON.stringify({ escaneo: esSalida ? 'SALIDA' : 'ENTRADA', fecha_hora: new Date().toISOString() })]
-    );
+    if (!resultado.affectedRows) {
+      await connection.rollback(); enTransaccion = false;
+      return res.status(409).json({ msg: 'El escaneo ya fue registrado, intenta nuevamente' });
+    }
     await connection.commit();
+    enTransaccion = false;
+    await auditar(registrarReporteTraslado, {
+      usuarioId: req.user.id, usuarioNombre: req.user.nombre,
+      accion: esSalida ? 'SALIDA_QR' : 'LLEGADA_QR', idTraslado: traslado.ID_Traslado,
+      estadoAnterior: traslado.Estado_Actual, estadoNuevo: estado,
+      detalles: { escaneo: esSalida ? 'SALIDA' : 'ENTRADA' }
+    });
 
     return res.json({
       success: true,
@@ -149,8 +168,8 @@ const verificarQRTransporte = async (req, res) => {
       traslado: { ...traslado, [campo]: new Date().toISOString(), Estado_Actual: estado },
     });
   } catch (error) {
-    await connection.rollback();
-    return res.status(500).json({ msg: 'Error al verificar QR de transporte', error: error.message });
+    if (enTransaccion) await connection.rollback();
+    return res.status(500).json({ msg: 'Error al verificar QR de transporte' });
   } finally {
     connection.release();
   }
@@ -158,7 +177,9 @@ const verificarQRTransporte = async (req, res) => {
 
 const verificarQRPaquetería = async (req, res) => {
   const connection = await pool.getConnection();
+  let enTransaccion = false;
   try {
+    if (!req.user?.id) return res.status(401).json({ msg: 'Autenticación requerida' });
     const { token_qr } = req.body;
 
     const [rows] = await connection.query(
@@ -231,24 +252,34 @@ const verificarQRPaquetería = async (req, res) => {
     const nuevoEstado = esPrimerEscaneo ? 'En camino' : 'Finalizado';
 
     await connection.beginTransaction();
+    enTransaccion = true;
 
-    await connection.query(
+    const [resultado] = await connection.query(
       `UPDATE Envios_Paqueteria
        SET ${campoActualizar} = NOW(), Estado_Actual = ?
-       WHERE ID_Paquete = ?`,
-      [nuevoEstado, envio.ID_Paquete]
+       WHERE ID_Paquete = ? AND ${campoActualizar} IS NULL AND Estado_Actual = ?`,
+      [nuevoEstado, envio.ID_Paquete, envio.Estado_Actual]
     );
 
-    await registrarEvento(connection, envio.ID_Paquete, nuevoEstado, req.user.id, {
-      escaneo: tipoEscaneo,
+    if (!resultado.affectedRows) {
+      await connection.rollback(); enTransaccion = false;
+      intentosRecientes.delete(claveIntento);
+      return res.status(409).json({ msg: 'El escaneo ya fue registrado, intenta nuevamente' });
+    }
+    await connection.commit();
+    enTransaccion = false;
+    intentosRecientes.delete(claveIntento);
+    await auditar(registrarReporteEnvio, {
+      usuarioId: req.user.id, usuarioNombre: req.user.nombre,
+      accion: esPrimerEscaneo ? 'SALIDA_QR' : 'LLEGADA_QR', idPaquete: envio.ID_Paquete,
+      estadoAnterior: envio.Estado_Actual, estadoNuevo: nuevoEstado,
+      detalles: { escaneo: tipoEscaneo }
     });
 
-    await connection.commit();
-
-    //  Escaneo exitoso: liberar el bloqueo para permitir el siguiente tipo
-    intentosRecientes.delete(claveIntento);
+    // El bloqueo se libera después del commit.
 
     if (!esPrimerEscaneo) {
+      try {
       await notificarLlegadaPedido({
         fecha_salida: envio.fecha_salida,
         tipo_contenido: envio.tipo_contenido,
@@ -259,6 +290,7 @@ const verificarQRPaquetería = async (req, res) => {
         area_destino: envio.departamento_destino,
         responsable_destino: envio.responsable_destino,
       });
+      } catch (error) { console.error('Notificación de llegada fallida:', error.code || 'ERROR'); }
     }
 
     return res.json({
@@ -272,8 +304,9 @@ const verificarQRPaquetería = async (req, res) => {
       envio,
     });
   } catch (error) {
-    await connection.rollback();
-    return res.status(500).json({ msg: 'Error al verificar QR', error: error.message });
+    if (enTransaccion) await connection.rollback();
+    if (typeof claveIntento !== 'undefined') intentosRecientes.delete(claveIntento);
+    return res.status(500).json({ msg: 'Error al verificar QR' });
   } finally {
     connection.release();
   }

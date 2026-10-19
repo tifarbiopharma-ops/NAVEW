@@ -235,7 +235,6 @@ const Dashboard = () => {
                     >
                       <Workflow size={18} />
                       {!isCollapsed && <span className="ml-0 md:ml-3">Organigrama</span>}
-                      {!isCollapsed && <ChevronRight className="ml-auto" size={14} />}
                     </Link>
                   </li>
                 </>

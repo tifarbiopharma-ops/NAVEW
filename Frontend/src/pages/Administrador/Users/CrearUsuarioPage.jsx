@@ -354,6 +354,10 @@ const CrearUsuarioPage = () => {
                   <option value="jefe">Jefe</option>
                   <option value="solicitante">Solicitante</option>
                   <option value="supervisor">Supervisor</option>
+                  <option value="subgerentegeneral">Subgerente General</option>
+                  <option value="gerentegeneral">Gerente General</option>
+                  <option value="gerente">Gerente</option>
+                  <option value="subgerente">Subgerente</option>
                 </select>
                 {errors.rol && (
                   <p className="text-red-600 text-sm mt-2 font-medium">{errors.rol.message}</p>
