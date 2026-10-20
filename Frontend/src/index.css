@@ -81,6 +81,7 @@ html::-webkit-scrollbar-thumb:hover {
   will-change: transform, opacity, filter;
 }
 
+
 @media print {
   @page {
     size: 100mm 100mm;
@@ -88,166 +89,154 @@ html::-webkit-scrollbar-thumb:hover {
   }
 
   html,
-  body {
-    width: 100mm;
-    height: 100mm;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
+  body,
+  #root {
+    width: 100mm !important;
+    height: 100mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
   }
 
   body * {
-    visibility: hidden;
+    visibility: hidden !important;
   }
 
   .qr-print-area,
   .qr-print-area * {
-    visibility: visible;
+    visibility: visible !important;
   }
 
   .qr-print-area {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100mm;
-    height: 100mm;
-    box-sizing: border-box;
-    overflow: hidden;
-    padding: 5mm;
-    margin: 0 !important;
-    border: 0;
-    border-radius: 0;
-    background: #fff;
-    color: #17243d;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100mm !important;
+    height: 100mm !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    border: 1px solid #000 !important;
+    background: #fff !important;
+    color: #000 !important;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
 
-  .qr-print-area .etiqueta-cabecera {
-    height: 17mm;
-    margin-bottom: 3mm;
-    padding-bottom: 2.5mm;
-    gap: 3mm;
+  /* Cabecera y logotipos */
+  .formato-cabecera {
+    height: 22mm !important;
+    box-sizing: border-box !important;
+    border-bottom: 1px solid #000 !important;
   }
 
-  .qr-print-area .etiqueta-cabecera img {
-    width: 38mm;
-    height: 15mm;
+  .formato-logos {
+    height: 15mm !important;
+    padding: 1mm 3mm 0 !important;
+    gap: 2mm !important;
   }
 
-  .qr-print-area .etiqueta-cabecera p:first-child {
-    min-width: 0;
-    max-width: 100%;
-    overflow-wrap: anywhere;
-    font-size: 8pt;
-    line-height: 1.15;
+  .formato-logos img {
+    width: 100% !important;
+    height: 12mm !important;
+    object-fit: contain !important;
   }
 
-  .qr-print-area .etiqueta-cabecera p:last-child {
-    margin-top: 1.5mm;
-    font-size: 7.5pt;
+  .formato-cabecera h2 {
+    padding: 0 1mm !important;
+    font-size: 8pt !important;
+    line-height: 1.2 !important;
+    text-align: center !important;
   }
 
-  .qr-print-area .etiqueta-contenido {
-    display: grid;
-    width: 100%;
-    grid-template-columns: minmax(0, 1fr) 45mm;
-    gap: 3mm;
-    height: 55mm;
-    min-width: 0;
+  /* Contenido */
+  .formato-cuerpo {
+    padding: 3mm !important;
   }
 
-  .qr-print-area .etiqueta-datos {
-    min-width: 0;
-    width: 100%;
-    box-sizing: border-box;
-    border-radius: 1.5mm;
+  .formato-contenido {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 38mm !important;
+    gap: 2mm !important;
+    align-items: start !important;
   }
 
-  .qr-print-area .etiqueta-datos > div {
-    grid-template-columns: 46% 54%;
-    min-width: 0;
+  /* Tabla de información */
+  .formato-datos {
+    min-width: 0 !important;
+    width: 100% !important;
+    overflow: hidden !important;
   }
 
-  .qr-print-area .etiqueta-datos > div > div {
-    padding: 2mm 2.5mm;
-    min-width: 0;
-    overflow-wrap: anywhere;
-    font-size: 7.5pt;
-    line-height: 1.1;
+  .formato-datos > div {
+    display: grid !important;
+    grid-template-columns: 43% minmax(0, 57%) !important;
   }
 
-  .qr-print-area .etiqueta-qr {
-    width: 45mm;
-    box-sizing: border-box;
-    padding: 2mm;
-    border-radius: 1.5mm;
+  .formato-datos > div > div {
+    min-width: 0 !important;
+    padding: 1.4mm 1mm !important;
+    font-size: 6pt !important;
+    line-height: 1.15 !important;
+    overflow-wrap: anywhere !important;
+    word-break: normal !important;
   }
 
-  .qr-print-area .etiqueta-qr svg {
-    width: 40mm;
-    height: 40mm;
+  .formato-datos > div > div:first-child {
+    font-size: 5.5pt !important;
   }
 
-  .qr-print-area .etiqueta-token {
-    display: none;
+  /* Código QR */
+  .formato-qr {
+    width: 38mm !important;
+    min-width: 0 !important;
+    padding: 2mm !important;
+    box-sizing: border-box !important;
   }
 
-  .qr-print-area .etiqueta-pie {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    margin-top: 3mm;
-    font-size: 7pt;
-    line-height: 1.15;
+  .formato-qr svg {
+    display: block !important;
+    width: 33mm !important;
+    height: 33mm !important;
+    max-width: 100% !important;
   }
 
-  .qr-print-area .etiqueta-contador {
-    order: -1;
+  /* ID del paquete debajo del QR */
+  .formato-qr > p {
+    display: block !important;
+    visibility: visible !important;
+    width: 100% !important;
+    margin: 2mm 0 0 !important;
+    padding: 0 !important;
+    font-size: 6pt !important;
+    line-height: 1.2 !important;
+    font-weight: 600 !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
   }
 
-  .qr-print-area .etiqueta-estado {
-    margin-top: 1mm;
-    text-align: right;
+  /* ID, fecha y hora */
+  .formato-qr > div {
+    width: 100% !important;
+    margin-top: 2mm !important;
+    padding-top: 2mm !important;
+    font-size: 6pt !important;
+    line-height: 1.4 !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  /* Contador de paquetes */
+  .formato-cuerpo > p {
+    margin-top: 2mm !important;
+    font-size: 6pt !important;
+  }
+
+  /* Ocultar botones */
+  .print\:hidden {
+    display: none !important;
   }
 }
-
-/* Estilos de las cards de filtro */
-.formularios-card {
-  width: 160px;
-  height: 100px;
-  background: #171717;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  overflow: hidden;
-  position: relative;
-  box-shadow: 0px 0px 5px 2px #00000088;
-  cursor: pointer;
-  transition: transform 0.3s, box-shadow 0.3s;
-  border-radius: 10px;
-}
-
-.formularios-card:hover {
-  transform: scale(1.05);
-}
-
-.formularios-card-content {
-  width: 156px;
-  height: 96px;
-  background: #171717;
-  border-radius: 10px;
-  z-index: 1;
-  padding: 10px;
-  color: white;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  position: relative;
-  font-weight: 600;
-}
-
 
 /* ==========================================================
    Añade estas reglas a tu archivo CSS principal (index.css)

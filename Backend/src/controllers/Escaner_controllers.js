@@ -273,7 +273,9 @@ const verificarQRPaquetería = async (req, res) => {
       usuarioId: req.user.id, usuarioNombre: req.user.nombre,
       accion: esPrimerEscaneo ? 'SALIDA_QR' : 'LLEGADA_QR', idPaquete: envio.ID_Paquete,
       estadoAnterior: envio.Estado_Actual, estadoNuevo: nuevoEstado,
-      detalles: { escaneo: tipoEscaneo }
+      detalles: {
+        [campoActualizar]: new Date().toISOString(),
+      },
     });
 
     // El bloqueo se libera después del commit.

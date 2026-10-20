@@ -3,7 +3,6 @@ import { useForm } from 'react-hook-form';
 import { LoaderCircle, Package, Send } from 'lucide-react';
 import { ToastContainer, toast } from 'react-toastify';
 import storeAuth from '../../context/storeAuth';
-import { getAuthClaims } from '../../utils/authClaims';
 
 const API = import.meta.env.VITE_BACKEND_URL;
 
@@ -23,25 +22,62 @@ const initialForm = {
   hora_entrega: horaLocal(),
   id_planta_origen: '',
   id_area_origen: '',
-  id_responsable: '',
   id_planta_destino: '',
   id_area_destino: '',
   id_destinatario: '',
   tipo_contenido: '',
   comentario: '',
 };
-
 const SolicitudPaqueteria = () => {
   const token = storeAuth((state) => state.token);
-  const claims = getAuthClaims(token);
+  const [perfilUsuario, setPerfilUsuario] = useState(null);
+  
+
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm({ defaultValues: initialForm });
   const form = watch();
-  const [catalogos, setCatalogos] = useState({ plantas: [], areas: [], colaboradores: [] });
+  const [catalogos, setCatalogos] = useState({
+  plantas: [],
+  areas: [],
+  colaboradores: [],
+  usuarioActual: null
+  });
+
+  const idColaborador = Number(catalogos.usuarioActual?.idColaborador);
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const responsableActual = catalogos.colaboradores.find(
+    (item) => Number(item.id) === idColaborador
+  );
+
+  // UseEffect para cargar el perfil del usuario autenticado y establecerlo en el estado local.
+  useEffect(() => {
+    if (!token) {
+      setPerfilUsuario(null);
+      return;
+    }
+    const controller = new AbortController();
+    const cargarPerfil = async () => {
+      try {
+        const response = await fetch(`${API}/api/users/mi-perfil`, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error(`Error al cargar perfil (${response.status})`);
+        const data = await response.json();
+        setPerfilUsuario(data.usuario ?? null);
+      } catch (error) {
+        if (error.name !== 'AbortError') console.error('Error al cargar perfil:', error);
+      }
+    };
+    cargarPerfil();
+    return () => controller.abort();
+  }, [token]);
+
+
 
   const fetchData = async () => {
-    if (!token) return;
+    if (!token) { setLoading(false); return; }
 
     try {
       const catalogosResponse = await fetch(`${API}/api/envios/catalogos`, {
@@ -50,12 +86,25 @@ const SolicitudPaqueteria = () => {
       const catalogosData = await catalogosResponse.json();
 
       if (!catalogosResponse.ok) throw new Error(catalogosData.msg || 'No se pudieron cargar los catálogos');
-      setCatalogos(catalogosData);
-      const responsableInicial = catalogosData.colaboradores.find(
-        (item) => String(item.id) === String(claims?.id)
+      // Normaliza catálogos y elimina IDs repetidos antes de generar opciones JSX.
+       const normalizar = (lista) => [...new Map(
+         (Array.isArray(lista) ? lista : [])
+           .filter((item) => item && item.id != null)
+           .map((item) => [String(item.id), item])
+       ).values()];
+       const catalogosLimpios = {
+         plantas: normalizar(catalogosData.plantas),
+         areas: normalizar(catalogosData.areas),
+         colaboradores: normalizar(catalogosData.colaboradores),
+         usuarioActual: catalogosData.usuarioActual ?? null,
+       };
+       setCatalogos(catalogosLimpios);
+      const responsableInicial = catalogosLimpios.colaboradores.find(
+        (item) => Number(item.id) === Number(catalogosLimpios.usuarioActual?.idColaborador)
       );
-      if (!form.id_responsable) setValue('id_responsable', String(claims?.id || ''));
-      if (!form.id_area_origen) setValue('id_area_origen', String(responsableInicial?.areaId || ''));
+      if (responsableInicial?.areaId != null) {
+        setValue('id_area_origen', String(responsableInicial.areaId));
+      }
     } catch (error) {
       toast.error(error.message || 'No se pudo cargar la solicitud');
     } finally {
@@ -74,7 +123,9 @@ const SolicitudPaqueteria = () => {
       return;
     }
 
-    if (String(formData.id_responsable) === String(formData.id_destinatario)) {
+    // El backend valida y asigna el responsable desde req.user.idColaborador.
+    if (Number.isSafeInteger(idColaborador) && idColaborador > 0 &&
+        String(idColaborador) === String(formData.id_destinatario)) {
       toast.error('El responsable y el destinatario deben ser diferentes');
       return;
     }
@@ -88,7 +139,7 @@ const SolicitudPaqueteria = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(formData), // El backend asigna ID_Responsable desde req.user.idColaborador
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.msg || 'No se pudo crear la solicitud');
@@ -98,7 +149,6 @@ const SolicitudPaqueteria = () => {
         ...initialForm,
         fecha_salida: fechaLocal(),
         hora_entrega: horaLocal(),
-        id_responsable: String(claims?.id || ''),
       });
       await fetchData();
     } catch (error) {
@@ -108,9 +158,9 @@ const SolicitudPaqueteria = () => {
     }
   };
 
-  const renderOptions = (items, disabledId = '') => items.map((item) => (
+  const renderOptions = (items, disabledId = '') => (Array.isArray(items) ? items : []).map((item) => (
     <option
-      key={item.id}
+      key={String(item.id)}
       value={item.id}
       disabled={disabledId !== '' && String(item.id) === String(disabledId)}
     >
@@ -159,10 +209,7 @@ const SolicitudPaqueteria = () => {
 
               <label className="space-y-1.5">
                 <span className="text-xs font-semibold text-[#17243d]">Responsable *</span>
-                <select {...register('id_responsable', { required: true, onChange: (event) => {
-                  const responsable = catalogos.colaboradores.find((item) => String(item.id) === event.target.value);
-                  if (responsable?.areaId) setValue('id_area_origen', String(responsable.areaId));
-                } })} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione un responsable</option>{renderOptions(catalogos.colaboradores, form.id_destinatario)}</select>{errors.id_responsable && <span className="text-xs text-red-600">{errors.id_responsable.message}</span>}
+                <input type="text" readOnly value={perfilUsuario?.nombre || catalogos.usuarioActual?.nombre || responsableActual?.nombre || 'Cargando responsable...'} className="w-full rounded-lg border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-[#17243d]" />
               </label>
               <label className="space-y-1.5">
                 <span className="text-xs font-semibold text-[#17243d]">Tipo de contenido *</span>
@@ -183,7 +230,7 @@ const SolicitudPaqueteria = () => {
                 <select {...register('id_destinatario', { required: 'El destinatario es obligatorio', onChange: (event) => {
                   const destinatario = catalogos.colaboradores.find((item) => String(item.id) === event.target.value);
                   setValue('id_area_destino', destinatario?.areaId ? String(destinatario.areaId) : '', { shouldValidate: true, shouldDirty: true });
-                } })} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione un destinatario</option>{renderOptions(catalogos.colaboradores, form.id_responsable)}</select>{errors.id_destinatario && <span className="text-xs text-red-600">{errors.id_destinatario.message}</span>}
+                } })} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione un destinatario</option>{renderOptions(catalogos.colaboradores, idColaborador)}</select>{errors.id_destinatario && <span className="text-xs text-red-600">{errors.id_destinatario.message}</span>}
               </label>
               <label className="space-y-1.5 md:col-span-2">
                 <span className="text-xs font-semibold text-[#17243d]">Comentario</span>
