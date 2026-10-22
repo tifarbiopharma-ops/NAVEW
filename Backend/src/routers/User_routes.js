@@ -37,4 +37,5 @@ router.put('/usuarios/:id', verificarTokenJWT, actualizarUsuario);
 // La ruta es /api/users/usuarios/:id
 router.delete('/usuarios/:id', verificarTokenJWT, eliminarUsuario);
 
+
 export default router;

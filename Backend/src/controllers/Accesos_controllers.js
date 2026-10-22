@@ -2,62 +2,92 @@ import pool from '../database.js';
 import crypto from 'node:crypto';
 import { registrarReporteAcceso } from '../utils/reportesAccesos.js';
 import { obtenerColaboradoresACargo, obtenerJefeDirecto } from '../utils/jerarquia.js';
+import { resolverAprobadorSolicitud } from '../utils/verificarAprobadorSolicitud.js';
 
-const ROLES_SOLICITUD = new Set(['solicitante', 'jefe', 'administrador']);
+const ROLES_SOLICITUD = new Set(['solicitante', 'jefe', 'administrador', 'subgerentegeneral', 'gerentegeneral', 'presidente', 'subgerente', 'gerente']);
 //colaborador 
+
 const obtenerCatalogosAcceso = async (req, res) => {
-	const idColaborador = req.user?.idColaborador;
-	if (!idColaborador) {
-		return res.status(403).json({ msg: 'Tu usuario no tiene un colaborador asociado' });
-	}
+  const idColaborador = Number(req.user?.idColaborador);
 
-	
-	try {
-		const [plantas] = await pool.query(
-			'SELECT ID_Planta AS id, Nombre_Planta AS nombre FROM Plantas ORDER BY Nombre_Planta'
-		);
-		const [areas] = await pool.query(
-			'SELECT ID_AREAS AS id, AREA AS nombre FROM Areas ORDER BY AREA'
-		);
-		const [colaboradores] = await pool.query(
-			`SELECT c.ID_COLABORADOR AS id, c.NOMBRE AS nombre,
-					c.AREA AS areaId, a.AREA AS areaNombre
-			 FROM Colaboradores c
-			 LEFT JOIN Areas a ON a.ID_AREAS = c.AREA
-			 WHERE c.ESTADO = 'ACTIVO'
-			 ORDER BY c.NOMBRE`
-		);
-		const [perfilRows] = await pool.query(
-			`SELECT c.ID_COLABORADOR AS id,
-					c.AREA AS areaId,
-					a.AREA AS areaNombre,
-					p.ID_Planta AS plantaId,
-					p.Nombre_Planta AS plantaNombre
-			 FROM Colaboradores c
-			 LEFT JOIN Areas a ON a.ID_AREAS = c.AREA
-			 LEFT JOIN Ubicaciones u ON u.ID_UBICACIONES = c.UBICACION
-			 LEFT JOIN Plantas p ON p.ID_Planta = (
-				 SELECT p2.ID_Planta
-				 FROM Plantas p2
-				 WHERE p2.Nombre_Planta = u.DESCRIPCION
-					OR p2.Ubicacion_Fisica = u.DESCRIPCION
-				 LIMIT 1
-			 )
-			 WHERE c.ID_COLABORADOR = ?`,
-			[req.user.idColaborador]
-		);
+  if (!Number.isSafeInteger(idColaborador) || idColaborador <= 0) {
+    return res.status(403).json({
+      success: false,
+      msg: 'Tu usuario no tiene un colaborador asociado',
+    });
+  }
 
-		return res.status(200).json({
-			success: true,
-			plantas,
-			areas,
-			colaboradores,
-			perfilSolicitante: perfilRows[0] || null,
-		});
-	} catch (error) {
-		return res.status(500).json({ msg: 'No se pudieron cargar los catálogos de acceso' });
-	}
+  try {
+    const [[plantas], [areas], [colaboradores], [perfilRows]] =
+      await Promise.all([
+        pool.query(`
+          SELECT
+            ID_UBICACIONES AS id,
+            DESCRIPCION AS nombre
+          FROM Ubicaciones
+          ORDER BY DESCRIPCION ASC
+        `),
+
+        pool.query(`
+          SELECT
+            ID_AREAS AS id,
+            AREA AS nombre
+          FROM Areas
+          ORDER BY AREA
+        `),
+
+        pool.query(`
+          SELECT
+            c.ID_COLABORADOR AS id,
+            c.NOMBRE AS nombre,
+            a.ID_AREAS AS areaId,
+            a.AREA AS areaNombre,
+            c.UBICACION AS plantaId
+          FROM Colaboradores c
+          LEFT JOIN Cargos ca
+            ON ca.ID_CARGOS = c.CARGO
+          LEFT JOIN Areas a
+            ON a.ID_AREAS = ca.AREA
+          WHERE c.ESTADO = 'ACTIVO'
+          ORDER BY c.NOMBRE
+        `),
+
+        pool.query(`
+          SELECT
+            c.ID_COLABORADOR AS id,
+            a.ID_AREAS AS areaId,
+            a.AREA AS areaNombre,
+            c.UBICACION AS plantaId,
+            u.DESCRIPCION AS plantaNombre
+          FROM Colaboradores c
+          LEFT JOIN Cargos ca
+            ON ca.ID_CARGOS = c.CARGO
+          LEFT JOIN Areas a
+            ON a.ID_AREAS = ca.AREA
+          LEFT JOIN Ubicaciones u
+            ON u.ID_UBICACIONES = c.UBICACION
+          WHERE c.ID_COLABORADOR = ?
+        `, [idColaborador]),
+      ]);
+
+    return res.status(200).json({
+      success: true,
+      plantas,
+      areas,
+      colaboradores,
+      perfilSolicitante: perfilRows[0] || null,
+    });
+
+  } catch (error) {
+    console.error('Error al obtener catálogos de acceso:', error);
+
+    return res.status(500).json({
+      success: false,
+      msg: 'No se pudieron cargar los catálogos de acceso',
+    });
+  }
 };
+;
 
 const crearAccesoExterno = async (req, res) => {
 	const idColaborador = req.user?.idColaborador;
@@ -109,6 +139,31 @@ const crearAccesoExterno = async (req, res) => {
 
 		await connection.beginTransaction();
 
+		const idUbicacionDestino = Number(id_planta_destino);
+
+		if (!Number.isSafeInteger(idUbicacionDestino) || idUbicacionDestino <= 0) {
+		await connection.rollback();
+
+		return res.status(400).json({
+			msg: 'La ubicación de destino no es válida',
+		});
+		}
+
+		const [ubicaciones] = await connection.query(
+		`SELECT ID_UBICACIONES
+		FROM Ubicaciones
+		WHERE ID_UBICACIONES = ?`,
+		[idUbicacionDestino]
+		);
+
+		if (!ubicaciones.length) {
+		await connection.rollback();
+
+		return res.status(400).json({
+			msg: 'La ubicación de destino no existe',
+		});
+}
+
 		const [empleado] = await connection.query(
 			`SELECT ID_COLABORADOR FROM Colaboradores
 			 WHERE ID_COLABORADOR = ? AND ESTADO = 'ACTIVO'`,
@@ -141,18 +196,36 @@ const crearAccesoExterno = async (req, res) => {
 		}
 
 		const idAcceso = crypto.randomUUID();
-		const idAprobador = await obtenerJefeDirecto(req.user.idColaborador);
-		if (!idAprobador) {
-			await connection.rollback();
-			return res.status(400).json({ msg: 'No se encontró un jefe para aprobar esta solicitud' });
-		}
+		const idAprobador = await resolverAprobadorSolicitud(req.user.idColaborador);
 
 		await connection.query(
-			`INSERT INTO Accesos_Externos
-		 (ID_Acceso, ID_Externo, Numero_Acompanantes, ID_Empleado_Visitado, Area_Visita, ID_Planta_Destino,
-			  Fecha_Visita, Hora_Ingreso, Hora_Salida, Motivo, Estado_Actual)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Solicitado')`,
-		[idAcceso, idExterno, Number(numero_acompanantes), id_empleado_visitado, area_visita.trim(), id_planta_destino, fecha_visita, hora_ingreso || null, hora_salida || null, motivo?.trim() || null]
+		`INSERT INTO Accesos_Externos
+		(
+			ID_Acceso,
+			ID_Externo,
+			Numero_Acompanantes,
+			ID_Empleado_Visitado,
+			Area_Visita,
+			ID_Ubicacion_Destino,
+			Fecha_Visita,
+			Hora_Ingreso,
+			Hora_Salida,
+			Motivo,
+			Estado_Actual
+		)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Solicitado')`,
+		[
+			idAcceso,
+			idExterno,
+			Number(numero_acompanantes),
+			idColaborador,
+			area_visita.trim(),
+			idUbicacionDestino,
+			fecha_visita,
+			hora_ingreso || null,
+			hora_salida || null,
+			motivo?.trim() || null
+		]
 		);
 
 		for (const acompanante of acompanantes) {
@@ -216,74 +289,161 @@ const crearAccesoExterno = async (req, res) => {
 	}
 };
 
+
 const obtenerAccesosExternos = async (req, res) => {
-	const idColaborador = req.user?.idColaborador;
-	if (!idColaborador) {
-		return res.status(403).json({ msg: 'Tu usuario no tiene un colaborador asociado' });
-	}
+  const idColaborador = Number(req.user?.idColaborador);
 
-	
-	try {
-		const rol = (req.user?.rol || '').toLowerCase();
-		const params = [];
-		let filtro = '';
+  if (!Number.isSafeInteger(idColaborador) || idColaborador <= 0) {
+    return res.status(403).json({
+      msg: 'Tu usuario no tiene un colaborador asociado'
+    });
+  }
 
-		if (rol === 'jefe') {
-			const idsSubordinados = await obtenerColaboradoresACargo(req.user.idColaborador);
-			idsSubordinados.push(req.user.idColaborador);
+  try {
+    const rol = (req.user?.rol || '').toLowerCase();
+    const params = [idColaborador];
+	const rolesSuperiores = [
+	'jefe',
+	'subgerente',
+	'gerente',
+	'subgerentegeneral',
+	'gerentegeneral',
+	'presidente'
+	];
 
-			if (!idsSubordinados.length) {
-				filtro = 'WHERE 1 = 0';
-			} else {
-				filtro = `WHERE a.ID_Empleado_Visitado IN (${idsSubordinados.map(() => '?').join(', ')})
-					`;
-				params.push(...idsSubordinados);
-			}
-		} else if (!['administrador', 'supervisor'].includes(rol)) {
-			filtro = 'WHERE a.ID_Empleado_Visitado = ?';
-			params.push(req.user.idColaborador);
-		}
+	let filtro = '';
 
-		const [accesos] = await pool.query(
-			`SELECT a.ID_Acceso, a.ID_Externo, ext.Nombre_Apellido AS externo_nombre,
-							ext.Empresa AS externo_empresa,
-							ext.Cedula AS externo_cedula, ext.Telefono AS externo_telefono,
-							a.ID_Empleado_Visitado, a.Numero_Acompanantes, col.NOMBRE AS empleado_nombre,
-							a.Area_Visita, a.ID_Planta_Destino, p.Nombre_Planta AS planta_destino_nombre,
-							a.Fecha_Visita, a.Hora_Ingreso, a.Hora_Salida, a.Motivo, a.Estado_Actual,
-							a.QR_Token, a.QR_Salida, a.QR_Entrada
-			 FROM Accesos_Externos a
-			 INNER JOIN Externos ext ON ext.ID_Externo = a.ID_Externo
-			 INNER JOIN Colaboradores col ON col.ID_COLABORADOR = a.ID_Empleado_Visitado
-			 INNER JOIN Plantas p ON p.ID_Planta = a.ID_Planta_Destino
-			 ${filtro}
-			 ORDER BY a.Fecha_Creacion DESC`,
-			params
-		);
-		const idsAcceso = accesos.map((acceso) => acceso.ID_Acceso);
-		if (idsAcceso.length) {
-			const [acompanantes] = await pool.query(
-				`SELECT r.ID_Acceso, e.ID_Externo, e.Nombre_Apellido AS nombre, e.Cedula AS cedula
-				 FROM Accesos_Externos_Acompanantes r
-				 INNER JOIN Externos e ON e.ID_Externo = r.ID_Externo
-				 WHERE r.ID_Acceso IN (${idsAcceso.map(() => '?').join(', ')})`,
-				idsAcceso
-			);
-			const acompanantesPorAcceso = acompanantes.reduce((resultado, acompanante) => {
-				if (!resultado[acompanante.ID_Acceso]) resultado[acompanante.ID_Acceso] = [];
-				resultado[acompanante.ID_Acceso].push(acompanante);
-				return resultado;
-			}, {});
-			accesos.forEach((acceso) => {
-				acceso.acompanantes = acompanantesPorAcceso[acceso.ID_Acceso] || [];
-			});
-		}
+    if (rolesSuperiores.includes(rol)) {
+      const idsSubordinados = await obtenerColaboradoresACargo(idColaborador);
 
-		return res.status(200).json({ success: true, accesos });
-	} catch (error) {
-		return res.status(500).json({ msg: 'No se pudo cargar el proceso de accesos externos' });
-	}
+      const idsPermitidos = [
+        ...new Set([...idsSubordinados, idColaborador])
+      ];
+
+      filtro = `
+        WHERE a.ID_Empleado_Visitado IN (
+          ${idsPermitidos.map(() => '?').join(', ')}
+        )
+      `;
+
+      params.push(...idsPermitidos);
+
+    } else if (!['administrador', 'supervisor'].includes(rol)) {
+      filtro = 'WHERE a.ID_Empleado_Visitado = ?';
+      params.push(idColaborador);
+    }
+
+    const [accesos] = await pool.query(
+      `SELECT
+        a.ID_Acceso,
+        a.ID_Externo,
+        ext.Nombre_Apellido AS externo_nombre,
+        ext.Empresa AS externo_empresa,
+        ext.Cedula AS externo_cedula,
+        ext.Telefono AS externo_telefono,
+
+        a.ID_Empleado_Visitado,
+        a.ID_Empleado_Visitado AS ID_Solicitante,
+        col.NOMBRE AS solicitante_nombre,
+        col.NOMBRE AS empleado_nombre,
+
+        EXISTS (
+          SELECT 1
+          FROM Aprobaciones ap
+          WHERE ap.TIPO_SOLICITUD = 'EXTERNO'
+            AND ap.ID_SOLICITUD = a.ID_Acceso
+            AND ap.ID_APROBADOR = ?
+            AND ap.ESTADO = 'PENDIENTE'
+            AND a.Estado_Actual = 'Solicitado'
+        ) AS puedeAprobar,
+
+        a.Numero_Acompanantes,
+        a.Area_Visita,
+        a.ID_Ubicacion_Destino AS ID_Planta_Destino,
+        p.DESCRIPCION AS planta_destino_nombre,
+        a.Fecha_Visita,
+        a.Hora_Ingreso,
+        a.Hora_Salida,
+        a.Motivo,
+        a.Estado_Actual,
+        a.QR_Token,
+        a.QR_Salida,
+        a.QR_Entrada
+
+      FROM Accesos_Externos a
+
+      INNER JOIN Externos ext
+        ON ext.ID_Externo = a.ID_Externo
+
+      INNER JOIN Colaboradores col
+        ON col.ID_COLABORADOR = a.ID_Empleado_Visitado
+
+      INNER JOIN Ubicaciones p
+        ON p.ID_UBICACIONES = a.ID_Ubicacion_Destino
+
+      ${filtro}
+
+      ORDER BY a.Fecha_Creacion DESC`,
+      params
+    );
+
+    const idsAcceso = accesos.map(
+      (acceso) => acceso.ID_Acceso
+    );
+
+    if (idsAcceso.length) {
+      const [acompanantes] = await pool.query(
+        `SELECT
+          r.ID_Acceso,
+          e.ID_Externo,
+          e.Nombre_Apellido AS nombre,
+          e.Cedula AS cedula
+
+        FROM Accesos_Externos_Acompanantes r
+
+        INNER JOIN Externos e
+          ON e.ID_Externo = r.ID_Externo
+
+        WHERE r.ID_Acceso IN (
+          ${idsAcceso.map(() => '?').join(', ')}
+        )`,
+        idsAcceso
+      );
+
+      const acompanantesPorAcceso = acompanantes.reduce(
+        (resultado, acompanante) => {
+          if (!resultado[acompanante.ID_Acceso]) {
+            resultado[acompanante.ID_Acceso] = [];
+          }
+
+          resultado[acompanante.ID_Acceso].push(acompanante);
+          return resultado;
+        },
+        {}
+      );
+
+      accesos.forEach((acceso) => {
+        acceso.acompanantes =
+          acompanantesPorAcceso[acceso.ID_Acceso] || [];
+
+        acceso.puedeAprobar = Boolean(acceso.puedeAprobar);
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      accesos
+    });
+
+  } catch (error) {
+    console.error('Error en obtenerAccesosExternos:', error);
+
+    return res.status(500).json({
+      msg: 'No se pudo cargar el proceso de accesos externos'
+    });
+  }
 };
+
 
 const aprobarAccesoExterno = async (req, res) => {
 	const idColaborador = req.user?.idColaborador;
@@ -296,7 +456,7 @@ const aprobarAccesoExterno = async (req, res) => {
 
 	try {
 		const rol = (req.user?.rol || '').toLowerCase();
-		if (!['jefe', 'administrador'].includes(rol)) {
+		if (!['jefe', 'administrador', 'subgerentegeneral', 'gerentegeneral', 'presidente', 'subgerente', 'gerente'].includes(rol)) {
 			return res.status(403).json({ msg: 'No tienes permiso para aprobar esta solicitud' });
 		}
 
@@ -311,7 +471,7 @@ const aprobarAccesoExterno = async (req, res) => {
 
 		await connection.beginTransaction();
 		const [accesoRows] = await connection.query(
-			'SELECT Numero_Acompanantes, Estado_Actual FROM Accesos_Externos WHERE ID_Acceso = ? FOR UPDATE',
+			'SELECT Numero_Acompanantes, Estado_Actual, ID_Empleado_Visitado AS ID_Solicitante FROM Accesos_Externos WHERE ID_Acceso = ? FOR UPDATE',
 			[id]
 		);
 		if (!accesoRows.length) {
@@ -324,31 +484,33 @@ const aprobarAccesoExterno = async (req, res) => {
 			await connection.rollback();
 			return res.status(409).json({ msg: 'La solicitud ya fue procesada' });
 		}
-		const [aprobaciones] = await connection.query(
-			`SELECT ID_APROBACION FROM Aprobaciones
-			 WHERE TIPO_SOLICITUD = 'EXTERNO'
-			   AND ID_SOLICITUD = ?
-			   AND ID_APROBADOR = ?
-			   AND ESTADO = 'PENDIENTE'`,
-			[id, req.user.idColaborador]
-		);
+		// Sin creador identificado no es seguro autorizar solicitudes antiguas.
+        const idSolicitante = accesoRows[0].ID_Solicitante;
+        if (!idSolicitante) {
+            await connection.rollback();
+            return res.status(409).json({ msg: 'Esta solicitud antigua no tiene solicitante identificado. Requiere regularización.' });
+        }
 
-		if (!aprobaciones.length && rol !== 'administrador') {
-			const idsSubordinados = await obtenerColaboradoresACargo(req.user.idColaborador);
-			idsSubordinados.push(req.user.idColaborador);
-			const [accesosPermitidos] = await connection.query(
-				`SELECT ID_Acceso FROM Accesos_Externos
-				 WHERE ID_Acceso = ?
-				   AND ID_Empleado_Visitado IN (${idsSubordinados.map(() => '?').join(', ')})
-				   AND Estado_Actual = 'Solicitado'`,
-				[id, ...idsSubordinados]
-			);
-
-			if (!accesosPermitidos.length) {
-				await connection.rollback();
-				return res.status(403).json({ msg: 'No tienes permiso para aprobar esta solicitud' });
-			}
-		}
+        const [aprobaciones] = await connection.query(
+            `SELECT ID_APROBACION FROM Aprobaciones
+             WHERE TIPO_SOLICITUD = 'EXTERNO'
+               AND ID_SOLICITUD = ?
+               AND ID_APROBADOR = ?
+               AND ESTADO = 'PENDIENTE'
+             FOR UPDATE`,
+            [id, idColaborador]
+        );
+        if (!aprobaciones.length) {
+            await connection.rollback();
+            return res.status(403).json({ msg: 'No eres el aprobador asignado a esta solicitud' });
+        }
+        if (Number(idSolicitante) === Number(idColaborador)) {
+            const autorizado = await resolverAprobadorSolicitud(idColaborador);
+            if (Number(autorizado) !== Number(idColaborador)) {
+                await connection.rollback();
+                return res.status(403).json({ msg: 'Tu superior debe aprobar esta solicitud' });
+            }
+        }
 
 		const qrToken = aprobado ? `EXTERNO|${id}|ACOMPANANTES:${numeroAcompanantes}|${crypto.randomUUID()}` : null;
 		if (aprobaciones.length) {

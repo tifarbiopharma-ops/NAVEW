@@ -2,8 +2,18 @@ import { Link } from "react-router-dom";
 import { ClipboardList, Globe2, Package, QrCode } from "lucide-react";
 
 const ContextSidebar = ({ role, path, search, mobileMenuOpen, sidebarCollapsed, onNavigate }) => {
+  const rolActual = String(role || "").trim().toLowerCase();
   const esSolicitante = role.includes("solicitante");
-  const esJefe = role.includes("jefe");
+  const rolesSuperiores = [
+    "jefe",
+    "subgerente",
+    "gerente",
+    "subgerentegeneral",
+    "gerentegeneral",
+    "presidente"
+  ];
+
+  const esJefe = rolesSuperiores.includes(rolActual);
   const esSupervisor = role.includes("supervisor");
   const mostrarSolicitudes = esSolicitante || esJefe || esSupervisor;
 

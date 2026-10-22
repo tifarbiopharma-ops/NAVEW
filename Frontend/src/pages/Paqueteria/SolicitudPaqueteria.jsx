@@ -105,6 +105,15 @@ const SolicitudPaqueteria = () => {
       if (responsableInicial?.areaId != null) {
         setValue('id_area_origen', String(responsableInicial.areaId));
       }
+
+      // Seleccionar automáticamente la ubicación del responsable
+      if (responsableInicial?.ubicacionId != null) {
+        setValue(
+          'id_planta_origen',
+          String(responsableInicial.ubicacionId),
+          { shouldValidate: true }
+        );
+      }
     } catch (error) {
       toast.error(error.message || 'No se pudo cargar la solicitud');
     } finally {
@@ -194,43 +203,41 @@ const SolicitudPaqueteria = () => {
                 <input type="date" {...register('fecha_salida', { required: 'La fecha de salida es obligatoria' })} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" />{errors.fecha_salida && <span className="text-xs text-red-600">{errors.fecha_salida.message}</span>}
               </label>
               <label className="space-y-1.5">
-                <span className="text-xs font-semibold text-[#17243d]">Hora de entrega</span>
+                <span className="text-xs font-semibold text-[#17243d]">Hora de salida</span>
                 <input type="time" {...register('hora_entrega')} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" />
               </label>
-
-              <label className="space-y-1.5">
-                <span className="text-xs font-semibold text-[#17243d]">Planta de origen *</span>
-                <select {...register('id_planta_origen', { required: 'La planta de origen es obligatoria' })} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione una planta</option>{renderOptions(catalogos.plantas, form.id_planta_destino)}</select>{errors.id_planta_origen && <span className="text-xs text-red-600">{errors.id_planta_origen.message}</span>}
-              </label>
-              <label className="space-y-1.5">
-                <span className="text-xs font-semibold text-[#17243d]">Área de origen *</span>
-                <select {...register('id_area_origen', { required: 'El área de origen es obligatoria' })} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione un área</option>{renderOptions(catalogos.areas)}</select>{errors.id_area_origen && <span className="text-xs text-red-600">{errors.id_area_origen.message}</span>}
-              </label>
-
               <label className="space-y-1.5">
                 <span className="text-xs font-semibold text-[#17243d]">Responsable *</span>
                 <input type="text" readOnly value={perfilUsuario?.nombre || catalogos.usuarioActual?.nombre || responsableActual?.nombre || 'Cargando responsable...'} className="w-full rounded-lg border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-[#17243d]" />
               </label>
               <label className="space-y-1.5">
+                <span className="text-xs font-semibold text-[#17243d]">
+                  Área de origen *
+                </span>
+                <input type="text" readOnly value={catalogos.areas.find((area) => String(area.id) === String(form.id_area_origen))?.nombre || ''} className="w-full rounded-lg border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-[#17243d]"/><input type="hidden" {...register('id_area_origen', {required: 'El área de origen es obligatoria',})}/>{errors.id_area_origen && (<span className="text-xs text-red-600">{errors.id_area_origen.message}</span>)}
+              </label>
+              <label className="space-y-1.5">
+                <span className="text-xs font-semibold text-[#17243d]">Planta de origen *</span>
+                <select {...register('id_planta_origen', { required: 'La planta de origen es obligatoria' })} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione una planta</option>{renderOptions(catalogos.plantas, form.id_planta_destino)}</select>{errors.id_planta_origen && <span className="text-xs text-red-600">{errors.id_planta_origen.message}</span>}
+              </label>
+              <label className="space-y-1.5">
                 <span className="text-xs font-semibold text-[#17243d]">Tipo de contenido *</span>
                 <input type="text" {...register('tipo_contenido', { required: 'El tipo de contenido es obligatorio', maxLength: 100, validate: (value) => value.trim() !== '' || 'El tipo de contenido es obligatorio' })} maxLength={100} placeholder="Ej. Documentos" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" />{errors.tipo_contenido && <span className="text-xs text-red-600">{errors.tipo_contenido.message}</span>}
               </label>
-
-              <label className="space-y-1.5">
-                <span className="text-xs font-semibold text-[#17243d]">Planta de destino *</span>
-                <select {...register('id_planta_destino', { required: 'La planta de destino es obligatoria' })} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione una planta</option>{renderOptions(catalogos.plantas, form.id_planta_origen)}</select>{errors.id_planta_destino && <span className="text-xs text-red-600">{errors.id_planta_destino.message}</span>}
-              </label>
-              <label className="space-y-1.5">
-                <span className="text-xs font-semibold text-[#17243d]">Área de destino *</span>
-                <select {...register('id_area_destino', { required: 'El área de destino es obligatoria' })} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione un área</option>{renderOptions(catalogos.areas)}</select>{errors.id_area_destino && <span className="text-xs text-red-600">{errors.id_area_destino.message}</span>}
-              </label>
-
               <label className="space-y-1.5">
                 <span className="text-xs font-semibold text-[#17243d]">Destinatario *</span>
                 <select {...register('id_destinatario', { required: 'El destinatario es obligatorio', onChange: (event) => {
                   const destinatario = catalogos.colaboradores.find((item) => String(item.id) === event.target.value);
-                  setValue('id_area_destino', destinatario?.areaId ? String(destinatario.areaId) : '', { shouldValidate: true, shouldDirty: true });
-                } })} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione un destinatario</option>{renderOptions(catalogos.colaboradores, idColaborador)}</select>{errors.id_destinatario && <span className="text-xs text-red-600">{errors.id_destinatario.message}</span>}
+                  setValue('id_area_destino', destinatario?.areaId != null ? String(destinatario.areaId) : '',{ shouldValidate: true, shouldDirty: true });
+                  setValue('id_planta_destino',destinatario?.ubicacionId != null ? String(destinatario.ubicacionId) : '',{ shouldValidate: true, shouldDirty: true });} })} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione un destinatario</option>{renderOptions(catalogos.colaboradores, idColaborador)}</select>{errors.id_destinatario && <span className="text-xs text-red-600">{errors.id_destinatario.message}</span>}
+              </label>
+              <label className="space-y-1.5">
+                <span className="text-xs font-semibold text-[#17243d]">Área de destino *</span><input type="text"
+                  readOnly value={catalogos.areas.find((area) => String(area.id) === String(form.id_area_destino))?.nombre || ''} placeholder="Seleccione un destinatario" className="w-full rounded-lg border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-[#17243d] cursor-not-allowed"/><input type="hidden" {...register('id_area_destino', { required: 'El área de destino es obligatoria',})}/>{errors.id_area_destino && (<span className="text-xs text-red-600">{errors.id_area_destino.message}</span>)}
+              </label>
+              <label className="space-y-1.5">
+                <span className="text-xs font-semibold text-[#17243d]">Planta de destino *</span>
+                <select {...register('id_planta_destino', { required: 'La planta de destino es obligatoria' })} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione una planta</option>{renderOptions(catalogos.plantas, form.id_planta_origen)}</select>{errors.id_planta_destino && <span className="text-xs text-red-600">{errors.id_planta_destino.message}</span>}
               </label>
               <label className="space-y-1.5 md:col-span-2">
                 <span className="text-xs font-semibold text-[#17243d]">Comentario</span>

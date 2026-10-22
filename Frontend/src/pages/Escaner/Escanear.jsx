@@ -4,6 +4,7 @@ import { Camera, CheckCircle2, AlertCircle, RefreshCw, XCircle, Image, Upload } 
 import { BrowserQRCodeReader } from '@zxing/library';
 import storeAuth from '../../context/storeAuth';
 import Formato from './Formato';
+import { ToastContainer } from 'react-toastify';
 
 const API = import.meta.env.VITE_BACKEND_URL;
 const TIEMPO_MINIMO_VALIDACION_MS = 5000;
@@ -332,7 +333,7 @@ const Escanear = ({ isOpen = true, onClose, onSuccess, tipo = 'paqueteria' }) =>
                 setKmFinal(event.target.value);
                 setErrorKm('');
               }}
-              placeholder={`KM final (inicial: ${finalizacion.traslado.Km_Inicial})`}
+              placeholder={`42850`}
               className={`mt-5 w-full rounded-lg border p-3 text-sm ${errorKm ? 'border-red-400' : 'border-slate-200'}`}
             />
             {errorKm && <p className="mt-2 text-xs font-semibold text-red-600">{errorKm}</p>}
@@ -400,89 +401,92 @@ const Escanear = ({ isOpen = true, onClose, onSuccess, tipo = 'paqueteria' }) =>
   }
 
   return (
-    <div className="w-full">
-      <div className="mb-4 flex items-center gap-3">
-        <div className="rounded-xl bg-[#17243d] p-2.5 text-white">
-          <Camera size={20} />
+    <>
+    <ToastContainer />
+      <div className="w-full">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="rounded-xl bg-[#17243d] p-2.5 text-white">
+            <Camera size={20} />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-[#17243d]">Escanear Código QR</h3>
+            <p className="text-xs text-slate-500">ZXing Barcode Scanner</p>
+          </div>
         </div>
-        <div>
-          <h3 className="text-lg font-bold text-[#17243d]">Escanear Código QR</h3>
-          <p className="text-xs text-slate-500">ZXing Barcode Scanner</p>
+
+        {/* Visor de Cámara */}
+        <div className="relative h-60 w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-950 flex items-center justify-center">
+          <video ref={videoRef} className="h-full w-full object-cover" />
+
+          {!scanning && !loading && (
+            <div className="absolute inset-0 flex items-center justify-center p-4 text-center text-xs text-slate-400 bg-slate-950/90">
+              Permite el acceso a la cámara para comenzar el escaneo.
+            </div>
+          )}
+
+          {loading && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white px-8">
+              <div className="text-5xl font-black tracking-tight text-[#17243d]">
+                NA<span className="text-[#77a8d2]">VEW</span>
+              </div>
+              <div className="mt-8 h-3 w-64 overflow-hidden rounded-full bg-[#e4edf6]">
+                <div className="h-full w-1/2 animate-[loadingBar_1.4s_ease-in-out_infinite] rounded-full bg-[#3970a8]" />
+              </div>
+              <span className="mt-3 text-xs font-medium text-slate-500">Validando código QR...</span>
+            </div>
+          )}
         </div>
-      </div>
 
-      {/* Visor de Cámara */}
-      <div className="relative h-60 w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-950 flex items-center justify-center">
-        <video ref={videoRef} className="h-full w-full object-cover" />
+        {/* Selector de cámara */}
+        <div className="mt-4 flex items-center gap-2">
+          <select
+            value={selectedDeviceId}
+            onChange={(e) => setSelectedDeviceId(e.target.value)}
+            disabled={devices.length === 0}
+            className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs outline-none focus:border-[#315b86] disabled:opacity-50"
+          >
+            {devices.length === 0 && <option value="">No hay cámaras disponibles</option>}
+            {devices.map((device, index) => (
+              <option key={device.deviceId} value={device.deviceId}>
+                {device.label || `Cámara ${index + 1}`}
+              </option>
+            ))}
+          </select>
 
-        {!scanning && !loading && (
-          <div className="absolute inset-0 flex items-center justify-center p-4 text-center text-xs text-slate-400 bg-slate-950/90">
-            Permite el acceso a la cámara para comenzar el escaneo.
+          <button
+            type="button"
+            onClick={() => {
+              // Forzar recarga de dispositivos
+              navigator.mediaDevices.enumerateDevices().then((all) => {
+                const vids = all.filter((d) => d.kind === 'videoinput');
+                setDevices(vids);
+                if (vids.length > 0 && !vids.some((d) => d.deviceId === selectedDeviceId)) {
+                  setSelectedDeviceId(vids[0].deviceId);
+                }
+              });
+            }}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-[#315b86] transition hover:bg-slate-50"
+            title="Recargar cámaras"
+          >
+            <RefreshCw size={14} />
+          </button>
+        </div>
+
+        {/* Mensaje de respuesta del backend */}
+        {message && (
+          <div
+            className={`mt-3 flex items-center gap-2 rounded-lg p-3 text-xs font-semibold ${
+              message.type === 'success'
+                ? 'bg-emerald-50 text-emerald-700'
+                : 'bg-red-50 text-red-700'
+            }`}
+          >
+            {message.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+            <span>{message.text}</span>
           </div>
         )}
-
-        {loading && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white px-8">
-            <div className="text-5xl font-black tracking-tight text-[#17243d]">
-              NA<span className="text-[#77a8d2]">VEW</span>
-            </div>
-            <div className="mt-8 h-3 w-64 overflow-hidden rounded-full bg-[#e4edf6]">
-              <div className="h-full w-1/2 animate-[loadingBar_1.4s_ease-in-out_infinite] rounded-full bg-[#3970a8]" />
-            </div>
-            <span className="mt-3 text-xs font-medium text-slate-500">Validando código QR...</span>
-          </div>
-        )}
       </div>
-
-      {/* Selector de cámara */}
-      <div className="mt-4 flex items-center gap-2">
-        <select
-          value={selectedDeviceId}
-          onChange={(e) => setSelectedDeviceId(e.target.value)}
-          disabled={devices.length === 0}
-          className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs outline-none focus:border-[#315b86] disabled:opacity-50"
-        >
-          {devices.length === 0 && <option value="">No hay cámaras disponibles</option>}
-          {devices.map((device, index) => (
-            <option key={device.deviceId} value={device.deviceId}>
-              {device.label || `Cámara ${index + 1}`}
-            </option>
-          ))}
-        </select>
-
-        <button
-          type="button"
-          onClick={() => {
-            // Forzar recarga de dispositivos
-            navigator.mediaDevices.enumerateDevices().then((all) => {
-              const vids = all.filter((d) => d.kind === 'videoinput');
-              setDevices(vids);
-              if (vids.length > 0 && !vids.some((d) => d.deviceId === selectedDeviceId)) {
-                setSelectedDeviceId(vids[0].deviceId);
-              }
-            });
-          }}
-          className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-[#315b86] transition hover:bg-slate-50"
-          title="Recargar cámaras"
-        >
-          <RefreshCw size={14} />
-        </button>
-      </div>
-
-      {/* Mensaje de respuesta del backend */}
-      {message && (
-        <div
-          className={`mt-3 flex items-center gap-2 rounded-lg p-3 text-xs font-semibold ${
-            message.type === 'success'
-              ? 'bg-emerald-50 text-emerald-700'
-              : 'bg-red-50 text-red-700'
-          }`}
-        >
-          {message.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-          <span>{message.text}</span>
-        </div>
-      )}
-    </div>
+    </>
   );
 };
 

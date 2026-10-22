@@ -6,6 +6,22 @@ import { getAuthClaims } from "../utils/authClaims";
 import { ChevronRight, ClipboardList, History, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Users, Workflow, X } from "lucide-react";
 import ContextSidebar from "./ContextSidebar";
 import TopBar from "./TopBar";
+import { Truck } from "lucide-react";
+import AvisarLlegada from "../pages/Notis/notis";
+
+export const ROLES_SUPERIORES = new Set([
+  'jefe',
+  'subgerente',
+  'gerente',
+  'subgerentegeneral',
+  'gerentegeneral',
+  'presidente'
+]);
+
+export const esRolSuperior = (rol) =>
+  ROLES_SUPERIORES.has(
+    String(rol || '').trim().toLowerCase()
+  );
 
 const Dashboard = () => {
   const location = useLocation();
@@ -26,6 +42,8 @@ const Dashboard = () => {
 
   const esAdministrador = userRole === "administrador";
   const esSupervisor = userRole === "supervisor";
+  const [modalLlegadaAbierto, setModalLlegadaAbierto] = useState(false);
+  
 
   const tituloSeccion = urlActual.startsWith("/dashboard/admin")
     ? "Administración"
@@ -34,7 +52,7 @@ const Dashboard = () => {
     : urlActual.startsWith("/dashboard/historico")
       ? "Histórico"
     : urlActual.startsWith("/dashboard/transporte")
-      ? "Transporte"
+      ? "Solicitud"
       : "Panel principal";
 
   // Cargar perfil del usuario de forma segura
@@ -213,6 +231,26 @@ const Dashboard = () => {
                 </>
               )}
 
+              {esSupervisor && (
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleMenuItemClick();
+                      setModalLlegadaAbierto(true);
+                    }}
+                    className={`${navItemClass(false)} w-full text-left`}
+                  >
+                    <Truck size={18} />
+
+                    {!isCollapsed && (
+                      <span className="ml-0 md:ml-3">
+                        Avisar llegada
+                      </span>
+                    )}
+                  </button>
+                </li>
+              )}
               {/* Menú Administrador */}
               {esAdministrador && (
                 <>
@@ -276,6 +314,13 @@ const Dashboard = () => {
         <div 
           className="fixed inset-0 bg-black/50 z-30 md:hidden"
           onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+      {esSupervisor && (
+        <AvisarLlegada
+          open={modalLlegadaAbierto}
+          onClose={() => setModalLlegadaAbierto(false)}
+          token={token}
         />
       )}
     </div>

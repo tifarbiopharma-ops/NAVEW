@@ -15,6 +15,7 @@ const ROLES_SOLICITUD = new Set([
   'subgerentegeneral',
 ]);
 
+
 const obtenerCatalogosEnvio = async (req, res) => {
   try {
     const idColaborador = Number(req.user?.idColaborador);
@@ -27,37 +28,40 @@ const obtenerCatalogosEnvio = async (req, res) => {
 
     const [[plantas], [areas], [colaboradores]] = await Promise.all([
       pool.query(
-        `SELECT ID_Planta AS id, Nombre_Planta AS nombre
-         FROM Plantas
-         ORDER BY Nombre_Planta`
+        `SELECT
+            ID_UBICACIONES AS id,
+            DESCRIPCION AS nombre
+         FROM Ubicaciones
+         ORDER BY DESCRIPCION`
       ),
+
       pool.query(
-        `SELECT ID_AREAS AS id, AREA AS nombre
+        `SELECT
+            ID_AREAS AS id,
+            AREA AS nombre
          FROM Areas
          ORDER BY AREA`
       ),
+
       pool.query(
         `SELECT
             c.ID_COLABORADOR AS id,
             c.NOMBRE AS nombre,
-            a.ID_AREAS AS areaId
-         FROM Colaboradores c
-         LEFT JOIN Cargos ca ON ca.ID_CARGOS = c.CARGO
-         LEFT JOIN Areas a ON a.ID_AREAS = ca.AREA
-         WHERE c.ESTADO = 'ACTIVO'
-         ORDER BY c.NOMBRE`
+            a.ID_AREAS AS areaId,
+            c.UBICACION AS ubicacionId
+        FROM Colaboradores c
+        LEFT JOIN Cargos ca
+          ON ca.ID_CARGOS = c.CARGO
+        LEFT JOIN Areas a
+          ON a.ID_AREAS = ca.AREA
+        WHERE c.ESTADO = 'ACTIVO'
+        ORDER BY c.NOMBRE`
       ),
     ]);
 
     const responsable = colaboradores.find(
-      (colaborador) => Number(colaborador.id) === idColaborador
+      (item) => Number(item.id) === idColaborador
     );
-
-    if (!responsable) {
-      return res.status(403).json({
-        msg: 'El colaborador autenticado no existe o no está activo',
-      });
-    }
 
     return res.status(200).json({
       success: true,
@@ -66,17 +70,19 @@ const obtenerCatalogosEnvio = async (req, res) => {
       colaboradores,
       usuarioActual: {
         idColaborador,
-        areaId: responsable.areaId,
+        nombre: responsable?.nombre || req.user.nombre || null,
       },
     });
   } catch (error) {
-    console.error('Error al obtener catálogos de paquetería:', error);
+    console.error('Error al obtener catálogos de envío:', error);
 
     return res.status(500).json({
-      msg: 'No se pudieron cargar los catálogos',
+      success: false,
+      msg: 'No se pudieron cargar los catálogos de envío',
     });
   }
 };
+
 
 const crearEnvioPaqueteria = async (req, res) => {
   const rol = String(req.user?.rol || '').toLowerCase();
@@ -196,9 +202,9 @@ const crearEnvioPaqueteria = async (req, res) => {
 
     const [ubicaciones] = await connection.query(
       `SELECT
-          (SELECT Nombre_Planta FROM Plantas WHERE ID_Planta = ?) AS planta_origen,
+          (SELECT DESCRIPCION FROM Ubicaciones WHERE ID_UBICACIONES = ?) AS planta_origen,
           (SELECT AREA FROM Areas WHERE ID_AREAS = ?) AS area_origen,
-          (SELECT Nombre_Planta FROM Plantas WHERE ID_Planta = ?) AS planta_destino,
+          (SELECT DESCRIPCION FROM Ubicaciones WHERE ID_UBICACIONES = ?) AS planta_destino,
           (SELECT AREA FROM Areas WHERE ID_AREAS = ?) AS area_destino`,
       [
         id_planta_origen,
@@ -229,22 +235,22 @@ const crearEnvioPaqueteria = async (req, res) => {
 
     await connection.query(
       `INSERT INTO Envios_Paqueteria
-       (
-         ID_Paquete,
-         Fecha_Salida,
-         Hora_Entrega,
-         Tipo_Contenido,
-         Comentario,
-         ID_Planta_Origen,
-         ID_Area_Origen,
-         ID_Responsable,
-         ID_Planta_Destino,
-         ID_Area_Destino,
-         ID_Destinatario,
-         Estado_Actual,
-         QR_Token
-       )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Solicitado', ?)`,
+      (
+        ID_Paquete,
+        Fecha_Salida,
+        Hora_Entrega,
+        Tipo_Contenido,
+        Comentario,
+        ID_Ubicacion_Origen,
+        ID_Area_Origen,
+        ID_Responsable,
+        ID_Ubicacion_Destino,
+        ID_Area_Destino,
+        ID_Destinatario,
+        Estado_Actual,
+        QR_Token
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Solicitado', ?)`,
       [
         idPaquete,
         fecha_salida,
@@ -366,28 +372,28 @@ const obtenerEnviosPaqueteria = async (req, res) => {
 
     const [envios] = await pool.query(
       `SELECT
-         e.*,
-         resp.NOMBRE AS responsable_nombre,
-         dest.NOMBRE AS destinatario_nombre,
-         po.Nombre_Planta AS planta_origen_nombre,
-         pd.Nombre_Planta AS planta_destino_nombre,
-         area_origen.AREA AS area_origen_nombre,
-         area_destino.AREA AS area_destino_nombre
-       FROM Envios_Paqueteria e
-       INNER JOIN Colaboradores resp
-         ON resp.ID_COLABORADOR = e.ID_Responsable
-       INNER JOIN Colaboradores dest
-         ON dest.ID_COLABORADOR = e.ID_Destinatario
-       INNER JOIN Plantas po
-         ON po.ID_Planta = e.ID_Planta_Origen
-       INNER JOIN Plantas pd
-         ON pd.ID_Planta = e.ID_Planta_Destino
-       INNER JOIN Areas area_origen
-         ON area_origen.ID_AREAS = e.ID_Area_Origen
-       INNER JOIN Areas area_destino
-         ON area_destino.ID_AREAS = e.ID_Area_Destino
-       ${filtro}
-       ORDER BY e.Fecha_Creacion DESC`,
+        e.*,
+        resp.NOMBRE AS responsable_nombre,
+        dest.NOMBRE AS destinatario_nombre,
+        po.DESCRIPCION AS planta_origen_nombre,
+        pd.DESCRIPCION AS planta_destino_nombre,
+        area_origen.AREA AS area_origen_nombre,
+        area_destino.AREA AS area_destino_nombre
+      FROM Envios_Paqueteria e
+      INNER JOIN Colaboradores resp
+        ON resp.ID_COLABORADOR = e.ID_Responsable
+      INNER JOIN Colaboradores dest
+        ON dest.ID_COLABORADOR = e.ID_Destinatario
+      INNER JOIN Ubicaciones po
+        ON po.ID_UBICACIONES = e.ID_Ubicacion_Origen
+      INNER JOIN Ubicaciones pd
+        ON pd.ID_UBICACIONES = e.ID_Ubicacion_Destino
+      INNER JOIN Areas area_origen
+        ON area_origen.ID_AREAS = e.ID_Area_Origen
+      INNER JOIN Areas area_destino
+        ON area_destino.ID_AREAS = e.ID_Area_Destino
+      ${filtro}
+      ORDER BY e.Fecha_Creacion DESC`,
       params
     );
 

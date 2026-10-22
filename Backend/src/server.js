@@ -7,7 +7,8 @@ import enviosRoutes from './routers/Envios_routes.js';
 import accesosRoutes from './routers/Accesos_routes.js';
 import escanerRoutes from './routers/Escaner_routes.js';
 import imagenesRoutes from './routers/Imagenes_routes.js';
-import jerarquiaRoutes from './routers/jerarquia.js';
+import jerarquiaRoutes from './routers/Jerarquia_routes.js';
+import avisoLlegadaRoutes from "./routers/Notis_routes.js";
 
 const app = express();
 
@@ -34,7 +35,7 @@ app.use('/api/accesos', accesosRoutes);
 app.use ('/api/escaner', escanerRoutes);
 app.use('/api/imagenes', imagenesRoutes);
 app.use('/api/jerarquia', jerarquiaRoutes);
-
+app.use('/api/aviso-llegada', avisoLlegadaRoutes);
 
 const server = http.createServer(app);
 

@@ -5,7 +5,7 @@ const getChatIdDestino = () => (
   process.env.TELEGRAM_NAVEW_CHAT_ID
 );
 
-export const notificarLlegadaPedido = async (salida = {}) => {
+const notificarLlegadaPedido = async (salida = {}) => {
   const chatId = getChatIdDestino();
 
   if (!chatId || !bot) {
@@ -52,6 +52,56 @@ export const notificarLlegadaPedido = async (salida = {}) => {
   }
 };
 
-export const notificarResumenPorEstado = async () => {
+const notificarResumenPorEstado = async () => {
   console.log('Telegram de flujo legacy no está activo en este sistema.');
+};
+
+
+
+const notificarLlegadaCamion = async ({
+  planta,
+  supervisor
+}) => {
+  const chatId = getChatIdDestino();
+
+  if (!chatId || !bot) {
+    throw new Error("Telegram no está configurado.");
+  }
+
+  const escaparHTML = (valor) =>
+    String(valor ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+
+  const fecha = new Intl.DateTimeFormat("es-EC", {
+    timeZone: "America/Guayaquil",
+    dateStyle: "short",
+    timeStyle: "short"
+  }).format(new Date());
+
+  const mensaje = `
+🚛 <b>AVISO DE LLEGADA DE CAMIÓN</b>
+<b>------------------------------</b>
+🏭 <b>Planta:</b> ${escaparHTML(planta)}
+👤 <b>Supervisor:</b> ${escaparHTML(supervisor)}
+📅 <b>Fecha y hora:</b> ${fecha}
+<b>------------------------------</b>
+
+✅ <b>Se informa que el camión ya se encuentra en la planta indicada.</b>
+  `.trim();
+
+  await bot.sendMessage(chatId, mensaje, {
+    parse_mode: "HTML"
+  });
+
+  console.log("Aviso de llegada enviado a Telegram");
+};
+
+export {
+  notificarLlegadaPedido,
+  notificarResumenPorEstado,
+  notificarLlegadaCamion
 };

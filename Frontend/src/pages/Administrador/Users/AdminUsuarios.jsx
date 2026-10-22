@@ -75,7 +75,7 @@ const AdminUsuarios = () => {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <ToastContainer />
-      <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+      <div className="w-full min-w-0 max-w-[1600px] mx-auto px-3 py-6 sm:px-5 lg:px-6">
         <div className="space-y-6 mb-6">
           <div className="space-y-3">
             <p className="text-sm uppercase tracking-[0.22em] text-slate-500">Panel administrativo</p>

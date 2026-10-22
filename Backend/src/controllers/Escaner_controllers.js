@@ -105,18 +105,34 @@ const verificarQRTransporte = async (req, res) => {
     if (!req.user?.id) return res.status(401).json({ msg: 'Autenticación requerida' });
     const { token_qr } = req.body;
     if (!token_qr) return res.status(400).json({ msg: 'El código QR es obligatorio' });
-
     const [rows] = await connection.query(
-      `SELECT t.ID_Traslado, t.Tipo_Traslado, t.Estado_Actual, t.QR_Token, t.QR_Salida,
-              t.QR_Entrada, t.Km_Inicial, po.Nombre_Planta AS origen,
-              pd.Nombre_Planta AS destino, col.NOMBRE AS solicitante
-       FROM Traslados_Personal t
-       LEFT JOIN Plantas po ON po.ID_Planta = t.ID_Planta_Origen
-       LEFT JOIN Plantas pd ON pd.ID_Planta = t.ID_Planta_Destino
-       LEFT JOIN Colaboradores col ON col.ID_COLABORADOR = t.ID_Solicitante
-       WHERE t.QR_Token = ?`,
+      `SELECT
+        t.ID_Traslado,
+        t.Tipo_Traslado,
+        t.Estado_Actual,
+        t.QR_Token,
+        t.QR_Salida,
+        t.QR_Entrada,
+        t.Km_Inicial,
+        po.DESCRIPCION AS origen,
+        pd.DESCRIPCION AS destino,
+        col.NOMBRE AS solicitante
+
+      FROM Traslados_Personal t
+
+      LEFT JOIN Ubicaciones po
+        ON po.ID_UBICACIONES = t.ID_Ubicacion_Origen
+
+      LEFT JOIN Ubicaciones pd
+        ON pd.ID_UBICACIONES = t.ID_Ubicacion_Destino
+
+      LEFT JOIN Colaboradores col
+        ON col.ID_COLABORADOR = t.ID_Solicitante
+
+      WHERE t.QR_Token = ?`,
       [token_qr]
     );
+
 
     if (!rows.length) return res.status(404).json({ msg: 'Código QR de transporte no encontrado' });
     const traslado = rows[0];
@@ -181,28 +197,48 @@ const verificarQRPaquetería = async (req, res) => {
   try {
     if (!req.user?.id) return res.status(401).json({ msg: 'Autenticación requerida' });
     const { token_qr } = req.body;
-
     const [rows] = await connection.query(
-      `SELECT e.ID_Paquete, e.Estado_Actual, e.QR_Salida, e.QR_Llegada,
-              e.Fecha_Salida AS fecha_salida,
-              e.Hora_Entrega AS hora_entrega,
-              e.Tipo_Contenido AS tipo_contenido,
-              po.Nombre_Planta AS lugar_origen,
-              ao.AREA AS departamento_origen,
-              resp.NOMBRE AS responsable_origen,
-              pd.Nombre_Planta AS lugar_destino,
-              ad.AREA AS departamento_destino,
-              dest.NOMBRE AS responsable_destino
-       FROM Envios_Paqueteria e
-       INNER JOIN Plantas po ON po.ID_Planta = e.ID_Planta_Origen
-       INNER JOIN Areas ao ON ao.ID_AREAS = e.ID_Area_Origen
-       INNER JOIN Colaboradores resp ON resp.ID_COLABORADOR = e.ID_Responsable
-       INNER JOIN Plantas pd ON pd.ID_Planta = e.ID_Planta_Destino
-       INNER JOIN Areas ad ON ad.ID_AREAS = e.ID_Area_Destino
-       INNER JOIN Colaboradores dest ON dest.ID_COLABORADOR = e.ID_Destinatario
-       WHERE e.QR_Token = ?`,
+      `SELECT
+        e.ID_Paquete,
+        e.Estado_Actual,
+        e.QR_Salida,
+        e.QR_Llegada,
+        e.Fecha_Salida AS fecha_salida,
+        e.Hora_Entrega AS hora_entrega,
+        e.Tipo_Contenido AS tipo_contenido,
+
+        po.DESCRIPCION AS lugar_origen,
+        ao.AREA AS departamento_origen,
+        resp.NOMBRE AS responsable_origen,
+
+        pd.DESCRIPCION AS lugar_destino,
+        ad.AREA AS departamento_destino,
+        dest.NOMBRE AS responsable_destino
+
+      FROM Envios_Paqueteria e
+
+      INNER JOIN Ubicaciones po
+        ON po.ID_UBICACIONES = e.ID_Ubicacion_Origen
+
+      INNER JOIN Areas ao
+        ON ao.ID_AREAS = e.ID_Area_Origen
+
+      INNER JOIN Colaboradores resp
+        ON resp.ID_COLABORADOR = e.ID_Responsable
+
+      INNER JOIN Ubicaciones pd
+        ON pd.ID_UBICACIONES = e.ID_Ubicacion_Destino
+
+      INNER JOIN Areas ad
+        ON ad.ID_AREAS = e.ID_Area_Destino
+
+      INNER JOIN Colaboradores dest
+        ON dest.ID_COLABORADOR = e.ID_Destinatario
+
+      WHERE e.QR_Token = ?`,
       [token_qr]
     );
+
 
     if (!rows.length) {
       return res.status(404).json({ msg: 'Código QR no encontrado' });

@@ -1,6 +1,6 @@
 import express from 'express';
 import { verificarTokenJWT } from '../middlewares/JWT.js';
-import { obtenerOrganigrama } from '../controllers/Jeraraquia_controllers.js';
+import { obtenerOrganigrama } from '../controllers/Jerarquia_controllers.js';
 
 const router = express.Router();
 

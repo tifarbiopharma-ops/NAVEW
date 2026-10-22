@@ -1,90 +1,168 @@
+
 import pool from '../database.js';
 import crypto from 'node:crypto';
-import { obtenerColaboradoresACargo, obtenerJefeDirecto } from '../utils/jerarquia.js';
+import {
+  obtenerColaboradoresACargo,
+  obtenerJefeDirecto,
+} from '../utils/jerarquia.js';
 import { registrarReporteTraslado } from '../utils/reportesTraslados.js';
-
-
+import { resolverAprobadorSolicitud } from '../utils/verificarAprobadorSolicitud.js';
 
 // ==========================================
-// 1. HELPERS
+// 1. HELPERS INTERNOS
 // ==========================================
 
+const obtenerDatosTraslado = async (connection, idTraslado) => {
+  const [rows] = await connection.query(
+    `SELECT
+       t.ID_Traslado,
+       t.Tipo_Traslado,
+       t.Fecha_Salida,
+       t.Hora_Salida,
+       t.Motivo_Viaje,
+       t.Observaciones,
+       t.Km_Inicial,
+       t.Monto_Solicitado,
+       t.Estado_Actual,
+       solicitante.NOMBRE AS solicitante,
+       chofer.NOMBRE AS chofer,
+       origen.DESCRIPCION AS planta_origen,
+       destino.DESCRIPCION AS planta_destino
+     FROM Traslados_Personal t
+     LEFT JOIN Colaboradores solicitante
+       ON solicitante.ID_COLABORADOR = t.ID_Solicitante
+     LEFT JOIN Colaboradores chofer
+       ON chofer.ID_COLABORADOR = t.ID_Chofer
+     LEFT JOIN Ubicaciones origen
+       ON origen.ID_UBICACIONES = t.ID_Ubicacion_Origen
+     LEFT JOIN Ubicaciones destino
+       ON destino.ID_UBICACIONES = t.ID_Ubicacion_Destino
+     WHERE t.ID_Traslado = ?`,
+    [idTraslado]
+  );
 
-const setupTraslado = async (req, res, connection, tipoTraslado, extraFields, extraValues) => {
+  return rows[0] || null;
+};
+
+const datosCreacion = (traslado) => ({
+  solicitante: traslado.solicitante,
+  fecha_salida: traslado.Fecha_Salida,
+  hora_salida: traslado.Hora_Salida,
+  planta_origen: traslado.planta_origen,
+  planta_destino: traslado.planta_destino,
+  motivo_viaje: traslado.Motivo_Viaje,
+  observaciones: traslado.Observaciones,
+});
+
+const setupTraslado = async (
+  req,
+  res,
+  connection,
+  tipoTraslado,
+  extraFields,
+  extraValues
+) => {
   const idSolicitante = req.user.idColaborador;
-  if (!idSolicitante) throw new Error("Usuario sin colaborador asociado");
-  const { 
-    fecha_salida, hora_salida, motivo_viaje, observaciones,
-    id_planta_origen, id_planta_destino 
+
+  if (!idSolicitante) {
+    throw new Error('Usuario sin colaborador asociado');
+  }
+
+  const {
+    fecha_salida,
+    hora_salida,
+    motivo_viaje,
+    observaciones,
+    id_planta_origen,
+    id_planta_destino,
   } = req.body;
 
-  if (!fecha_salida || !hora_salida || !id_planta_origen || !id_planta_destino) {
-    throw new Error("Faltan campos obligatorios para el traslado (Fecha, hora, origen, destino)");
+  if (
+    !fecha_salida ||
+    !hora_salida ||
+    !id_planta_origen ||
+    !id_planta_destino
+  ) {
+    throw new Error(
+      'Faltan campos obligatorios para el traslado'
+    );
   }
 
-  // Validación de Tiempo (15 min tolerancia) para Transporte Privado
-  if (tipoTraslado === 'PRIVADO') {
-    const serverTime = new Date();
-    const serverHours = serverTime.getHours();
-    const serverMinutes = serverTime.getMinutes();
-    const totalServerMinutes = serverHours * 60 + serverMinutes;
-
-    const [reqHours, reqMinutes] = hora_salida.split(':').map(Number);
-    const totalReqMinutes = reqHours * 60 + reqMinutes;
-
-    const diff = Math.abs(totalServerMinutes - totalReqMinutes);
-    if (diff > 15) {
-      // Dejaremos flag para loguear la desviación abajo
-      extraValues.push(diff);
-      extraFields.push('desviacion'); // pseudo-field
-    }
-  }
-
-  const idAprobador = await obtenerJefeDirecto(idSolicitante);
-  if (!idAprobador) {
-    throw new Error("No se encontró un Jefe Directo asignado en el organigrama.");
-  }
+  const idAprobador = await resolverAprobadorSolicitud(idSolicitante);
 
   const idTraslado = crypto.randomUUID();
-  
-  // Limpiar campos para el insert
-  const actualExtraFields = extraFields.filter(f => f !== 'desviacion');
-  const actualExtraValues = extraValues.filter((_, i) => extraFields[i] !== 'desviacion');
 
-  const insertFields = ['ID_Traslado', 'Tipo_Traslado', 'Fecha_Salida', 'Hora_Salida', 'Motivo_Viaje', 'Observaciones', 'Estado_Actual', 'ID_Solicitante', 'ID_Planta_Origen', 'ID_Planta_Destino', ...actualExtraFields].join(', ');
-  const placeholders = Array(10 + actualExtraFields.length).fill('?').join(', ');
-  
+  const campos = [
+    'ID_Traslado',
+    'Tipo_Traslado',
+    'Fecha_Salida',
+    'Hora_Salida',
+    'Motivo_Viaje',
+    'Observaciones',
+    'Estado_Actual',
+    'ID_Solicitante',
+    'ID_Ubicacion_Origen',
+    'ID_Ubicacion_Destino',
+    ...extraFields,
+  ];
+
+  const placeholders = campos.map(() => '?').join(', ');
+
   await connection.query(
-    `INSERT INTO Traslados_Personal (${insertFields}) VALUES (${placeholders})`,
-    [idTraslado, tipoTraslado, fecha_salida, hora_salida, motivo_viaje, observaciones || null, 'Solicitado', idSolicitante, id_planta_origen, id_planta_destino, ...actualExtraValues]
+    `INSERT INTO Traslados_Personal
+     (${campos.join(', ')})
+     VALUES (${placeholders})`,
+    [
+      idTraslado,
+      tipoTraslado,
+      fecha_salida,
+      hora_salida,
+      motivo_viaje,
+      observaciones || null,
+      'Solicitado',
+      idSolicitante,
+      id_planta_origen,
+      id_planta_destino,
+      ...extraValues,
+    ]
   );
 
   await connection.query(
-    `INSERT INTO Aprobaciones (TIPO_SOLICITUD, ID_SOLICITUD, NIVEL_APROBACION, ID_APROBADOR, ESTADO) VALUES ('TRASLADO', ?, 1, ?, 'PENDIENTE')`,
+    `INSERT INTO Aprobaciones
+     (
+       TIPO_SOLICITUD,
+       ID_SOLICITUD,
+       NIVEL_APROBACION,
+       ID_APROBADOR,
+       ESTADO
+     )
+     VALUES ('TRASLADO', ?, 1, ?, 'PENDIENTE')`,
     [idTraslado, idAprobador]
   );
-
-
 
   return { idTraslado, idAprobador };
 };
 
 // ==========================================
-// 2. CREATE ENDPOINTS (Formularios)
+// 2. CATÁLOGOS
 // ==========================================
 
 const obtenerChoferes = async (req, res) => {
   try {
     const [choferes] = await pool.query(
-      `SELECT c.ID_COLABORADOR AS id, c.NOMBRE AS nombre, ca.DESCRIPCION AS cargo
-       FROM Colaboradores c
-       INNER JOIN Cargos ca ON ca.ID_CARGOS = c.CARGO
-       WHERE c.ESTADO = 'ACTIVO'
-         AND c.CARGO = 61
-       ORDER BY c.NOMBRE`
+      `SELECT
+         ID_COLABORADOR AS id,
+         NOMBRE AS nombre
+       FROM Colaboradores
+       WHERE ESTADO = 'ACTIVO'
+         AND CARGO = 55
+       ORDER BY NOMBRE`
     );
 
-    return res.status(200).json({ success: true, choferes });
+    return res.status(200).json({
+      success: true,
+      choferes,
+    });
   } catch (error) {
     return res.status(500).json({
       msg: 'No se pudieron cargar los choferes',
@@ -92,364 +170,661 @@ const obtenerChoferes = async (req, res) => {
   }
 };
 
+
 const obtenerPlantas = async (req, res) => {
   try {
-    const [plantas] = await pool.query(
-      'SELECT ID_Planta AS id, Nombre_Planta AS nombre FROM Plantas ORDER BY Nombre_Planta'
-    );
+    const idColaborador = Number(req.user?.idColaborador);
 
-    return res.status(200).json({ success: true, plantas });
+    if (!Number.isSafeInteger(idColaborador) || idColaborador <= 0) {
+      return res.status(403).json({
+        success: false,
+        msg: 'Tu usuario no tiene un colaborador asociado',
+      });
+    }
+
+    const [[plantas], [colaboradores]] = await Promise.all([
+      pool.query(
+        `SELECT
+           ID_UBICACIONES AS id,
+           DESCRIPCION AS nombre
+         FROM Ubicaciones
+         ORDER BY DESCRIPCION ASC`
+      ),
+
+      pool.query(
+        `SELECT
+           UBICACION AS ubicacionId
+         FROM Colaboradores
+         WHERE ID_COLABORADOR = ?`,
+        [idColaborador]
+      ),
+    ]);
+    return res.status(200).json({
+      success: true,
+      plantas,
+      ubicacionOrigenId: colaboradores[0]?.ubicacionId ?? null,
+    });
+
   } catch (error) {
+    console.error('Error al obtener plantas:', error);
+
     return res.status(500).json({
+      success: false,
       msg: 'No se pudieron cargar las plantas',
     });
   }
 };
 
+
+// ==========================================
+// 3. TRANSPORTE EMPRESARIAL
+// ==========================================
+
 const createTrasladoEmpresarial = async (req, res) => {
   const connection = await pool.getConnection();
   let committed = false;
+
   try {
-    const { id_chofer} = req.body;
-    if (!id_chofer) return res.status(400).json({ msg: "Falta ID de chofer para transporte empresarial" });
+    const { id_chofer } = req.body;
+
+    if (!id_chofer) {
+      return res.status(400).json({
+        msg: 'Falta ID de chofer para transporte empresarial',
+      });
+    }
 
     await connection.beginTransaction();
-    const result = await setupTraslado(req, res, connection, 'EMPRESARIAL', 
-      ['ID_Chofer'], 
+
+    const result = await setupTraslado(
+      req,
+      res,
+      connection,
+      'EMPRESARIAL',
+      ['ID_Chofer'],
       [id_chofer]
     );
+
+    if (res.headersSent) { await connection.rollback(); return; }
+
+    const traslado = await obtenerDatosTraslado(
+      connection,
+      result.idTraslado
+    );
+
     await connection.commit();
     committed = true;
-    await registrarReporteTraslado({ usuarioId: req.user.id, usuarioNombre: req.user.nombre, accion: "CREAR_TRASLADO", idTraslado: result.idTraslado, estadoNuevo: "Solicitado", detalles: { tipo_traslado: "EMPRESARIAL" } });
-    res.status(201).json({ success: true, msg: "Transporte Empresarial registrado", ...result });
+
+    await registrarReporteTraslado({
+      usuarioId: req.user.id,
+      usuarioNombre: req.user.nombre,
+      accion: 'CREAR_TRASLADO_EMPRESARIAL',
+      idTraslado: result.idTraslado,
+      estadoAnterior: null,
+      estadoNuevo: 'Solicitado',
+      detalles: {
+        ...datosCreacion(traslado),
+        chofer: traslado.chofer,
+      },
+    });
+
+    return res.status(201).json({
+      success: true,
+      msg: 'Transporte Empresarial registrado',
+      ...result,
+    });
   } catch (error) {
     if (!committed) await connection.rollback();
-    res.status(500).json({ msg: "No se pudo crear el traslado" });
+
+    return res.status(500).json({
+      msg: 'No se pudo crear el traslado',
+    });
   } finally {
     connection.release();
   }
 };
+
+// ==========================================
+// 4. TRANSPORTE PERSONAL
+// ==========================================
 
 const createTrasladoPersonal = async (req, res) => {
   const connection = await pool.getConnection();
   let committed = false;
+
   try {
     const { km_inicial, monto_solicitado } = req.body;
+
     await connection.beginTransaction();
-    const result = await setupTraslado(req, res, connection, 'PERSONAL', 
-      ['Km_Inicial', 'Monto_Solicitado'],
-      [km_inicial || null, monto_solicitado || null]
+
+    const result = await setupTraslado(
+    req,
+    res,
+    connection,
+    'PERSONAL',
+    ['Km_Inicial', 'Monto_Solicitado'],
+    [km_inicial ?? null, monto_solicitado ?? null]
+  );
+
+if (res.headersSent) { await connection.rollback(); return; }
+
+    const traslado = await obtenerDatosTraslado(
+      connection,
+      result.idTraslado
     );
+
     await connection.commit();
     committed = true;
-    await registrarReporteTraslado({ usuarioId: req.user.id, usuarioNombre: req.user.nombre, accion: "CREAR_TRASLADO", idTraslado: result.idTraslado, estadoNuevo: "Solicitado", detalles: { tipo_traslado: "PERSONAL" } });
-    res.status(201).json({ success: true, msg: "Transporte Personal registrado", ...result });
+
+    await registrarReporteTraslado({
+      usuarioId: req.user.id,
+      usuarioNombre: req.user.nombre,
+      accion: 'CREAR_TRASLADO_PERSONAL',
+      idTraslado: result.idTraslado,
+      estadoAnterior: null,
+      estadoNuevo: 'Solicitado',
+      detalles: {
+        ...datosCreacion(traslado),
+        km_inicial: traslado.Km_Inicial,
+        monto_solicitado: traslado.Monto_Solicitado,
+      },
+    });
+
+    return res.status(201).json({
+      success: true,
+      msg: 'Transporte Personal registrado',
+      ...result,
+    });
   } catch (error) {
     if (!committed) await connection.rollback();
-    res.status(500).json({ msg: "No se pudo crear el traslado" });
+
+    return res.status(500).json({
+      msg: 'No se pudo crear el traslado',
+    });
   } finally {
     connection.release();
   }
 };
+
+// ==========================================
+// 5. TRANSPORTE PRIVADO
+// ==========================================
 
 const createTrasladoPrivado = async (req, res) => {
   const connection = await pool.getConnection();
   let committed = false;
+
   try {
-    const { monto_solicitado, evidencia_costo } = req.body;
+    const { monto_solicitado } = req.body;
+
     await connection.beginTransaction();
-    const result = await setupTraslado(req, res, connection, 'PRIVADO', 
-      ['Monto_Solicitado', 'Evidencia_Costo'], 
-      [monto_solicitado || null, evidencia_costo || null]
+
+    const result = await setupTraslado(
+      req,
+      res,
+      connection,
+      'PRIVADO',
+      ['Monto_Solicitado'],
+      [monto_solicitado ?? null]
     );
+
+    if (res.headersSent) { await connection.rollback(); return; }
+
+    const traslado = await obtenerDatosTraslado(
+      connection,
+      result.idTraslado
+    );
+
     await connection.commit();
     committed = true;
-    await registrarReporteTraslado({ usuarioId: req.user.id, usuarioNombre: req.user.nombre, accion: "CREAR_TRASLADO", idTraslado: result.idTraslado, estadoNuevo: "Solicitado", detalles: { tipo_traslado: "PRIVADO" } });
-    res.status(201).json({ success: true, msg: "Transporte Privado registrado", ...result });
+
+    await registrarReporteTraslado({
+      usuarioId: req.user.id,
+      usuarioNombre: req.user.nombre,
+      accion: 'CREAR_TRASLADO_PRIVADO',
+      idTraslado: result.idTraslado,
+      estadoAnterior: null,
+      estadoNuevo: 'Solicitado',
+      detalles: {
+        ...datosCreacion(traslado),
+        monto_solicitado: traslado.Monto_Solicitado,
+      },
+    });
+
+    return res.status(201).json({
+      success: true,
+      msg: 'Transporte Privado registrado',
+      ...result,
+    });
   } catch (error) {
     if (!committed) await connection.rollback();
-    res.status(500).json({ msg: "No se pudo crear el traslado" });
+
+    return res.status(500).json({
+      msg: 'No se pudo crear el traslado',
+    });
   } finally {
     connection.release();
   }
 };
 
 // ==========================================
-// 3. GET HISTÓRICO Y PROGRESO
+// 6. HISTORIAL DE TRASLADOS
 // ==========================================
+
 
 const getTraslados = async (req, res) => {
   try {
-    const idUsuario = req.user.idColaborador;
-    const rol = req.user.rol.toLowerCase();
+    const idUsuario = Number(req.user?.idColaborador);
+    const rol = String(req.user?.rol || '').trim().toLowerCase();
 
-    let query = `SELECT t.*, col.NOMBRE AS Solicitante_Nombre, po.Nombre_Planta AS Planta_Origen_Nombre, pd.Nombre_Planta AS Planta_Destino_Nombre
-           FROM Traslados_Personal t
-           LEFT JOIN Colaboradores col ON col.ID_COLABORADOR = t.ID_Solicitante
-           LEFT JOIN Plantas po ON po.ID_Planta = t.ID_Planta_Origen
-           LEFT JOIN Plantas pd ON pd.ID_Planta = t.ID_Planta_Destino
-           ORDER BY t.Fecha_Creacion DESC`;
-    let params = [];
+    if (!Number.isSafeInteger(idUsuario) || idUsuario <= 0) {
+      return res.status(403).json({
+        msg: 'Tu usuario no tiene un colaborador asociado'
+      });
+    }
+
+    const rolesSuperiores = [
+      'jefe',
+      'subgerente',
+      'gerente',
+      'subgerentegeneral',
+      'gerentegeneral',
+      'presidente'
+    ];
+
+    let query = `
+      SELECT
+        t.*,
+        EXISTS (
+          SELECT 1
+          FROM Aprobaciones ap
+          WHERE ap.TIPO_SOLICITUD = 'TRASLADO'
+            AND ap.ID_SOLICITUD = t.ID_Traslado
+            AND ap.ID_APROBADOR = ?
+            AND ap.ESTADO = 'PENDIENTE'
+        ) AS puedeAprobar,
+
+        col.NOMBRE AS Solicitante_Nombre,
+        po.DESCRIPCION AS Planta_Origen_Nombre,
+        pd.DESCRIPCION AS Planta_Destino_Nombre
+
+      FROM Traslados_Personal t
+
+      LEFT JOIN Colaboradores col
+        ON col.ID_COLABORADOR = t.ID_Solicitante
+
+      LEFT JOIN Ubicaciones po
+        ON po.ID_UBICACIONES = t.ID_Ubicacion_Origen
+
+      LEFT JOIN Ubicaciones pd
+        ON pd.ID_UBICACIONES = t.ID_Ubicacion_Destino
+    `;
+
+    const params = [idUsuario];
 
     if (!['administrador', 'supervisor'].includes(rol)) {
-      if (rol === 'jefe') {
-        const idsSubordinados = await obtenerColaboradoresACargo(idUsuario);
-        idsSubordinados.push(idUsuario);
-        query = idsSubordinados.length
-          ? `SELECT t.*, col.NOMBRE AS Solicitante_Nombre, po.Nombre_Planta AS Planta_Origen_Nombre, pd.Nombre_Planta AS Planta_Destino_Nombre
-             FROM Traslados_Personal t
-             LEFT JOIN Colaboradores col ON col.ID_COLABORADOR = t.ID_Solicitante
-             LEFT JOIN Plantas po ON po.ID_Planta = t.ID_Planta_Origen
-             LEFT JOIN Plantas pd ON pd.ID_Planta = t.ID_Planta_Destino
-             WHERE t.ID_Solicitante IN (${idsSubordinados.map(() => '?').join(', ')})
-             ORDER BY t.Fecha_Creacion DESC`
-          : 'SELECT t.*, col.NOMBRE AS Solicitante_Nombre, po.Nombre_Planta AS Planta_Origen_Nombre, pd.Nombre_Planta AS Planta_Destino_Nombre FROM Traslados_Personal t LEFT JOIN Colaboradores col ON col.ID_COLABORADOR = t.ID_Solicitante LEFT JOIN Plantas po ON po.ID_Planta = t.ID_Planta_Origen LEFT JOIN Plantas pd ON pd.ID_Planta = t.ID_Planta_Destino WHERE 1 = 0';
-        params = idsSubordinados;
+
+      if (rolesSuperiores.includes(rol)) {
+        const idsSubordinados =
+          await obtenerColaboradoresACargo(idUsuario);
+
+        const idsPermitidos = [
+          ...new Set([
+            ...(idsSubordinados || []),
+            idUsuario
+          ])
+        ];
+
+        query += `
+          WHERE (
+            t.ID_Solicitante IN (
+              ${idsPermitidos.map(() => '?').join(', ')}
+            )
+            OR EXISTS (
+              SELECT 1
+              FROM Aprobaciones apv
+              WHERE apv.TIPO_SOLICITUD = 'TRASLADO'
+                AND apv.ID_SOLICITUD = t.ID_Traslado
+                AND apv.ID_APROBADOR = ?
+                AND apv.ESTADO = 'PENDIENTE'
+            )
+          )
+        `;
+
+        params.push(...idsPermitidos, idUsuario);
+
       } else {
-        query = `SELECT t.*, col.NOMBRE AS Solicitante_Nombre, po.Nombre_Planta AS Planta_Origen_Nombre, pd.Nombre_Planta AS Planta_Destino_Nombre
-           FROM Traslados_Personal t
-           LEFT JOIN Colaboradores col ON col.ID_COLABORADOR = t.ID_Solicitante
-           LEFT JOIN Plantas po ON po.ID_Planta = t.ID_Planta_Origen
-           LEFT JOIN Plantas pd ON pd.ID_Planta = t.ID_Planta_Destino
-           WHERE t.ID_Solicitante = ? ORDER BY t.Fecha_Creacion DESC`;
-        params = [idUsuario];
+        query += ' WHERE t.ID_Solicitante = ?';
+        params.push(idUsuario);
       }
     }
 
+    query += ' ORDER BY t.Fecha_Creacion DESC';
+
     const [rows] = await pool.query(query, params);
-    res.status(200).json({ success: true, traslados: rows });
+
+    return res.status(200).json({
+      success: true,
+      traslados: rows.map((traslado) => ({
+        ...traslado,
+        puedeAprobar: Boolean(traslado.puedeAprobar)
+      }))
+    });
+
   } catch (error) {
-    res.status(500).json({ msg: "Error al consultar historial" });
+    console.error('Error en getTraslados:', error);
+
+    return res.status(500).json({
+      msg: 'Error al consultar historial'
+    });
   }
 };
 
-const getProgresoTraslado = async (req, res) => {
-  try {
-    const { id } = req.params; // ID_Traslado
-    const [rows] = await pool.query(
-      `SELECT estado_nuevo AS Fase_Estado, fecha_registro AS Timestamp_Evento,
-              detalles AS Detalles_Extra, usuario_nombre AS Actor, accion
-       FROM reportes_traslados WHERE id_traslado = ? ORDER BY fecha_registro ASC, id ASC`,
-      [id]
-    );
-    res.status(200).json({ success: true, progreso: rows });
-  } catch (error) {
-    res.status(500).json({ msg: "Error al consultar progreso" });
-  }
-};
 
 // ==========================================
-// 4. APROBACIÓN (JEFE)
+// 7. APROBACIÓN Y RECHAZO
 // ==========================================
 
 const approveTraslado = async (req, res) => {
   const connection = await pool.getConnection();
   let committed = false;
+
   try {
     const { id } = req.params;
     const idAprobador = req.user.idColaborador;
-    const { accion, comentario } = req.body; // 'APROBADO' o 'RECHAZADO'
+    const { accion, comentario } = req.body;
 
-    if (!['Aprobado', 'Rechazado'].includes(accion)) return res.status(400).json({ msg: 'Acción inválida' });
-    const dbEstado = accion === 'Aprobado' ? 'Aprobado' : 'RECHAZADO';
-    const estadoAprobacion = dbEstado;
+    if (!['Aprobado', 'Rechazado'].includes(accion)) {
+      return res.status(400).json({
+        msg: 'Acción inválida',
+      });
+    }
+
+    const dbEstado =
+      accion === 'Aprobado' ? 'Aprobado' : 'RECHAZADO';
 
     await connection.beginTransaction();
 
+    const [estadoRows] = await connection.query(
+      `SELECT Estado_Actual FROM Traslados_Personal WHERE ID_Traslado = ? FOR UPDATE`,
+      [id]
+    );
+    if (!estadoRows.length) {
+      await connection.rollback();
+      return res.status(404).json({ msg: 'Traslado no encontrado' });
+    }
+    if (estadoRows[0].Estado_Actual !== 'Solicitado') {
+      await connection.rollback();
+      return res.status(409).json({ msg: 'La solicitud ya fue procesada' });
+    }
+
     const [aprobaciones] = await connection.query(
-      `SELECT ID_APROBACION FROM Aprobaciones 
-       WHERE TIPO_SOLICITUD = 'TRASLADO' AND ID_SOLICITUD = ? AND ID_APROBADOR = ? AND ESTADO = 'PENDIENTE'`,
+      `SELECT ID_APROBACION
+       FROM Aprobaciones
+       WHERE TIPO_SOLICITUD = 'TRASLADO'
+         AND ID_SOLICITUD = ?
+         AND ID_APROBADOR = ?
+         AND ESTADO = 'PENDIENTE'`,
       [id, idAprobador]
     );
 
-    if (aprobaciones.length === 0) {
+    if (!aprobaciones.length) {
       await connection.rollback();
-      return res.status(403).json({ msg: "No tienes permiso para aprobar o ya fue procesada" });
+
+      return res.status(403).json({
+        msg: 'No tienes permiso para aprobar o ya fue procesada',
+      });
     }
 
-    await connection.query(
-      `UPDATE Aprobaciones SET ESTADO = ?, COMENTARIO = ?, FECHA_RESPUESTA = NOW() WHERE ID_APROBACION = ?`,
-      [estadoAprobacion, comentario || null, aprobaciones[0].ID_APROBACION]
+    const [[propietario]] = await connection.query(
+      'SELECT ID_Solicitante FROM Traslados_Personal WHERE ID_Traslado = ?', [id]
+    );
+    if (Number(propietario.ID_Solicitante) === Number(idAprobador)) {
+      const autorizado = await resolverAprobadorSolicitud(idAprobador);
+      if (Number(autorizado) !== Number(idAprobador)) {
+        await connection.rollback();
+        return res.status(403).json({ msg: 'Tu superior debe aprobar esta solicitud' });
+      }
+    }
+
+    const traslado = await obtenerDatosTraslado(
+      connection,
+      id
     );
 
-    const updateQuery = dbEstado === 'Aprobado'
-      ? `UPDATE Traslados_Personal
-         SET Estado_Actual = ?, QR_Token = ?
-         WHERE ID_Traslado = ?`
-      : `UPDATE Traslados_Personal
+    if (!traslado) {
+      await connection.rollback();
+
+      return res.status(404).json({
+        msg: 'Traslado no encontrado',
+      });
+    }
+
+    const [aprobadores] = await connection.query(
+      `SELECT NOMBRE
+       FROM Colaboradores
+       WHERE ID_COLABORADOR = ?`,
+      [idAprobador]
+    );
+
+    const nombreAprobador =
+      aprobadores[0]?.NOMBRE ||
+      req.user.nombre ||
+      null;
+
+    await connection.query(
+      `UPDATE Aprobaciones
+       SET ESTADO = ?,
+           COMENTARIO = ?,
+           FECHA_RESPUESTA = NOW()
+       WHERE ID_APROBACION = ?`,
+      [
+        dbEstado,
+        comentario || null,
+        aprobaciones[0].ID_APROBACION,
+      ]
+    );
+
+    if (dbEstado === 'Aprobado') {
+      await connection.query(
+        `UPDATE Traslados_Personal
+         SET Estado_Actual = ?,
+             QR_Token = ?
+         WHERE ID_Traslado = ?`,
+        [dbEstado, id, id]
+      );
+    } else {
+      await connection.query(
+        `UPDATE Traslados_Personal
          SET Estado_Actual = ?
-         WHERE ID_Traslado = ?`;
-    const updateParams = dbEstado === 'Aprobado'
-      ? [dbEstado, id, id]
-      : [dbEstado, id];
-
-    await connection.query(updateQuery, updateParams);
-
+         WHERE ID_Traslado = ?`,
+        [dbEstado, id]
+      );
+    }
 
     await connection.commit();
     committed = true;
-    await registrarReporteTraslado({ usuarioId: req.user.id, usuarioNombre: req.user.nombre,
-      accion: dbEstado === 'Aprobado' ? 'APROBAR_TRASLADO' : 'RECHAZAR_TRASLADO',
-      idTraslado: id, estadoAnterior: 'Solicitado', estadoNuevo: dbEstado,
-      detalles: comentario ? { comentario } : null });
-    res.status(200).json({
+
+    await registrarReporteTraslado({
+      usuarioId: req.user.id,
+      usuarioNombre: req.user.nombre,
+      accion: dbEstado === 'Aprobado'
+        ? 'APROBAR_TRASLADO'
+        : 'RECHAZAR_TRASLADO',
+      idTraslado: id,
+      estadoAnterior: traslado.Estado_Actual,
+      estadoNuevo: dbEstado,
+      detalles: {
+        aprobador: nombreAprobador,
+        solicitante: traslado.solicitante,
+        tipo_traslado: traslado.Tipo_Traslado,
+        comentario: comentario || null,
+      },
+    });
+
+    return res.status(200).json({
       success: true,
       msg: `Solicitud ${dbEstado.toLowerCase()}`,
       qrToken: dbEstado === 'Aprobado' ? id : null,
     });
   } catch (error) {
     if (!committed) await connection.rollback();
-    res.status(500).json({ msg: "Error" });
+
+    return res.status(500).json({
+      msg: 'Error al procesar la solicitud',
+    });
   } finally {
     connection.release();
   }
 };
 
 // ==========================================
-// 5. ESCANEOS EN GARITA (Seguridad)
+// 8. FINALIZAR TRASLADO
 // ==========================================
-
-const registrarSalidaGarita = async (req, res) => {
-  const connection = await pool.getConnection();
-  let committed = false;
-  try {
-    const { id } = req.params; // ID_Traslado (leído del QR)
-    const idGuardia = req.user.id;
-    const { km_inicial, observaciones } = req.body;
-
-    await connection.beginTransaction();
-    
-    // Solo actualizar si estaba aprobado
-    const [traslado] = await connection.query(`SELECT Estado_Actual, Tipo_Traslado FROM Traslados_Personal WHERE ID_Traslado = ?`, [id]);
-    if (!traslado.length || traslado[0].Estado_Actual !== 'Aprobado') {
-      await connection.rollback();
-      return res.status(400).json({ msg: "El traslado no está aprobado o ya salió." });
-    }
-
-    let updates = `Estado_Actual = 'En camino', Observaciones = CONCAT_WS(' | ', Observaciones, ?)`;
-    let params = [observaciones || 'Salida en garita', id];
-
-    if (traslado[0].Tipo_Traslado === 'EMPRESARIAL' || traslado[0].Tipo_Traslado === 'PERSONAL') {
-      if (!km_inicial) {
-        await connection.rollback();
-        return res.status(400).json({ msg: "Debe ingresar Km Inicial para este tipo de transporte." });
-      }
-      updates = `Estado_Actual = 'En camino', Km_Inicial = ?, Observaciones = CONCAT_WS(' | ', Observaciones, ?)`;
-      params = [km_inicial, observaciones || 'Salida en garita', id];
-    }
-
-    await connection.query(`UPDATE Traslados_Personal SET ${updates} WHERE ID_Traslado = ?`, params);
-
-    await connection.commit();
-    committed = true;
-    await registrarReporteTraslado({ usuarioId: idGuardia, usuarioNombre: req.user.nombre, accion: 'SALIDA_GARITA', idTraslado: id, estadoAnterior: 'Aprobado', estadoNuevo: 'En camino', detalles: { km_inicial: km_inicial ?? null } });
-    res.status(200).json({ success: true, msg: "Salida registrada en garita exitosamente." });
-  } catch (error) {
-    if (!committed) await connection.rollback();
-    res.status(500).json({ msg: "Error" });
-  } finally {
-    connection.release();
-  }
-};
-
-const registrarLlegadaGarita = async (req, res) => {
-  const connection = await pool.getConnection();
-  let committed = false;
-  try {
-    const { id } = req.params;
-    const idGuardia = req.user.id;
-    const { km_final, observaciones } = req.body;
-
-    await connection.beginTransaction();
-    
-    const [traslado] = await connection.query(`SELECT Estado_Actual, Tipo_Traslado FROM Traslados_Personal WHERE ID_Traslado = ?`, [id]);
-    if (!traslado.length || traslado[0].Estado_Actual !== 'En camino') {
-      await connection.rollback();
-      return res.status(400).json({ msg: "El traslado no ha salido o ya llegó." });
-    }
-
-    let updates = `Estado_Actual = 'Finalizado', Hora_Llegada = CURRENT_TIME(), Observaciones = CONCAT_WS(' | ', Observaciones, ?)`;
-    let params = [observaciones || 'Llegada en garita', id];
-
-    if (traslado[0].Tipo_Traslado === 'EMPRESARIAL' || traslado[0].Tipo_Traslado === 'PERSONAL') {
-      if (!km_final) {
-        await connection.rollback();
-        return res.status(400).json({ msg: "Debe ingresar Km Final para este tipo de transporte." });
-      }
-      updates = `Estado_Actual = 'Finalizado', Hora_Llegada = CURRENT_TIME(), Km_Final = ?, Observaciones = CONCAT_WS(' | ', Observaciones, ?)`;
-      params = [km_final, observaciones || 'Llegada en garita', id];
-    }
-
-    await connection.query(`UPDATE Traslados_Personal SET ${updates} WHERE ID_Traslado = ?`, params);
-
-    await connection.commit();
-    committed = true;
-    await registrarReporteTraslado({ usuarioId: idGuardia, usuarioNombre: req.user.nombre, accion: 'LLEGADA_GARITA', idTraslado: id, estadoAnterior: 'En camino', estadoNuevo: 'Finalizado', detalles: { km_final: km_final ?? null } });
-    res.status(200).json({ success: true, msg: "Llegada registrada en garita exitosamente." });
-  } catch (error) {
-    if (!committed) await connection.rollback();
-    res.status(500).json({ msg: "Error" });
-  } finally {
-    connection.release();
-  }
-};
 
 const finalizarTraslado = async (req, res) => {
   const connection = await pool.getConnection();
   let committed = false;
+
   try {
     const { id } = req.params;
     const { km_final, evidencia_costo } = req.body;
+
     await connection.beginTransaction();
+
     const [rows] = await connection.query(
-      `SELECT Tipo_Traslado, Estado_Actual, Km_Inicial FROM Traslados_Personal WHERE ID_Traslado = ? FOR UPDATE`,
+      `SELECT
+         Tipo_Traslado,
+         Estado_Actual,
+         Km_Inicial
+       FROM Traslados_Personal
+       WHERE ID_Traslado = ?
+       FOR UPDATE`,
       [id]
     );
+
     if (!rows.length) {
       await connection.rollback();
-      return res.status(404).json({ msg: 'Traslado no encontrado' });
+
+      return res.status(404).json({
+        msg: 'Traslado no encontrado',
+      });
     }
+
     const traslado = rows[0];
+
     if (!['PERSONAL', 'PRIVADO'].includes(traslado.Tipo_Traslado)) {
       await connection.rollback();
-      return res.status(400).json({ msg: 'Este tipo de traslado no requiere información adicional' });
+
+      return res.status(400).json({
+        msg: 'Este tipo de traslado no requiere información adicional',
+      });
     }
-    if (traslado.Estado_Actual !== 'Pendiente KM final' && traslado.Estado_Actual !== 'Pendiente factura') {
+
+    const estadoEsperado =
+      traslado.Tipo_Traslado === 'PERSONAL'
+        ? 'Pendiente KM final'
+        : 'Pendiente factura';
+
+    if (traslado.Estado_Actual !== estadoEsperado) {
       await connection.rollback();
-      return res.status(400).json({ msg: 'El traslado no está pendiente de finalización' });
+
+      return res.status(400).json({
+        msg: 'El traslado no está pendiente de finalización',
+      });
     }
+
+    let detallesFinalizacion;
+
     if (traslado.Tipo_Traslado === 'PERSONAL') {
       const kmFinal = Number(km_final);
       const kmInicial = Number(traslado.Km_Inicial);
-      if (km_final === undefined || km_final === '' || !Number.isFinite(kmFinal) || !Number.isFinite(kmInicial) || kmFinal <= kmInicial) {
+
+      if (
+        km_final === undefined ||
+        km_final === null ||
+        km_final === '' ||
+        !Number.isFinite(kmFinal) ||
+        !Number.isFinite(kmInicial) ||
+        kmFinal <= kmInicial
+      ) {
         await connection.rollback();
-        return res.status(400).json({ msg: 'El KM final debe ser mayor que el KM inicial' });
+
+        return res.status(400).json({
+          msg: 'El KM final debe ser mayor que el KM inicial',
+        });
       }
+
       await connection.query(
-        `UPDATE Traslados_Personal SET Km_Final = ?, Estado_Actual = 'Finalizado' WHERE ID_Traslado = ?`,
+        `UPDATE Traslados_Personal
+         SET Km_Final = ?,
+             Estado_Actual = 'Finalizado'
+         WHERE ID_Traslado = ?`,
         [kmFinal, id]
       );
+
+      detallesFinalizacion = {
+        tipo_traslado: 'PERSONAL',
+        km_inicial: kmInicial,
+        km_final: kmFinal,
+        km_recorridos: kmFinal - kmInicial,
+      };
     } else {
-      if (!evidencia_costo || typeof evidencia_costo !== 'string') {
+      if (
+        typeof evidencia_costo !== 'string' ||
+        !evidencia_costo.trim()
+      ) {
         await connection.rollback();
-        return res.status(400).json({ msg: 'Debes adjuntar la factura del traslado privado' });
+
+        return res.status(400).json({
+          msg: 'Debes adjuntar la factura del traslado privado',
+        });
       }
+
       await connection.query(
-        `UPDATE Traslados_Personal SET Evidencia_Costo = ?, Estado_Actual = 'Finalizado' WHERE ID_Traslado = ?`,
+        `UPDATE Traslados_Personal
+         SET Evidencia_Costo = ?,
+             Estado_Actual = 'Finalizado'
+         WHERE ID_Traslado = ?`,
         [evidencia_costo, id]
       );
+
+      detallesFinalizacion = {
+        tipo_traslado: 'PRIVADO',
+        evidencia_costo: evidencia_costo,
+      };
     }
+
     await connection.commit();
     committed = true;
-    await registrarReporteTraslado({ usuarioId: req.user.id, usuarioNombre: req.user.nombre, accion: 'FINALIZAR_TRASLADO', idTraslado: id, estadoAnterior: traslado.Estado_Actual, estadoNuevo: 'Finalizado', detalles: { km_final: km_final ?? null } });
-    return res.json({ success: true, msg: 'Traslado finalizado correctamente' });
+
+    await registrarReporteTraslado({
+      usuarioId: req.user.id,
+      usuarioNombre: req.user.nombre,
+      accion: 'FINALIZAR_TRASLADO',
+      idTraslado: id,
+      estadoAnterior: traslado.Estado_Actual,
+      estadoNuevo: 'Finalizado',
+      detalles: detallesFinalizacion,
+    });
+
+    return res.status(200).json({
+      success: true,
+      msg: 'Traslado finalizado correctamente',
+    });
   } catch (error) {
     if (!committed) await connection.rollback();
-    return res.status(500).json({ msg: 'No se pudo finalizar el traslado' });
+
+    return res.status(500).json({
+      msg: 'No se pudo finalizar el traslado',
+    });
   } finally {
     connection.release();
   }
 };
+
+// ==========================================
+// 9. EXPORTACIONES
+// ==========================================
 
 export {
   obtenerChoferes,
@@ -458,9 +833,6 @@ export {
   createTrasladoPersonal,
   createTrasladoPrivado,
   getTraslados,
-  getProgresoTraslado,
   approveTraslado,
-  registrarSalidaGarita,
-  registrarLlegadaGarita,
   finalizarTraslado,
 };

@@ -37,7 +37,7 @@ const DashboardHomeRedirect = () => {
     return <Navigate to="paqueteria" replace />;
   }
 
-  if (userRole.includes('jefe') || userRole.includes('solicitante')) {
+  if (userRole.includes('jefe', 'subgerente', 'gerente', 'subgerentegeneral', 'gerentegeneral', 'presidente') || userRole.includes('solicitante')) {
     return <Navigate to="transporte" replace />;
   }
 
@@ -71,7 +71,7 @@ function App() {
           <Route
             path="transporte"
             element={
-              <PrivateRouteWithRole allowedRoles={["solicitante", "jefe", "administrador"]}>
+              <PrivateRouteWithRole allowedRoles={["solicitante", "jefe", "subgerente", "gerente", "subgerentegeneral", "gerentegeneral", "presidente", "administrador"]}>
                 <TransporteDashboard />
               </PrivateRouteWithRole>
             }
@@ -87,7 +87,7 @@ function App() {
           <Route
             path="paqueteria"
             element={
-              <PrivateRouteWithRole allowedRoles={["solicitante", "jefe", "administrador", "supervisor"]}>
+              <PrivateRouteWithRole allowedRoles={["solicitante", "jefe", "subgerente", "gerente", "subgerentegeneral", "gerentegeneral", "presidente", "administrador", "supervisor"]}>
                 <SolicitudPaqueteria />
               </PrivateRouteWithRole>
             }
@@ -95,7 +95,7 @@ function App() {
           <Route
             path="externo"
             element={
-              <PrivateRouteWithRole allowedRoles={["solicitante", "jefe", "administrador"]}>
+              <PrivateRouteWithRole allowedRoles={["solicitante", "jefe", "subgerente", "gerente", "subgerentegeneral", "gerentegeneral", "presidente", "administrador"]}>
                 <SolicitudExterno />
               </PrivateRouteWithRole>
             }
@@ -103,7 +103,7 @@ function App() {
           <Route
             path="proceso/:modulo"
             element={
-              <PrivateRouteWithRole allowedRoles={["solicitante", "jefe", "supervisor", "administrador"]}>
+              <PrivateRouteWithRole allowedRoles={["solicitante", "jefe", "subgerente", "gerente", "subgerentegeneral", "gerentegeneral", "presidente", "supervisor", "administrador"]}>
                 <ProcesoSolicitudes />
               </PrivateRouteWithRole>
             }
@@ -111,7 +111,7 @@ function App() {
           <Route
             path="historico/:modulo"
             element={
-              <PrivateRouteWithRole allowedRoles={["solicitante", "jefe", "supervisor", "administrador"]}>
+              <PrivateRouteWithRole allowedRoles={["solicitante", "jefe", "subgerente", "gerente", "subgerentegeneral", "gerentegeneral", "presidente", "supervisor", "administrador"]}>
                 <HistoricoSolicitudes />
               </PrivateRouteWithRole>
             }

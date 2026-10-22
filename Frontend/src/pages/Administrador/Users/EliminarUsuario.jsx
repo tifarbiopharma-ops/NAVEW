@@ -35,7 +35,7 @@ const EliminarUsuario = ({ id, onDeleted, token }) => {
       type="button"
       onClick={handleEliminar}
       disabled={eliminando}
-      className="bg-[#EF3340] hover:bg-red-700 text-white px-4 py-2 rounded-lg transition text-sm font-semibold disabled:opacity-50"
+      className="shrink-0 rounded-xl bg-red-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-600"
     >
       {eliminando ? 'Eliminando...' : 'Eliminar'}
     </button>
