@@ -3,22 +3,32 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { ToastContainer, toast } from 'react-toastify';
+import { Eye, EyeOff, Loader2, LockKeyhole, UserRound } from 'lucide-react';
 import axios from 'axios';
 import storeAuth from '../../context/storeAuth';
+
+// ==========================================
+// VALORES INICIALES
+// ==========================================
 
 const DEFAULT_VALUES = {
   username: '',
   password: ''
 };
 
-const inputClasses =
-  'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-[#17243D] shadow-sm outline-none transition placeholder:text-slate-400 focus:border-[#3d5a80] focus:ring-4 focus:ring-[#3d5a80]/10';
+// ==========================================
+// ESTILOS
+// ==========================================
 
-const iconButtonClasses =
-  'absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer rounded-lg border-none bg-transparent p-2 text-slate-500 transition hover:bg-slate-100 hover:text-[#3d5a80] flex items-center justify-center';
+const inputClasses =
+  'w-full rounded-xl border border-slate-200 bg-[#edf3fc] px-4 py-3.5 text-sm text-[#17243D] shadow-sm outline-none transition placeholder:text-slate-400 focus:border-[#3d5a80] focus:ring-4 focus:ring-[#3d5a80]/10';
 
 const submitButtonClasses =
-  'mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#3d5a80] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#324b6b] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50';
+  'mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#3d5a80] px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#324b6b] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50';
+
+// ==========================================
+// COMPONENTE LOGIN
+// ==========================================
 
 const Login = () => {
   const navigate = useNavigate();
@@ -73,23 +83,20 @@ const Login = () => {
       } else {
         toast.error('No se recibió el token de autenticación');
       }
-
     } catch (error) {
       const backendMsg =
         error?.response?.data?.msg ||
         'No se pudo iniciar sesión';
 
       toast.error(backendMsg);
-
       console.error('Error en login:', error);
-
     } finally {
       setIsLoading(false);
     }
   };
 
   // ==========================================
-  // FUENTE
+  // CARGAR FUENTE
   // ==========================================
 
   useEffect(() => {
@@ -103,208 +110,292 @@ const Login = () => {
     document.head.appendChild(fontLink);
 
     return () => {
-      document.head.removeChild(fontLink);
+      if (document.head.contains(fontLink)) {
+        document.head.removeChild(fontLink);
+      }
     };
   }, []);
 
   return (
     <div
-      className="flex min-h-screen flex-col overflow-hidden bg-white sm:flex-row"
+      className="flex min-h-screen flex-col bg-white lg:h-screen lg:flex-row lg:overflow-hidden"
       style={{ fontFamily: 'Gowun Batang, serif' }}
     >
       <ToastContainer />
 
-      {/* ======================================
-          IMAGEN LATERAL
-      ====================================== */}
+      {/* ==========================================
+          PANEL IZQUIERDO - IMAGEN NAVEW
+      ========================================== */}
 
-      <div className="relative hidden min-h-screen overflow-hidden bg-[#eef5fc] sm:block sm:w-1/2 lg:w-7/12">
+      <div className="relative hidden min-h-screen overflow-hidden bg-[#eef5fc] lg:block lg:w-[63%]">
+
         <img
           src="/fondo-login.jpg"
-          alt="Laboratorio Farbiopharma"
+          alt="NAVEW - Transporte, paquetería y servicios externos"
           className="absolute inset-0 h-full w-full object-cover object-left"
         />
 
-        <div className="absolute inset-0 bg-[#17243D]/20" />
+        {/* CAPA SUAVE SOBRE LA IMAGEN */}
+        <div className="absolute inset-0 bg-[#17243D]/10" />
 
-        <div className="absolute bottom-12 left-12 max-w-sm text-white">
-          <p className="mb-3 text-xs uppercase tracking-[0.3em] text-white/70">
-            Navew
+        {/* FRASE INFERIOR */}
+        <div className="absolute bottom-10 left-10 max-w-sm text-white xl:bottom-12 xl:left-12">
+
+          <p className="mb-2 text-[10px] uppercase tracking-[0.3em] text-white/70">
+            NAVEW
           </p>
 
-          <p className="text-3xl leading-tight">
+          <p className="text-2xl leading-tight xl:text-3xl">
             Gestión simple para cada proceso.
           </p>
+
         </div>
       </div>
 
-      {/* ======================================
-          FORMULARIO LOGIN
-      ====================================== */}
+      {/* ==========================================
+          PANEL DERECHO - LOGIN
+      ========================================== */}
 
-      <div className="flex w-full items-start justify-center overflow-y-auto bg-white px-5 py-10 sm:w-1/2 sm:py-16 lg:w-5/12 lg:py-20">
-        <div className="w-full max-w-md">
+      <div className="flex min-h-screen w-full flex-col bg-white lg:min-h-0 lg:w-[37%] lg:overflow-y-auto">
 
-          {/* LOGO */}
+        {/* ======================================
+            LOGOS SUPERIORES
+        ====================================== */}
 
-          <div className="-mb-20 flex items-center justify-center">
+        <div className="flex w-full items-center justify-between gap-4 px-5 pt-6 sm:px-10 lg:px-7 lg:pt-8 xl:px-10">
+
+          {/* FAR BIOPHARMA */}
+          <div className="flex h-16 min-w-0 flex-1 items-center justify-center">
             <img
               src="/logo.png"
-              alt="logo"
-              className="h-80 w-80 object-contain"
+              alt="Farbiopharma"
+              className="max-h-14 max-w-full object-contain"
             />
           </div>
 
-          {/* ENCABEZADO */}
-
-          <div className="mb-8 text-center">
-            <p className="mb-2 text-xs uppercase tracking-[0.25em] text-[#17243D]">
-              Bienvenido
-            </p>
-
-            <h1 className="text-3xl font-semibold text-[#17243D]">
-              Iniciar sesión
-            </h1>
-
-            <p className="mt-2 text-sm text-slate-700">
-              Accede a tu cuenta para continuar
-            </p>
+          {/* INPEL */}
+          <div className="flex h-16 min-w-0 flex-1 items-center justify-center">
+            <img
+              src="/inpel.png"
+              alt="INPEL"
+              className="max-h-14 max-w-full object-contain"
+            />
           </div>
 
-          {/* FORMULARIO */}
+          {/* CLAREL */}
+          <div className="flex h-16 min-w-0 flex-1 items-center justify-center">
+            <img
+              src="/clarel.png"
+              alt="CLAREL"
+              className="max-h-14 max-w-full object-contain"
+            />
+          </div>
 
-          <form
-            className="flex w-full flex-col gap-6"
-            onSubmit={handleSubmit(loginUser)}
-          >
+        </div>
+
+        {/* ======================================
+            CONTENIDO CENTRAL
+        ====================================== */}
+
+        <div className="flex flex-1 flex-col items-center justify-center px-6 py-8 sm:px-10 lg:py-10">
+
+          <div className="w-full max-w-[360px]">
 
             {/* ==================================
-                USERNAME
+                LOGO NAVEW
             ================================== */}
 
-            <div className="flex flex-col w-full min-w-0">
-              <input
-                type="text"
-                placeholder="Nombre de usuario"
-                autoComplete="username"
-                className={`${inputClasses} uppercase`}
-                maxLength={100}
-                {...register('username', {
-                  required: 'El nombre de usuario es obligatorio',
-
-                  validate: (value) =>
-                    value.trim().length > 0 ||
-                    'El nombre de usuario es obligatorio',
-
-                  onChange: (event) => {
-                    setValue(
-                      'username',
-                      event.target.value.toUpperCase(),
-                      { shouldValidate: true }
-                    );
-                  }
-                })}
-              />
-
-              {errors.username && (
-                <p className="ml-1 mt-1 text-sm text-red-800">
-                  {errors.username.message}
-                </p>
-              )}
+            <div className="mb-8 flex items-center justify-center">
+              <div
+                className="text-6xl font-black tracking-tighter text-[#17243d]"
+                style={{ fontFamily: 'Arial Black, Arial, sans-serif' }}
+              >
+                NA<span className="text-[#3970a8]">VE</span>W
+              </div>
             </div>
 
             {/* ==================================
-                CONTRASEÑA
+                ENCABEZADO
             ================================== */}
 
-            <div className="relative flex flex-col w-full min-w-0">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Contraseña"
-                autoComplete="current-password"
-                className={`${inputClasses} pr-10`}
-                {...register('password', {
-                  required: 'La contraseña es obligatoria',
+            <div className="mb-8 text-center">
 
-                  minLength: {
-                    value: 14,
-                    message:
-                      'La contraseña debe tener mínimo 14 caracteres'
-                  }
-                })}
-              />
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-[#8493a9]">
+                Bienvenido
+              </p>
 
-              {/* MOSTRAR / OCULTAR CONTRASEÑA */}
+              <h1 className="text-3xl font-semibold text-[#17243D]">
+                Iniciar sesión
+              </h1>
+
+              <p className="mt-2 text-sm text-slate-500">
+                Accede a tu cuenta para continuar
+              </p>
+
+            </div>
+
+            {/* ==================================
+                FORMULARIO
+            ================================== */}
+
+            <form
+              className="flex w-full flex-col gap-5"
+              onSubmit={handleSubmit(loginUser)}
+            >
+
+              {/* ==================================
+                  NOMBRE DE USUARIO
+              ================================== */}
+
+              <div className="w-full">
+
+                <div className="relative">
+
+                  <UserRound
+                    size={18}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6e83a0]"
+                  />
+
+                  <input
+                    type="text"
+                    placeholder="Nombre de usuario"
+                    autoComplete="username"
+                    maxLength={100}
+                    className={`${inputClasses} pl-11`}
+                    {...register('username', {
+                      required: 'El nombre de usuario es obligatorio',
+
+                      validate: (value) =>
+                        value.trim().length > 0 ||
+                        'El nombre de usuario es obligatorio',
+
+                      onChange: (event) => {
+                        setValue(
+                          'username',
+                          event.target.value.toUpperCase(),
+                          { shouldValidate: true }
+                        );
+                      }
+                    })}
+                  />
+
+                </div>
+
+                {errors.username && (
+                  <p className="ml-1 mt-1.5 text-xs text-red-600">
+                    {errors.username.message}
+                  </p>
+                )}
+
+              </div>
+
+              {/* ==================================
+                  CONTRASEÑA
+              ================================== */}
+
+              <div className="w-full">
+
+                <div className="relative">
+
+                  <LockKeyhole
+                    size={18}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6e83a0]"
+                  />
+
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Contraseña"
+                    autoComplete="current-password"
+                    className={`${inputClasses} pl-11 pr-12`}
+                    {...register('password', {
+                      required: 'La contraseña es obligatoria',
+
+                      minLength: {
+                        value: 14,
+                        message:
+                          'La contraseña debe tener mínimo 14 caracteres'
+                      }
+                    })}
+                  />
+
+                  {/* MOSTRAR / OCULTAR */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowPassword((current) => !current)
+                    }
+                    aria-label={
+                      showPassword
+                        ? 'Ocultar contraseña'
+                        : 'Mostrar contraseña'
+                    }
+                    className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-lg p-2 text-[#64748b] transition hover:bg-slate-200 hover:text-[#17243D]"
+                  >
+                    {showPassword ? (
+                      <Eye size={19} />
+                    ) : (
+                      <EyeOff size={19} />
+                    )}
+                  </button>
+
+                </div>
+
+                {errors.password && (
+                  <p className="ml-1 mt-1.5 text-xs text-red-600">
+                    {errors.password.message}
+                  </p>
+                )}
+
+              </div>
+
+              {/* ==================================
+                  BOTÓN INICIAR SESIÓN
+              ================================== */}
 
               <button
-                type="button"
-                onClick={() =>
-                  setShowPassword((current) => !current)
-                }
-                aria-label={
-                  showPassword
-                    ? 'Ocultar contraseña'
-                    : 'Mostrar contraseña'
-                }
-                className={iconButtonClasses}
+                type="submit"
+                disabled={isLoading}
+                className={submitButtonClasses}
               >
-                {showPassword ? (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="22"
-                    height="22"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#000000"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <circle cx="12" cy="12" r="3" />
-                    <path d="M2 12s4-8 10-8 10 8 10 8-4 8-10 8-10-8-10-8z" />
-                  </svg>
+                {isLoading ? (
+                  <>
+                    <Loader2
+                      size={18}
+                      className="animate-spin"
+                    />
+                    Iniciando...
+                  </>
                 ) : (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="22"
-                    height="22"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#000000"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M17.94 17.94A10.05 10.05 0 0112 20c-6 0-10-8-10-8a18.92 18.92 0 014.05-5.48" />
-                    <path d="M1 1l22 22" />
-                    <path d="M9.88 9.88a3 3 0 014.24 4.24" />
-                  </svg>
+                  'Iniciar sesión'
                 )}
               </button>
 
-              {errors.password && (
-                <p className="ml-1 mt-1 text-sm text-red-800">
-                  {errors.password.message}
-                </p>
-              )}
-            </div>
+            </form>
 
             {/* ==================================
-                BOTÓN INICIAR SESIÓN
+                TEXTO INFERIOR
             ================================== */}
 
-            <button
-              type="submit"
-              disabled={isLoading}
-              className={submitButtonClasses}
-            >
-              {isLoading
-                ? 'Iniciando...'
-                : 'Iniciar sesión'}
-            </button>
+            <div className="mt-8 text-center">
+              <p className="text-xs text-slate-400">
+                Sistema de gestión NAVEW
+              </p>
+            </div>
 
-          </form>
+          </div>
+
         </div>
+
+        {/* ======================================
+            PIE DE PÁGINA
+        ====================================== */}
+
+        <div className="px-6 pb-6 text-center">
+          <p className="text-[11px] text-slate-400">
+            © {new Date().getFullYear()} Farbiopharma
+          </p>
+        </div>
+
       </div>
     </div>
   );
