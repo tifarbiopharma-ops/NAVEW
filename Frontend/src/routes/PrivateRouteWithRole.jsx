@@ -1,28 +1,38 @@
 import { useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import storeAuth from '../context/storeAuth';
 import Forbidden from '../pages/Forbidden';
-import { Navigate } from 'react-router-dom';
 import { getAuthClaims, isTokenValid } from '../utils/authClaims';
 
-export default function PrivateRouteWithRole({ children, allowedRoles = [] }) {
-    const token = storeAuth((state) => state.token);
-    const claims = getAuthClaims(token);
-    const role = (claims?.rol || '').toLowerCase();
-    const valid = isTokenValid(token);
+export default function PrivateRouteWithRole({
+  children,
+  allowedRoles = []
+}) {
+  const token = storeAuth((state) => state.token);
+  const valid = Boolean(token) && isTokenValid(token);
 
-    useEffect(() => {
-        if (!token || !valid) {
-            storeAuth.getState().logout();
-        }
-    }, [token, valid]);
+  const claims = valid ? getAuthClaims(token) : null;
+  const role = String(claims?.rol ?? '').trim().toLowerCase();
 
-    if (!token || !valid) {
-        return <Navigate to="/login" replace />;
+  useEffect(() => {
+    if (token && !valid) {
+      storeAuth.getState().logout();
     }
+  }, [token, valid]);
 
-    if (allowedRoles.length > 0 && !allowedRoles.map((item) => item.toLowerCase()).includes(role)) {
-        return <Forbidden />;
-    }
+  if (!valid) {
+    return <Navigate to="/login" replace />;
+  }
 
-    return children;
+  const hasPermission =
+    allowedRoles.length === 0 ||
+    allowedRoles.some(
+      (item) => String(item).trim().toLowerCase() === role
+    );
+
+  if (!hasPermission) {
+    return <Forbidden />;
+  }
+
+  return children;
 }

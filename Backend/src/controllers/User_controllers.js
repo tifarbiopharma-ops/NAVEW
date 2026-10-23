@@ -99,7 +99,6 @@ const generarUsername = nombreCompleto => {
 const login = async (req, res) => {
   try {
     const { username, password } = req.body ?? {};
-
     if (
       typeof username !== 'string' ||
       !username.trim() ||

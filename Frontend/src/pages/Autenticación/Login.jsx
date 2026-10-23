@@ -1,9 +1,16 @@
 
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { ToastContainer, toast } from 'react-toastify';
-import { Eye, EyeOff, Loader2, LockKeyhole, UserRound } from 'lucide-react';
+import {
+  Eye,
+  EyeOff,
+  Loader2,
+  LockKeyhole,
+  UserRound,
+} from 'lucide-react';
 import axios from 'axios';
 import storeAuth from '../../context/storeAuth';
 
@@ -13,7 +20,7 @@ import storeAuth from '../../context/storeAuth';
 
 const DEFAULT_VALUES = {
   username: '',
-  password: ''
+  password: '',
 };
 
 // ==========================================
@@ -41,47 +48,49 @@ const Login = () => {
   const {
     register,
     handleSubmit,
-    setValue,
-    formState: { errors }
+    formState: { errors },
   } = useForm({
-    defaultValues: DEFAULT_VALUES
+    defaultValues: DEFAULT_VALUES,
   });
 
   // ==========================================
-  // LOGIN POR USERNAME
+  // INICIAR SESIÓN
   // ==========================================
 
   const loginUser = async (data) => {
     setIsLoading(true);
 
     try {
-      const url = `${import.meta.env.VITE_BACKEND_URL}/api/users/login`;
-
       const response = await axios.post(
-        url,
+        `${import.meta.env.VITE_BACKEND_URL}/api/users/login`,
         {
           username: data.username.trim().toUpperCase(),
-          password: data.password
+          password: data.password,
         },
         {
           headers: {
-            'Content-Type': 'application/json'
-          }
+            'Content-Type': 'application/json',
+          },
         }
       );
 
       const { token, msg } = response.data || {};
 
       if (token) {
+        // Guardar token en Zustand
         setToken(token);
 
+        // Mostrar mensaje del backend
         if (msg) {
           toast.success(msg);
         }
 
+        // Redirigir al Dashboard
         navigate('/dashboard');
       } else {
-        toast.error('No se recibió el token de autenticación');
+        toast.error(
+          'No se recibió el token de autenticación'
+        );
       }
     } catch (error) {
       const backendMsg =
@@ -89,6 +98,7 @@ const Login = () => {
         'No se pudo iniciar sesión';
 
       toast.error(backendMsg);
+
       console.error('Error en login:', error);
     } finally {
       setIsLoading(false);
@@ -119,7 +129,9 @@ const Login = () => {
   return (
     <div
       className="flex min-h-screen flex-col bg-white lg:h-screen lg:flex-row lg:overflow-hidden"
-      style={{ fontFamily: 'Gowun Batang, serif' }}
+      style={{
+        fontFamily: 'Gowun Batang, serif',
+      }}
     >
       <ToastContainer />
 
@@ -135,10 +147,12 @@ const Login = () => {
           className="absolute inset-0 h-full w-full object-cover object-left"
         />
 
-        {/* CAPA SUAVE SOBRE LA IMAGEN */}
+        {/* CAPA SOBRE LA IMAGEN */}
+
         <div className="absolute inset-0 bg-[#17243D]/10" />
 
         {/* FRASE INFERIOR */}
+
         <div className="absolute bottom-10 left-10 max-w-sm text-white xl:bottom-12 xl:left-12">
 
           <p className="mb-2 text-[10px] uppercase tracking-[0.3em] text-white/70">
@@ -165,6 +179,7 @@ const Login = () => {
         <div className="flex w-full items-center justify-between gap-4 px-5 pt-6 sm:px-10 lg:px-7 lg:pt-8 xl:px-10">
 
           {/* FAR BIOPHARMA */}
+
           <div className="flex h-16 min-w-0 flex-1 items-center justify-center">
             <img
               src="/logo.png"
@@ -174,6 +189,7 @@ const Login = () => {
           </div>
 
           {/* INPEL */}
+
           <div className="flex h-16 min-w-0 flex-1 items-center justify-center">
             <img
               src="/inpel.png"
@@ -183,6 +199,7 @@ const Login = () => {
           </div>
 
           {/* CLAREL */}
+
           <div className="flex h-16 min-w-0 flex-1 items-center justify-center">
             <img
               src="/clarel.png"
@@ -206,12 +223,20 @@ const Login = () => {
             ================================== */}
 
             <div className="mb-8 flex items-center justify-center">
+
               <div
                 className="text-6xl font-black tracking-tighter text-[#17243d]"
-                style={{ fontFamily: 'Arial Black, Arial, sans-serif' }}
+                style={{
+                  fontFamily: 'Arial Black, Arial, sans-serif',
+                }}
               >
-                NA<span className="text-[#3970a8]">VE</span>W
+                NA
+                <span className="text-[#3970a8]">
+                  VE
+                </span>
+                W
               </div>
+
             </div>
 
             {/* ==================================
@@ -235,7 +260,7 @@ const Login = () => {
             </div>
 
             {/* ==================================
-                FORMULARIO
+                FORMULARIO LOGIN
             ================================== */}
 
             <form
@@ -263,19 +288,11 @@ const Login = () => {
                     maxLength={100}
                     className={`${inputClasses} pl-11`}
                     {...register('username', {
-                      required: 'El nombre de usuario es obligatorio',
-
+                      required:
+                        'El nombre de usuario es obligatorio',
                       validate: (value) =>
                         value.trim().length > 0 ||
                         'El nombre de usuario es obligatorio',
-
-                      onChange: (event) => {
-                        setValue(
-                          'username',
-                          event.target.value.toUpperCase(),
-                          { shouldValidate: true }
-                        );
-                      }
                     })}
                   />
 
@@ -308,17 +325,18 @@ const Login = () => {
                     autoComplete="current-password"
                     className={`${inputClasses} pl-11 pr-12`}
                     {...register('password', {
-                      required: 'La contraseña es obligatoria',
-
+                      required:
+                        'La contraseña es obligatoria',
                       minLength: {
                         value: 14,
                         message:
-                          'La contraseña debe tener mínimo 14 caracteres'
-                      }
+                          'La contraseña debe tener mínimo 14 caracteres',
+                      },
                     })}
                   />
 
-                  {/* MOSTRAR / OCULTAR */}
+                  {/* MOSTRAR / OCULTAR CONTRASEÑA */}
+
                   <button
                     type="button"
                     onClick={() =>
@@ -383,7 +401,6 @@ const Login = () => {
             </div>
 
           </div>
-
         </div>
 
         {/* ======================================

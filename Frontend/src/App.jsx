@@ -25,23 +25,41 @@ import Organigrama from "./pages/Administrador/Organigrama/Organigrama";
 
 // 🔹 Componente para manejar el Home inteligente del Dashboard
 const DashboardHomeRedirect = () => {
-  const token = storeAuth(state => state.token);
+  const token = storeAuth((state) => state.token);
   const claims = getAuthClaims(token);
-  const userRole = claims?.rol?.toLowerCase() || '';
+  const userRole = String(claims?.rol ?? '').trim().toLowerCase();
 
-  if (userRole.includes('administrador')) {
-    return <Navigate to="admin/usuarios" replace />;
+  if (!token) {
+    return <Navigate to="/login" replace />;
   }
 
-  if (userRole.includes('supervisor')) {
-    return <Navigate to="paqueteria" replace />;
+  if (userRole === 'administrador') {
+    return <Navigate to="/dashboard/admin/usuarios" replace />;
   }
 
-  if (userRole.includes('jefe', 'subgerente', 'gerente', 'subgerentegeneral', 'gerentegeneral', 'presidente') || userRole.includes('solicitante')) {
-    return <Navigate to="transporte" replace />;
+  if (userRole === 'supervisor') {
+    return <Navigate to="/dashboard/paqueteria" replace />;
   }
 
-  return <Navigate to="/login" replace />;
+  const rolesTransporte = [
+    'solicitante',
+    'jefe',
+    'subgerente',
+    'gerente',
+    'subgerentegeneral',
+    'gerentegeneral',
+    'presidente'
+  ];
+
+  if (rolesTransporte.includes(userRole)) {
+    return <Navigate to="/dashboard/transporte" replace />;
+  }
+
+  return (
+    <div role="alert" className="p-6 text-red-600">
+      No se pudo identificar un rol autorizado para tu usuario.
+    </div>
+  );
 };
 
 function App() {

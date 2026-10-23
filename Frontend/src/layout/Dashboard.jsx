@@ -1,407 +1,330 @@
+import { useState, useEffect } from "react";
+import { Link, Outlet, useLocation } from "react-router-dom";
+import storeAuth from "../context/storeAuth";
+import useFetch from "../hooks/useFetch";
+import { getAuthClaims } from "../utils/authClaims";
+import { ChevronRight, ClipboardList, History, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Users, Workflow, X } from "lucide-react";
+import ContextSidebar from "./ContextSidebar";
+import TopBar from "./TopBar";
+import { Truck } from "lucide-react";
+import AvisarLlegada from "../pages/Notis/notis";
 
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
-import { ToastContainer, toast } from 'react-toastify';
-import { Eye, EyeOff, Loader2, LockKeyhole, UserRound } from 'lucide-react';
-import axios from 'axios';
-import storeAuth from '../context/storeAuth';
+export const ROLES_SUPERIORES = new Set([
+  'jefe',
+  'subgerente',
+  'gerente',
+  'subgerentegeneral',
+  'gerentegeneral',
+  'presidente'
+]);
 
-// ==========================================
-// VALORES INICIALES
-// ==========================================
+export const esRolSuperior = (rol) =>
+  ROLES_SUPERIORES.has(
+    String(rol || '').trim().toLowerCase()
+  );
 
-const DEFAULT_VALUES = {
-  username: '',
-  password: ''
-};
+const Dashboard = () => {
+  const location = useLocation();
+  const urlActual = location.pathname;
+  const { logout, token } = storeAuth();
+  const { fetchDataBackend } = useFetch();
 
-// ==========================================
-// ESTILOS
-// ==========================================
+  const [perfilUsuario, setPerfilUsuario] = useState(null);
+  const [isCollapsed, setIsCollapsed] = useState(() => (
+    typeof window !== "undefined" && window.innerWidth < 768
+  ));
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-const inputClasses =
-  'w-full rounded-xl border border-slate-200 bg-[#edf3fc] px-4 py-3.5 text-sm text-[#17243D] shadow-sm outline-none transition placeholder:text-slate-400 focus:border-[#3d5a80] focus:ring-4 focus:ring-[#3d5a80]/10';
+  // Extracción segura de roles
+  const claims = token ? getAuthClaims(token) : null;
+  const userRole = claims?.rol?.toLowerCase() || "";
+  const nombreUsuario = perfilUsuario?.nombre || claims?.nombre || "Usuario";
 
-const submitButtonClasses =
-  'mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#3d5a80] px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#324b6b] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50';
+  const esAdministrador = userRole === "administrador";
+  const esSupervisor = userRole === "supervisor";
+  const [modalLlegadaAbierto, setModalLlegadaAbierto] = useState(false);
+  
 
-// ==========================================
-// COMPONENTE LOGIN
-// ==========================================
+  const tituloSeccion = urlActual.startsWith("/dashboard/admin")
+    ? "Administración"
+    : urlActual.startsWith("/dashboard/proceso")
+      ? "Proceso"
+    : urlActual.startsWith("/dashboard/historico")
+      ? "Histórico"
+    : urlActual.startsWith("/dashboard/transporte")
+      ? "Solicitud"
+      : "Panel principal";
 
-const Login = () => {
-  const navigate = useNavigate();
+  // Cargar perfil del usuario de forma segura
+  useEffect(() => {
+    let isMounted = true;
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const { setToken } = storeAuth();
-
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    formState: { errors }
-  } = useForm({
-    defaultValues: DEFAULT_VALUES
-  });
-
-  // ==========================================
-  // LOGIN POR USERNAME
-  // ==========================================
-
-  const loginUser = async (data) => {
-    setIsLoading(true);
-
-    try {
-      const url = `${import.meta.env.VITE_BACKEND_URL}/api/users/login`;
-
-      const response = await axios.post(
-        url,
-        {
-          username: data.username.trim().toUpperCase(),
-          password: data.password
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      const { token, msg } = response.data || {};
-
-      if (token) {
-        setToken(token);
-
-        if (msg) {
-          toast.success(msg);
-        }
-
-        navigate('/dashboard');
-      } else {
-        toast.error('No se recibió el token de autenticación');
+    const cargarDatosUsuario = async () => {
+      if (!token) {
+        if (isMounted) setPerfilUsuario(null);
+        return;
       }
-    } catch (error) {
-      const backendMsg =
-        error?.response?.data?.msg ||
-        'No se pudo iniciar sesión';
 
-      toast.error(backendMsg);
-      console.error('Error en login:', error);
-    } finally {
-      setIsLoading(false);
+      try {
+        const url = `${import.meta.env.VITE_BACKEND_URL}/api/users/mi-perfil`;
+        const response = await fetchDataBackend(url, null, "GET", token, false);
+        if (isMounted && response?.usuario) {
+          setPerfilUsuario(response.usuario);
+        }
+      } catch (error) {
+        console.error("Error al cargar perfil de usuario:", error);
+      }
+    };
+
+    cargarDatosUsuario();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [token, fetchDataBackend]);
+
+  // Manejo de Logout seguro
+  const handleLogout = () => {
+    setPerfilUsuario(null);
+    window.dispatchEvent(new Event("auth:logout"));
+    logout();
+    if (typeof window !== 'undefined') {
+      window.location.replace('/login');
     }
   };
 
-  // ==========================================
-  // CARGAR FUENTE
-  // ==========================================
+  const toggleSidebar = () => setIsCollapsed(!isCollapsed);
+  const handleMenuItemClick = () => setMobileMenuOpen(false);
 
   useEffect(() => {
-    const fontLink = document.createElement('link');
+    const handleViewportChange = () => {
+      if (window.innerWidth >= 768) {
+        setIsCollapsed(false);
+      }
+    };
 
-    fontLink.href =
-      'https://fonts.googleapis.com/css2?family=Gowun+Batang&display=swap';
+    handleViewportChange();
+    window.addEventListener("resize", handleViewportChange);
+    return () => window.removeEventListener("resize", handleViewportChange);
+  }, []);
 
-    fontLink.rel = 'stylesheet';
+  function getHDImage(url) {
+    if (!url) return url;
+    if (url.includes("googleusercontent.com") || url.includes("gstatic.com")) {
+      return url.replace(/=s\d+/, "=s1024");
+    }
+    return url;
+  }
 
-    document.head.appendChild(fontLink);
-
+  // Carga de fuente externa
+  useEffect(() => {
+    const link = document.createElement("link");
+    link.href = "https://fonts.googleapis.com/css2?family=Gowun+Batang&display=swap";
+    link.rel = "stylesheet";
+    document.head.appendChild(link);
     return () => {
-      if (document.head.contains(fontLink)) {
-        document.head.removeChild(fontLink);
+      if (document.head.contains(link)) {
+        document.head.removeChild(link);
       }
     };
   }, []);
 
+  const navItemClass = (active) => `group flex items-center gap-1 rounded-md px-1.5 py-2 text-[9px] transition md:gap-3 md:px-3 md:py-3 md:text-sm [&>svg]:h-3 [&>svg]:w-3 md:[&>svg]:h-[18px] md:[&>svg]:w-[18px] ${
+    active ? "bg-[#285789] font-bold text-white" : "text-[#aab8cf] hover:bg-[#1d3558] hover:text-white"
+  } ${isCollapsed ? "justify-center" : ""}`;
+
   return (
-    <div
-      className="flex min-h-screen flex-col bg-white lg:h-screen lg:flex-row lg:overflow-hidden"
-      style={{ fontFamily: 'Gowun Batang, serif' }}
-    >
-      <ToastContainer />
-
-      {/* ==========================================
-          PANEL IZQUIERDO - IMAGEN NAVEW
-      ========================================== */}
-
-      <div className="relative hidden min-h-screen overflow-hidden bg-[#eef5fc] lg:block lg:w-[58%]">
-
-        <img
-          src="/fondo-login.jpg"
-          alt="NAVEW - Transporte, paquetería y servicios externos"
-          className="absolute inset-0 h-full w-full object-cover object-left"
-        />
-
-        {/* CAPA SUAVE SOBRE LA IMAGEN */}
-        <div className="absolute inset-0 bg-[#17243D]/10" />
-
-        {/* FRASE INFERIOR */}
-        <div className="absolute bottom-10 left-10 max-w-sm text-white xl:bottom-12 xl:left-12">
-
-          <p className="mb-2 text-[10px] uppercase tracking-[0.3em] text-white/70">
-            NAVEW
-          </p>
-
-          <p className="text-2xl leading-tight xl:text-3xl">
-            Gestión simple para cada proceso.
-          </p>
-
-        </div>
+    <div className="flex h-screen flex-col bg-[#f4f7fa] font-sans text-[#17243d] md:flex-row">
+      
+      {/* HEADER MÓVIL */}
+      <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:hidden">
+        <div className="text-lg font-black tracking-tight text-[#17243d]">NA<span className="text-[#3970a8]">VE</span>W</div>
+        <button
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label={mobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
+          className="flex h-10 w-10 items-center justify-center rounded-md bg-slate-100 text-[#17243d] transition hover:bg-[#17243d] hover:text-white"
+        >
+          {mobileMenuOpen ? <X size={21} /> : <Menu size={21} />}
+        </button>
       </div>
 
-      {/* ==========================================
-          PANEL DERECHO - LOGIN
-      ========================================== */}
-
-      <div className="flex min-h-screen w-full flex-col bg-white lg:min-h-0 lg:w-[42%] lg:overflow-y-auto">
-
-        {/* ======================================
-            LOGOS SUPERIORES
-        ====================================== */}
-
-        <div className="flex w-full items-center justify-between gap-4 px-5 pt-6 sm:px-10 lg:px-7 lg:pt-8 xl:px-10">
-
-          {/* FAR BIOPHARMA */}
-          <div className="flex h-16 min-w-0 flex-1 items-center justify-center">
-            <img
-              src="/logo.png"
-              alt="Farbiopharma"
-              className="max-h-14 max-w-full object-contain"
-            />
+      {/* SIDEBAR */}
+      <aside
+        className={`fixed md:relative z-50 transition-all duration-300 ease-in-out bg-[#142744] flex flex-col h-full
+          ${mobileMenuOpen ? "left-0" : "-left-full"} md:left-0 
+          ${isCollapsed ? "w-16 md:w-20" : "w-[102px] md:w-50.5"}`}
+      >
+        <div className="flex h-full flex-col px-1 py-3 md:px-3 md:py-6">
+          <div className={`mb-4 px-1 md:mb-8 md:px-3 ${isCollapsed ? "text-center" : ""}`}>
+            <div className="text-[11px] font-black tracking-tight text-white md:text-xl">NA<span className="text-[#77a8d2]">VE</span>W</div>
+            {!isCollapsed && <p className="mt-0.5 text-[5px] font-medium tracking-[0.08em] text-[#9aacbf] md:mt-1 md:text-[9px]">Farbiopharma</p>}
           </div>
 
-          {/* INPEL */}
-          <div className="flex h-16 min-w-0 flex-1 items-center justify-center">
+          {/* Botón Colapsar (Desktop) */}
+          <button
+            onClick={toggleSidebar}
+            aria-label={isCollapsed ? "Expandir menú" : "Colapsar menú"}
+            className={`absolute -right-3 top-6 z-50 h-7 w-7 items-center justify-center rounded-full border border-[#17243d] bg-[#17243d] text-white shadow-sm transition hover:bg-slate-100 text-[#17243d] hover:text-[#17243d] hover:border-white ${
+              mobileMenuOpen ? "flex" : "hidden md:flex"
+            }`}
+          >
+            {isCollapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
+          </button>
+
+          {/* Perfil Usuario */}
+          <div className={`mb-3 flex items-center transition-all ${isCollapsed ? "justify-center" : "px-0.5 md:mb-6 md:px-2"}`}>
             <img
-              src="/inpel.png"
-              alt="INPEL"
-              className="max-h-14 max-w-full object-contain"
+              src={getHDImage(perfilUsuario?.avatarUsuario) || "/usuarioSinfoto.jpg"}
+              alt="Avatar"
+              className="h-5 w-5 rounded-full border border-[#dce9f7] object-cover shadow-sm md:h-10 md:w-10 md:border-2"
             />
-          </div>
-
-          {/* CLAREL */}
-          <div className="flex h-16 min-w-0 flex-1 items-center justify-center">
-            <img
-              src="/clarel.png"
-              alt="CLAREL"
-              className="max-h-14 max-w-full object-contain"
-            />
-          </div>
-
-        </div>
-
-        {/* ======================================
-            CONTENIDO CENTRAL
-        ====================================== */}
-
-        <div className="flex flex-1 flex-col items-center justify-center px-6 py-8 sm:px-10 lg:py-10">
-
-          <div className="w-full max-w-[360px]">
-
-            {/* ==================================
-                LOGO NAVEW
-            ================================== */}
-
-            <div className="mb-8 flex justify-center">
-
-              <div className="flex h-28 w-60 items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 shadow-sm">
-
-                <div className="text-5xl font-black tracking-tight text-[#17243d]">
-                  NA<span className="text-[#3970a8]">VE</span>W
-                </div>
-
+            {!isCollapsed && (
+              <div className="ml-1 min-w-0 overflow-hidden md:ml-3">
+                <p className="truncate text-[7px] font-bold text-white md:text-xs">{nombreUsuario}</p>
+                <p className="text-[6px] capitalize text-[#91a4bd] md:text-[10px]">{userRole || "usuario"}</p>
               </div>
+            )}
+          </div>
 
-            </div>
+          <hr className="mb-3 border-[#2b4162] md:mb-6" />
 
-            {/* ==================================
-                ENCABEZADO
-            ================================== */}
+          {/* Navegación */}
+          <nav className="flex-1 overflow-y-auto">
+            <ul className="space-y-0.5 text-[9px] md:space-y-2 md:text-sm">
+              
+              {/* Menú Usuario Estándar (No Admins) */}
+              {!esAdministrador && (
+                <>
+                  <li>
+                    <Link
+                      to={ esSupervisor ? "/dashboard/paqueteria" : "/dashboard/transporte"}
+                      onClick={handleMenuItemClick}
+                      className={navItemClass(urlActual.startsWith("/dashboard/transporte"))}
+                    >
+                      <ClipboardList size={18} />
+                      {!isCollapsed && <span className="ml-0 md:ml-3">Solicitud</span>}
+                      {!isCollapsed && <ChevronRight className="ml-auto" size={14} />}
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      to="/dashboard/proceso/transporte"
+                      onClick={handleMenuItemClick}
+                      className={navItemClass(urlActual.startsWith("/dashboard/proceso"))}
+                    >
+                      <Workflow size={18} />
+                      {!isCollapsed && <span className="ml-0 md:ml-3">Proceso</span>}
+                      {!isCollapsed && <ChevronRight className="ml-auto" size={14} />}
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      to="/dashboard/historico/transporte"
+                      onClick={handleMenuItemClick}
+                      className={navItemClass(urlActual.startsWith("/dashboard/historico"))}
+                    >
+                      <History size={18} />
+                      {!isCollapsed && <span className="ml-0 md:ml-3">Histórico</span>}
+                      {!isCollapsed && <ChevronRight className="ml-auto" size={14} />}
+                    </Link>
+                  </li>
+                </>
+              )}
 
-            <div className="mb-8 text-center">
-
-              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-[#8493a9]">
-                Bienvenido
-              </p>
-
-              <h1 className="text-3xl font-semibold text-[#17243D]">
-                Iniciar sesión
-              </h1>
-
-              <p className="mt-2 text-sm text-slate-500">
-                Accede a tu cuenta para continuar
-              </p>
-
-            </div>
-
-            {/* ==================================
-                FORMULARIO
-            ================================== */}
-
-            <form
-              className="flex w-full flex-col gap-5"
-              onSubmit={handleSubmit(loginUser)}
-            >
-
-              {/* ==================================
-                  NOMBRE DE USUARIO
-              ================================== */}
-
-              <div className="w-full">
-
-                <div className="relative">
-
-                  <UserRound
-                    size={18}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6e83a0]"
-                  />
-
-                  <input
-                    type="text"
-                    placeholder="Nombre de usuario"
-                    autoComplete="username"
-                    maxLength={100}
-                    className={`${inputClasses} pl-11`}
-                    {...register('username', {
-                      required: 'El nombre de usuario es obligatorio',
-
-                      validate: (value) =>
-                        value.trim().length > 0 ||
-                        'El nombre de usuario es obligatorio',
-
-                      onChange: (event) => {
-                        setValue(
-                          'username',
-                          event.target.value.toUpperCase(),
-                          { shouldValidate: true }
-                        );
-                      }
-                    })}
-                  />
-
-                </div>
-
-                {errors.username && (
-                  <p className="ml-1 mt-1.5 text-xs text-red-600">
-                    {errors.username.message}
-                  </p>
-                )}
-
-              </div>
-
-              {/* ==================================
-                  CONTRASEÑA
-              ================================== */}
-
-              <div className="w-full">
-
-                <div className="relative">
-
-                  <LockKeyhole
-                    size={18}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6e83a0]"
-                  />
-
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Contraseña"
-                    autoComplete="current-password"
-                    className={`${inputClasses} pl-11 pr-12`}
-                    {...register('password', {
-                      required: 'La contraseña es obligatoria',
-
-                      minLength: {
-                        value: 14,
-                        message:
-                          'La contraseña debe tener mínimo 14 caracteres'
-                      }
-                    })}
-                  />
-
-                  {/* MOSTRAR / OCULTAR */}
+              {esSupervisor && (
+                <li>
                   <button
                     type="button"
-                    onClick={() =>
-                      setShowPassword((current) => !current)
-                    }
-                    aria-label={
-                      showPassword
-                        ? 'Ocultar contraseña'
-                        : 'Mostrar contraseña'
-                    }
-                    className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-lg p-2 text-[#64748b] transition hover:bg-slate-200 hover:text-[#17243D]"
+                    onClick={() => {
+                      handleMenuItemClick();
+                      setModalLlegadaAbierto(true);
+                    }}
+                    className={`${navItemClass(false)} w-full text-left`}
                   >
-                    {showPassword ? (
-                      <Eye size={19} />
-                    ) : (
-                      <EyeOff size={19} />
+                    <Truck size={18} />
+
+                    {!isCollapsed && (
+                      <span className="ml-0 md:ml-3">
+                        Avisar llegada
+                      </span>
                     )}
                   </button>
+                </li>
+              )}
+              {/* Menú Administrador */}
+              {esAdministrador && (
+                <>
+                  <p className={`mb-2 mt-4 text-[10px] font-bold uppercase text-[#7186a1] ${isCollapsed ? "text-center" : "px-2"}`}>Admin</p>
+                  <li>
+                    <Link
+                      to="/dashboard/admin/usuarios"
+                      onClick={handleMenuItemClick}
+                        className={navItemClass(urlActual === "/dashboard/admin/usuarios")}
+                    >
+                      <Users size={18} />
+                      {!isCollapsed && <span className="ml-0 md:ml-3">Usuarios</span>}
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      to="/dashboard/admin/organigrama"
+                      onClick={handleMenuItemClick}
+                      className={navItemClass(urlActual === "/dashboard/admin/organigrama")}
+                    >
+                      <Workflow size={18} />
+                      {!isCollapsed && <span className="ml-0 md:ml-3">Organigrama</span>}
+                    </Link>
+                  </li>
+                </>
+              )}
 
-                </div>
+            </ul>
+          </nav>
 
-                {errors.password && (
-                  <p className="ml-1 mt-1.5 text-xs text-red-600">
-                    {errors.password.message}
-                  </p>
-                )}
-
-              </div>
-
-              {/* ==================================
-                  BOTÓN INICIAR SESIÓN
-              ================================== */}
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className={submitButtonClasses}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2
-                      size={18}
-                      className="animate-spin"
-                    />
-                    Iniciando...
-                  </>
-                ) : (
-                  'Iniciar sesión'
-                )}
-              </button>
-
-            </form>
-
-            {/* ==================================
-                TEXTO INFERIOR
-            ================================== */}
-
-            <div className="mt-8 text-center">
-              <p className="text-xs text-slate-400">
-                Sistema de gestión NAVEW
-              </p>
-            </div>
-
+          {/* Logout */}
+          <div className="mt-auto pt-3 md:pt-4">
+            <button
+              onClick={handleLogout}
+              className={`flex w-full items-center gap-1 rounded-md px-1 py-2 text-[9px] text-[#aab8cf] transition hover:bg-[#6d2932] hover:text-white md:gap-3 md:px-3 md:py-3 md:text-sm [&>svg]:h-3 [&>svg]:w-3 md:[&>svg]:h-[18px] md:[&>svg]:w-[18px] ${isCollapsed ? "justify-center" : ""}`}
+            >
+              <LogOut size={18} />
+              {!isCollapsed && <span className="ml-0 font-medium md:ml-3">Cerrar Sesión</span>}
+            </button>
           </div>
-
         </div>
+      </aside>
+      
+      <ContextSidebar
+        role={userRole}
+        path={urlActual}
+        search={location.search}
+        mobileMenuOpen={mobileMenuOpen}
+        sidebarCollapsed={isCollapsed}
+        onNavigate={handleMenuItemClick}
+      />
 
-        {/* ======================================
-            PIE DE PÁGINA
-        ====================================== */}
-
-        <div className="px-6 pb-6 text-center">
-          <p className="text-[11px] text-slate-400">
-            © {new Date().getFullYear()} Farbiopharma
-          </p>
-        </div>
-
+      {/* CONTENIDO PRINCIPAL */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <TopBar title={tituloSeccion} userName={nombreUsuario} />
+        <main className="min-h-0 flex-1 overflow-y-auto bg-[#f4f7fa]"><Outlet /></main>
       </div>
+
+      {/* Overlay para móvil */}
+      {mobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30 md:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+      {esSupervisor && (
+        <AvisarLlegada
+          open={modalLlegadaAbierto}
+          onClose={() => setModalLlegadaAbierto(false)}
+          token={token}
+        />
+      )}
     </div>
   );
 };
 
-export default Login;
+export default Dashboard;
