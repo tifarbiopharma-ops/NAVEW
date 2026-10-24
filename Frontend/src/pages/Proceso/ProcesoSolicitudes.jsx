@@ -146,6 +146,8 @@ const ProcesoSolicitudes = () => {
   ];
 
   const isSupervisor = userRole === 'supervisor';
+  // Garita = quienes pueden escanear QR (mismo criterio que ROLES_GARITA en el backend)
+  const puedeEscanear = isSupervisor || userRole === 'administrador';
   const isJefe = rolesSuperiores.includes(rolActual);
   // Cualquier otro rol (solicitante, encargado, etc.) → solo ve "Mis"
   const isSolicitante = !isSupervisor && !isJefe;
@@ -306,8 +308,8 @@ const ProcesoSolicitudes = () => {
               <p className="mt-1 text-sm text-slate-500">{config.subtitle}</p>
             </div>
 
-            {/* Botón Escanear QR para Supervisor */}
-            {isSupervisor && (modulo === 'paqueteria' || modulo === 'externo' || modulo === 'transporte') && (
+            {/* Botón Escanear QR para garita (supervisor y administrador) */}
+            {puedeEscanear && (modulo === 'paqueteria' || modulo === 'externo' || modulo === 'transporte') && (
               <div>
                 <button
                   onClick={() => setIsScannerOpen(true)}
