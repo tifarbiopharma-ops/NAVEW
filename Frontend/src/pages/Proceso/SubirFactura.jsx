@@ -6,7 +6,7 @@ import { toast } from 'react-toastify';
 const API = import.meta.env.VITE_BACKEND_URL;
 
 // Modal con el que el solicitante adjunta la factura de su traslado privado.
-// Sube el archivo a MinIO (/api/imagenes) y luego cierra el traslado con esa ruta.
+// Un solo envío: el backend valida el traslado, guarda la factura en MinIO y lo finaliza.
 const SubirFactura = ({ traslado, token, onClose, onFinalizado }) => {
   const [archivo, setArchivo] = useState(null);
   const [enviando, setEnviando] = useState(false);
@@ -31,27 +31,16 @@ const SubirFactura = ({ traslado, token, onClose, onFinalizado }) => {
     setEnviando(true);
     try {
       const formData = new FormData();
-      formData.append('imagen', archivo);
-      const uploadResponse = await fetch(`${API}/api/imagenes`, {
-        method: 'POST',
+      formData.append('factura', archivo);
+      const response = await fetch(`${API}/api/traslados/${traslado.id}/factura`, {
+        method: 'PUT',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
-      const uploadData = await uploadResponse.json();
-      if (!uploadResponse.ok) throw new Error(uploadData?.msg || 'No se pudo subir la factura');
-
-      const response = await fetch(`${API}/api/traslados/finalizar/${traslado.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ evidencia_costo: uploadData.imagen?.objectName }),
-      });
       const data = await response.json();
-      if (!response.ok) throw new Error(data?.msg || 'No se pudo finalizar el traslado');
+      if (!response.ok) throw new Error(data?.msg || 'No se pudo subir la factura');
 
-      toast.success('Factura subida. El traslado quedó finalizado.');
+      toast.success(data.msg || 'Factura subida. El traslado quedó finalizado.');
       onFinalizado?.();
     } catch (err) {
       setError(err.message);

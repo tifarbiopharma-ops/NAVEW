@@ -8,6 +8,15 @@ import {
 import { registrarReporteTraslado } from '../utils/reportesTraslados.js';
 import { resolverAprobadorSolicitud } from '../utils/verificarAprobadorSolicitud.js';
 import { ROLES_GARITA, registrarIntentoDenegado } from '../middlewares/roles.js';
+import { registrarReporteArchivo } from '../utils/reportesArchivos.js';
+import {
+  SEGUNDOS_ENLACE_TEMPORAL,
+  extensionPorTipo,
+  validarArchivo,
+  subirArchivo,
+  eliminarArchivo,
+  enlaceTemporal,
+} from '../utils/minioStorage.js';
 
 // ==========================================
 // 1. HELPERS INTERNOS
@@ -505,8 +514,10 @@ const getTraslados = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      traslados: rows.map((traslado) => ({
+      // La ruta interna de MinIO no sale al navegador: la factura se pide con GET /:id/factura.
+      traslados: rows.map(({ Evidencia_Costo, ...traslado }) => ({
         ...traslado,
+        tieneFactura: Boolean(Evidencia_Costo),
         puedeAprobar: Boolean(traslado.puedeAprobar)
       }))
     });
@@ -682,13 +693,15 @@ const approveTraslado = async (req, res) => {
 // 8. FINALIZAR TRASLADO
 // ==========================================
 
+// Cierra un traslado PERSONAL con el KM final que registra garita.
+// La factura de un traslado PRIVADO se sube con subirFacturaTraslado.
 const finalizarTraslado = async (req, res) => {
   const connection = await pool.getConnection();
   let committed = false;
 
   try {
     const { id } = req.params;
-    const { km_final, evidencia_costo } = req.body;
+    const { km_final } = req.body;
 
     await connection.beginTransaction();
 
@@ -714,7 +727,15 @@ const finalizarTraslado = async (req, res) => {
 
     const traslado = rows[0];
 
-    if (!['PERSONAL', 'PRIVADO'].includes(traslado.Tipo_Traslado)) {
+    if (traslado.Tipo_Traslado === 'PRIVADO') {
+      await connection.rollback();
+
+      return res.status(400).json({
+        msg: 'La factura de un traslado privado se sube desde "Subir factura"',
+      });
+    }
+
+    if (traslado.Tipo_Traslado !== 'PERSONAL') {
       await connection.rollback();
 
       return res.status(400).json({
@@ -722,35 +743,19 @@ const finalizarTraslado = async (req, res) => {
       });
     }
 
-    const estadoEsperado =
-      traslado.Tipo_Traslado === 'PERSONAL'
-        ? 'Pendiente KM final'
-        : 'Pendiente factura';
-
-    // El KM final lo registra garita; la factura la sube quien solicitó el traslado.
+    // El KM final lo registra garita.
     const rol = String(req.user?.rol || '').toLowerCase();
-    const esDueno = Number(traslado.ID_Solicitante) === Number(req.user?.idColaborador);
-    const autorizado = traslado.Tipo_Traslado === 'PERSONAL'
-      ? ROLES_GARITA.includes(rol)
-      : esDueno;
 
-    if (!autorizado) {
+    if (!ROLES_GARITA.includes(rol)) {
       await connection.rollback();
-      await registrarIntentoDenegado(
-        req,
-        'traslado',
-        id,
-        traslado.Tipo_Traslado === 'PERSONAL' ? 'km_final_fuera_de_garita' : 'factura_de_otro_solicitante'
-      );
+      await registrarIntentoDenegado(req, 'traslado', id, 'km_final_fuera_de_garita');
 
       return res.status(403).json({
-        msg: traslado.Tipo_Traslado === 'PERSONAL'
-          ? 'Solo el personal de garita puede registrar el KM final'
-          : 'Solo quien solicitó el traslado puede subir su factura',
+        msg: 'Solo el personal de garita puede registrar el KM final',
       });
     }
 
-    if (traslado.Estado_Actual !== estadoEsperado) {
+    if (traslado.Estado_Actual !== 'Pendiente KM final') {
       await connection.rollback();
 
       return res.status(400).json({
@@ -758,66 +763,38 @@ const finalizarTraslado = async (req, res) => {
       });
     }
 
-    let detallesFinalizacion;
+    const kmFinal = Number(km_final);
+    const kmInicial = Number(traslado.Km_Inicial);
 
-    if (traslado.Tipo_Traslado === 'PERSONAL') {
-      const kmFinal = Number(km_final);
-      const kmInicial = Number(traslado.Km_Inicial);
+    if (
+      km_final === undefined ||
+      km_final === null ||
+      km_final === '' ||
+      !Number.isFinite(kmFinal) ||
+      !Number.isFinite(kmInicial) ||
+      kmFinal <= kmInicial
+    ) {
+      await connection.rollback();
 
-      if (
-        km_final === undefined ||
-        km_final === null ||
-        km_final === '' ||
-        !Number.isFinite(kmFinal) ||
-        !Number.isFinite(kmInicial) ||
-        kmFinal <= kmInicial
-      ) {
-        await connection.rollback();
-
-        return res.status(400).json({
-          msg: 'El KM final debe ser mayor que el KM inicial',
-        });
-      }
-
-      await connection.query(
-        `UPDATE Traslados_Personal
-         SET Km_Final = ?,
-             Estado_Actual = 'Finalizado'
-         WHERE ID_Traslado = ?`,
-        [kmFinal, id]
-      );
-
-      detallesFinalizacion = {
-        tipo_traslado: 'PERSONAL',
-        km_inicial: kmInicial,
-        km_final: kmFinal,
-        km_recorridos: kmFinal - kmInicial,
-      };
-    } else {
-      if (
-        typeof evidencia_costo !== 'string' ||
-        !evidencia_costo.trim()
-      ) {
-        await connection.rollback();
-
-        return res.status(400).json({
-          msg: 'Debes adjuntar la factura del traslado privado',
-        });
-      }
-
-      await connection.query(
-        `UPDATE Traslados_Personal
-         SET Evidencia_Costo = ?,
-             Estado_Actual = 'Finalizado'
-         WHERE ID_Traslado = ?`,
-        [evidencia_costo, id]
-      );
-
-      detallesFinalizacion = {
-        tipo_traslado: 'PRIVADO',
-        evidencia_costo: evidencia_costo,
-      };
+      return res.status(400).json({
+        msg: 'El KM final debe ser mayor que el KM inicial',
+      });
     }
+
+    await connection.query(
+      `UPDATE Traslados_Personal
+       SET Km_Final = ?,
+           Estado_Actual = 'Finalizado'
+       WHERE ID_Traslado = ?`,
+      [kmFinal, id]
+    );
+
+    const detallesFinalizacion = {
+      tipo_traslado: 'PERSONAL',
+      km_inicial: kmInicial,
+      km_final: kmFinal,
+      km_recorridos: kmFinal - kmInicial,
+    };
 
     await connection.commit();
     committed = true;
@@ -848,7 +825,195 @@ const finalizarTraslado = async (req, res) => {
 };
 
 // ==========================================
-// 9. EXPORTACIONES
+// 9. FACTURA DEL TRASLADO PRIVADO
+// ==========================================
+
+// Mismos roles que ven en el historial los traslados de sus subordinados.
+const ROLES_SUPERIORES = [
+  'jefe',
+  'subgerente',
+  'gerente',
+  'subgerentegeneral',
+  'gerentegeneral',
+  'presidente',
+];
+
+// Cada factura vive en la carpeta de su traslado: la ruta dice a quién pertenece.
+const rutaFactura = (idTraslado, mimetype) => {
+  const fecha = new Date().toISOString().replace(/[:.]/g, '-');
+  return `facturas/traslados/${idTraslado}/factura-${fecha}${extensionPorTipo[mimetype]}`;
+};
+
+/**
+ * PUT /api/traslados/:id/factura (multipart, campo "factura")
+ * El solicitante adjunta su factura y el traslado queda finalizado en un solo paso.
+ * Primero se valida el traslado; el archivo solo se sube a MinIO si todo es correcto,
+ * y si la base de datos no se puede actualizar se borra de MinIO para no dejarlo huérfano.
+ */
+const subirFacturaTraslado = async (req, res) => {
+  const errorArchivo = validarArchivo(req.file);
+  if (errorArchivo) return res.status(400).json({ msg: errorArchivo });
+
+  const connection = await pool.getConnection();
+  let committed = false;
+  let objectName = null;
+
+  try {
+    const { id } = req.params;
+
+    await connection.beginTransaction();
+
+    // FOR UPDATE: evita que dos subidas simultáneas finalicen el mismo traslado.
+    const [rows] = await connection.query(
+      `SELECT Tipo_Traslado, Estado_Actual, ID_Solicitante
+       FROM Traslados_Personal
+       WHERE ID_Traslado = ?
+       FOR UPDATE`,
+      [id]
+    );
+
+    if (!rows.length) {
+      await connection.rollback();
+      return res.status(404).json({ msg: 'Traslado no encontrado' });
+    }
+
+    const traslado = rows[0];
+
+    if (traslado.Tipo_Traslado !== 'PRIVADO') {
+      await connection.rollback();
+      return res.status(400).json({ msg: 'Solo los traslados privados llevan factura' });
+    }
+
+    if (Number(traslado.ID_Solicitante) !== Number(req.user?.idColaborador)) {
+      await connection.rollback();
+      await registrarIntentoDenegado(req, 'traslado', id, 'factura_de_otro_solicitante');
+      return res.status(403).json({ msg: 'Solo quien solicitó el traslado puede subir su factura' });
+    }
+
+    if (traslado.Estado_Actual !== 'Pendiente factura') {
+      await connection.rollback();
+      return res.status(400).json({ msg: 'El traslado no está pendiente de factura' });
+    }
+
+    objectName = rutaFactura(id, req.file.mimetype);
+    const { bucket } = await subirArchivo(objectName, req.file);
+
+    await connection.query(
+      `UPDATE Traslados_Personal
+       SET Evidencia_Costo = ?,
+           Estado_Actual = 'Finalizado'
+       WHERE ID_Traslado = ?`,
+      [objectName, id]
+    );
+
+    await connection.commit();
+    committed = true;
+
+    await registrarReporteTraslado({
+      usuarioId: req.user.id,
+      usuarioNombre: req.user.nombre,
+      accion: 'FINALIZAR_TRASLADO',
+      idTraslado: id,
+      estadoAnterior: traslado.Estado_Actual,
+      estadoNuevo: 'Finalizado',
+      detalles: {
+        tipo_traslado: 'PRIVADO',
+        factura: objectName,
+        nombre_original: req.file.originalname,
+        tipo_mime: req.file.mimetype,
+        tamanio: req.file.size,
+      },
+    });
+
+    const auditado = await registrarReporteArchivo({
+      usuarioId: req.user.id,
+      usuarioNombre: req.user.nombre || null,
+      accion: 'SUBIR_FACTURA_TRASLADO',
+      bucket,
+      objectName,
+      nombreOriginal: req.file.originalname,
+      tipoMime: req.file.mimetype,
+      tamanio: req.file.size,
+    });
+    if (!auditado) console.warn('Factura subida, pero no se pudo registrar su auditoría de archivos');
+
+    return res.status(200).json({
+      success: true,
+      msg: 'Factura subida. El traslado quedó finalizado.',
+    });
+  } catch (error) {
+    if (!committed) {
+      await connection.rollback().catch(() => {});
+      if (objectName) {
+        // La base no guardó la factura: se borra de MinIO para que no quede huérfana.
+        await eliminarArchivo(objectName).catch((err) =>
+          console.error('No se pudo borrar la factura huérfana', objectName, err?.code || 'ERROR')
+        );
+      }
+    }
+    console.error('Error subiendo factura del traslado:', error?.code || error?.message || 'ERROR');
+    return res.status(500).json({ msg: 'No se pudo subir la factura' });
+  } finally {
+    connection.release();
+  }
+};
+
+/**
+ * GET /api/traslados/:id/factura
+ * Devuelve un enlace temporal para ver la factura. La pueden ver el solicitante,
+ * sus superiores en el organigrama y el administrador.
+ */
+const verFacturaTraslado = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const idColaborador = Number(req.user?.idColaborador);
+    const rol = String(req.user?.rol || '').toLowerCase();
+
+    const [rows] = await pool.query(
+      `SELECT Tipo_Traslado, ID_Solicitante, Evidencia_Costo
+       FROM Traslados_Personal
+       WHERE ID_Traslado = ?`,
+      [id]
+    );
+
+    if (!rows.length) return res.status(404).json({ msg: 'Traslado no encontrado' });
+
+    const traslado = rows[0];
+    const esDueno = Number(traslado.ID_Solicitante) === idColaborador;
+
+    let autorizado = rol === 'administrador' || esDueno;
+    if (!autorizado && ROLES_SUPERIORES.includes(rol)) {
+      const subordinados = await obtenerColaboradoresACargo(idColaborador);
+      autorizado = subordinados.map(Number).includes(Number(traslado.ID_Solicitante));
+    }
+
+    if (!autorizado) {
+      await registrarIntentoDenegado(req, 'traslado', id, 'ver_factura_sin_permiso');
+      return res.status(403).json({ msg: 'No tienes permiso para ver esta factura' });
+    }
+
+    // Solo se firman rutas de facturas de MinIO, nunca un valor arbitrario.
+    const objectName = String(traslado.Evidencia_Costo || '');
+    if (!objectName.startsWith('facturas/')) {
+      return res.status(404).json({ msg: 'Este traslado no tiene factura' });
+    }
+
+    const extension = objectName.slice(objectName.lastIndexOf('.')).toLowerCase();
+
+    return res.status(200).json({
+      success: true,
+      url: await enlaceTemporal(objectName),
+      esPdf: extension === '.pdf',
+      expiraEnSegundos: SEGUNDOS_ENLACE_TEMPORAL,
+    });
+  } catch (error) {
+    console.error('Error obteniendo factura del traslado:', error?.code || error?.message || 'ERROR');
+    return res.status(500).json({ msg: 'No se pudo obtener la factura' });
+  }
+};
+
+// ==========================================
+// 10. EXPORTACIONES
 // ==========================================
 
 export {
@@ -860,4 +1025,6 @@ export {
   getTraslados,
   approveTraslado,
   finalizarTraslado,
+  subirFacturaTraslado,
+  verFacturaTraslado,
 };

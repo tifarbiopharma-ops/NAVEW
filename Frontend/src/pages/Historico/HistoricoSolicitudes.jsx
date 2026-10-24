@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { LoaderCircle, Search, ChevronDown } from 'lucide-react';
+import { LoaderCircle, Search, ChevronDown, Receipt } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useParams } from 'react-router-dom';
 import storeAuth from '../../context/storeAuth';
 import { getAuthClaims } from '../../utils/authClaims';
+import VerFactura from './VerFactura';
 
 const API = import.meta.env.VITE_BACKEND_URL;
 
@@ -52,6 +53,7 @@ const normalizeRequest = (item, modulo) => {
       destination: item.Planta_Destino_Nombre || item.planta_destino_nombre || `Planta ${item.ID_Planta_Destino}`,
       date: item.Fecha_Salida,
       status: normalizarEstado(item.Estado_Actual),
+      tieneFactura: Boolean(item.tieneFactura),
     };
   }
 
@@ -108,6 +110,8 @@ const HistoricoSolicitudes = () => {
   const soloTodas = supervisorSoloTodas;
   const soloMis = isJefe && modulo === 'paqueteria';
   const mostrarFiltrosScope = isSupervisor || isJefe;
+  // La factura la ven el solicitante, sus superiores y el administrador (no garita).
+  const mostrarFacturas = modulo === 'transporte' && !isSupervisor;
 
   const config = MODULES[modulo] || MODULES.transporte;
   const [requests, setRequests] = useState([]);
@@ -115,6 +119,7 @@ const HistoricoSolicitudes = () => {
   const [scope, setScope] = useState('TODOS'); // 'TODOS' | 'MIS_SOLICITUDES'
   const [loading, setLoading] = useState(true);
   const [expandedRequestId, setExpandedRequestId] = useState(null);
+  const [facturaDe, setFacturaDe] = useState(null);
 
   useEffect(() => {
     setScope(soloMis ? 'MIS_SOLICITUDES' : 'TODOS');
@@ -261,6 +266,13 @@ const HistoricoSolicitudes = () => {
                             <div><p className="text-[10px] font-semibold uppercase text-slate-400">{modulo === 'externo' ? 'Área / planta de visita' : 'Área / plantas'}</p><p>{item.area}</p><p>{ubicacionSolicitud(item, modulo)}</p></div>
                             <div><p className="text-[10px] font-semibold uppercase text-slate-400">Fecha</p><p>{String(item.date || '').slice(0, 10)}</p></div>
                             <div><p className="text-[10px] font-semibold uppercase text-slate-400">Estado</p><span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">Finalizado</span></div>
+                            {mostrarFacturas && item.tieneFactura && (
+                              <div className="flex items-end">
+                                <button onClick={() => setFacturaDe(item)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#315b86] px-2.5 py-1.5 font-semibold text-white" title="Ver factura">
+                                  <Receipt size={14} /> Ver factura
+                                </button>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -277,6 +289,7 @@ const HistoricoSolicitudes = () => {
                       <th className="px-3 py-3">Área / Destino</th>
                       <th className="px-3 py-3">Fecha</th>
                       <th className="px-3 py-3">Estado</th>
+                      {mostrarFacturas && <th className="px-3 py-3 text-center">Factura</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -294,6 +307,21 @@ const HistoricoSolicitudes = () => {
                             Finalizado
                           </span>
                         </td>
+                        {mostrarFacturas && (
+                          <td className="px-3 py-4 text-center">
+                            {item.tieneFactura ? (
+                              <button
+                                onClick={() => setFacturaDe(item)}
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-[#315b86] px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-[#223a5d]"
+                                title="Ver factura"
+                              >
+                                <Receipt size={14} /> Ver factura
+                              </button>
+                            ) : (
+                              <span className="text-slate-300">—</span>
+                            )}
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -304,6 +332,10 @@ const HistoricoSolicitudes = () => {
           </section>
         </div>
       </div>
+
+      {facturaDe && (
+        <VerFactura traslado={facturaDe} token={token} onClose={() => setFacturaDe(null)} />
+      )}
     </>
   );
 };

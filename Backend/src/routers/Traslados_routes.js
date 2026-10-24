@@ -8,8 +8,11 @@ import {
   obtenerChoferes,
   obtenerPlantas,
   finalizarTraslado,
+  subirFacturaTraslado,
+  verFacturaTraslado,
 } from '../controllers/Traslados_controllers.js';
 import { verificarTokenJWT } from '../middlewares/JWT.js';
+import { recibirArchivo } from '../middlewares/archivo.js';
 
 const router = express.Router();
 
@@ -25,7 +28,11 @@ router.get('/historial', verificarTokenJWT, getTraslados);
 // Aprobación (Jefes)
 router.put('/approve/:id', verificarTokenJWT, approveTraslado);
 
-// Cierre del traslado: KM final (garita) o factura (el solicitante). El permiso se valida en el controlador según el tipo.
+// Cierre de traslado PERSONAL con el KM final (garita). El permiso se valida en el controlador.
 router.put('/finalizar/:id', verificarTokenJWT, finalizarTraslado);
+
+// Factura del traslado PRIVADO: la sube el solicitante y la ven él, sus superiores y el administrador.
+router.put('/:id/factura', verificarTokenJWT, recibirArchivo('factura'), subirFacturaTraslado);
+router.get('/:id/factura', verificarTokenJWT, verFacturaTraslado);
 
 export default router;
