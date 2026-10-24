@@ -293,7 +293,8 @@ const createTrasladoPersonal = async (req, res) => {
   let committed = false;
 
   try {
-    const { km_inicial, monto_solicitado } = req.body;
+    // El KM inicial no viene en la solicitud: lo registra garita al escanear la salida.
+    const { monto_solicitado } = req.body;
 
     await connection.beginTransaction();
 
@@ -302,8 +303,8 @@ const createTrasladoPersonal = async (req, res) => {
     res,
     connection,
     'PERSONAL',
-    ['Km_Inicial', 'Monto_Solicitado'],
-    [km_inicial ?? null, monto_solicitado ?? null]
+    ['Monto_Solicitado'],
+    [monto_solicitado ?? null]
   );
 
 if (res.headersSent) { await connection.rollback(); return; }
@@ -325,7 +326,6 @@ if (res.headersSent) { await connection.rollback(); return; }
       estadoNuevo: 'Solicitado',
       detalles: {
         ...datosCreacion(traslado),
-        km_inicial: traslado.Km_Inicial,
         monto_solicitado: traslado.Monto_Solicitado,
       },
     });

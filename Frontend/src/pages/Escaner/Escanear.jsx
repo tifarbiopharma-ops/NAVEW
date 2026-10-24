@@ -23,6 +23,10 @@ const Escanear = ({ isOpen = true, onClose, onSuccess, tipo = 'paqueteria' }) =>
   const [qrFinalizado, setQrFinalizado] = useState(false);
   const [finalizacion, setFinalizacion] = useState(null);
   const [kmFinal, setKmFinal] = useState('');
+  // Salida de un traslado PERSONAL: garita ingresa el KM inicial antes de registrarla.
+  const [salidaPersonal, setSalidaPersonal] = useState(null);
+  const [kmInicial, setKmInicial] = useState('');
+  const [guardandoSalida, setGuardandoSalida] = useState(false);
   const [guardandoFinalizacion, setGuardandoFinalizacion] = useState(false);
   const [errorKm, setErrorKm] = useState('');
   const [salidaRegistrada, setSalidaRegistrada] = useState(false);
@@ -177,7 +181,10 @@ const Escanear = ({ isOpen = true, onClose, onSuccess, tipo = 'paqueteria' }) =>
       if (tiempoRestante > 0) {
         await new Promise((resolve) => setTimeout(resolve, tiempoRestante));
       }
-      if (mensajeResultado?.type === 'success' && tipo === 'transporte' && datosResultado?.escaneos === 2 && datosResultado.requiereKmFinal) {
+      if (mensajeResultado?.type === 'success' && tipo === 'transporte' && datosResultado?.requiereKmInicial) {
+        setSalidaPersonal({ code, traslado: datosResultado.traslado });
+        setMessage(null);
+      } else if (mensajeResultado?.type === 'success' && tipo === 'transporte' && datosResultado?.escaneos === 2 && datosResultado.requiereKmFinal) {
         setFinalizacion(datosResultado);
       } else if (mensajeResultado?.type === 'success' && tipo === 'transporte' && datosResultado?.escaneos === 2 && datosResultado.requiereFactura) {
         // La factura del traslado privado la sube el solicitante desde Proceso, no garita.
@@ -200,6 +207,37 @@ const Escanear = ({ isOpen = true, onClose, onSuccess, tipo = 'paqueteria' }) =>
         setMessage(mensajeResultado);
       }
       setLoading(false);
+    }
+  };
+
+  const registrarSalidaPersonal = async (event) => {
+    event.preventDefault();
+    const km = Number(kmInicial);
+    if (kmInicial === '' || !Number.isFinite(km) || km < 0) {
+      setMessage({ type: 'error', text: 'Ingresa un KM inicial válido.' });
+      return;
+    }
+    setGuardandoSalida(true);
+    setMessage(null);
+    try {
+      const response = await fetch(`${API}/api/escaner/transporte`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${currentToken}`,
+        },
+        body: JSON.stringify({ token_qr: salidaPersonal.code, km_inicial: km }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.msg || 'No se pudo registrar la salida');
+      setSalidaPersonal(null);
+      setKmInicial('');
+      setSalidaRegistrada(true);
+      onSuccess?.(data);
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message });
+    } finally {
+      setGuardandoSalida(false);
     }
   };
 
@@ -240,6 +278,38 @@ const Escanear = ({ isOpen = true, onClose, onSuccess, tipo = 'paqueteria' }) =>
       setGuardandoFinalizacion(false);
     }
   };
+
+  if (salidaPersonal) {
+    const { traslado } = salidaPersonal;
+    return (
+      <form onSubmit={registrarSalidaPersonal} className="rounded-xl bg-white p-6">
+        <h2 className="text-xl font-bold text-[#17243d]">Registrar salida</h2>
+        <p className="mt-2 text-sm text-slate-500">
+          Traslado personal de <span className="font-semibold text-[#17243d]">{traslado?.solicitante || 'colaborador'}</span>
+          {traslado?.origen && traslado?.destino ? ` (${traslado.origen} → ${traslado.destino})` : ''}.
+          Ingresa el KM inicial que marca el vehículo.
+        </p>
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          required
+          autoFocus
+          value={kmInicial}
+          onChange={(event) => {
+            setKmInicial(event.target.value);
+            setMessage(null);
+          }}
+          placeholder="42850"
+          className={`mt-5 w-full rounded-lg border p-3 text-sm ${message ? 'border-red-400' : 'border-slate-200'}`}
+        />
+        {message && <p className="mt-2 text-xs font-semibold text-red-600">{message.text}</p>}
+        <button type="submit" disabled={guardandoSalida} className="mt-5 rounded-lg bg-[#17243d] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
+          {guardandoSalida ? 'Registrando...' : 'Registrar salida'}
+        </button>
+      </form>
+    );
+  }
 
   if (salidaRegistrada) {
   const esExterno = tipo === 'externo';

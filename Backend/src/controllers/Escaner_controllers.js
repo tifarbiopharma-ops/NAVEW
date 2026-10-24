@@ -153,13 +153,39 @@ const verificarQRTransporte = async (req, res) => {
           ? 'Pendiente KM final'
           : 'Pendiente factura';
 
+    // En la salida de un traslado PERSONAL, garita registra el KM inicial del vehículo.
+    // Si aún no lo envía, se responde sin registrar nada para que el escáner lo pida.
+    const esSalidaPersonal = esSalida && traslado.Tipo_Traslado === 'PERSONAL';
+    let kmInicial = null;
+    if (esSalidaPersonal) {
+      const { km_inicial } = req.body;
+      if (km_inicial === undefined || km_inicial === null || km_inicial === '') {
+        return res.json({
+          success: true,
+          requiereKmInicial: true,
+          escaneos: 0,
+          traslado: {
+            ID_Traslado: traslado.ID_Traslado,
+            origen: traslado.origen,
+            destino: traslado.destino,
+            solicitante: traslado.solicitante,
+          },
+        });
+      }
+      kmInicial = Number(km_inicial);
+      if (!Number.isFinite(kmInicial) || kmInicial < 0) {
+        return res.status(400).json({ msg: 'El KM inicial debe ser un número mayor o igual a 0' });
+      }
+    }
+
     await connection.beginTransaction();
     enTransaccion = true;
     const [resultado] = await connection.query(
       `UPDATE Traslados_Personal
-       SET ${campo} = NOW(), Estado_Actual = ?, Hora_Llegada = IF(? = 'Finalizado', CURRENT_TIME(), Hora_Llegada)
+       SET ${campo} = NOW(), Estado_Actual = ?, Km_Inicial = COALESCE(?, Km_Inicial),
+           Hora_Llegada = IF(? = 'Finalizado', CURRENT_TIME(), Hora_Llegada)
        WHERE ID_Traslado = ? AND ${campo} IS NULL AND Estado_Actual = ?`,
-      [estado, estado, traslado.ID_Traslado, traslado.Estado_Actual]
+      [estado, kmInicial, estado, traslado.ID_Traslado, traslado.Estado_Actual]
     );
     if (!resultado.affectedRows) {
       await connection.rollback(); enTransaccion = false;
@@ -171,7 +197,10 @@ const verificarQRTransporte = async (req, res) => {
       usuarioId: req.user.id, usuarioNombre: req.user.nombre,
       accion: esSalida ? 'SALIDA_QR' : 'LLEGADA_QR', idTraslado: traslado.ID_Traslado,
       estadoAnterior: traslado.Estado_Actual, estadoNuevo: estado,
-      detalles: { escaneo: esSalida ? 'SALIDA' : 'ENTRADA' }
+      detalles: {
+        escaneo: esSalida ? 'SALIDA' : 'ENTRADA',
+        ...(esSalidaPersonal ? { km_inicial: kmInicial } : {}),
+      }
     });
 
     return res.json({
@@ -181,7 +210,12 @@ const verificarQRTransporte = async (req, res) => {
       estado,
       requiereKmFinal: !esSalida && traslado.Tipo_Traslado === 'PERSONAL',
       requiereFactura: !esSalida && traslado.Tipo_Traslado === 'PRIVADO',
-      traslado: { ...traslado, [campo]: new Date().toISOString(), Estado_Actual: estado },
+      traslado: {
+        ...traslado,
+        ...(esSalidaPersonal ? { Km_Inicial: kmInicial } : {}),
+        [campo]: new Date().toISOString(),
+        Estado_Actual: estado,
+      },
     });
   } catch (error) {
     if (enTransaccion) await connection.rollback();

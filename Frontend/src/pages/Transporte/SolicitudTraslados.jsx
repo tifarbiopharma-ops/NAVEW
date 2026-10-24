@@ -39,8 +39,6 @@ const obtenerValoresIniciales = (ubicacionOrigenId = '') => ({
   id_planta_destino: '',
   motivo_viaje: '',
   id_chofer: '',
-  km_inicial: '',
-  km_final: '',
   monto_solicitado: '',
 });
 
@@ -408,32 +406,7 @@ const onSubmit = async (formData) => {
                 )}
               </label>
 
-              {/* KM INICIAL */}
-              {tabIndex === 'PERSONAL' && (
-                <label className="space-y-1.5">
-                  <span className="text-xs font-bold text-[#17243d]">
-                    KM inicial
-                  </span>
-
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    {...register('km_inicial', {
-                      required: 'El KM inicial es obligatorio',
-                      valueAsNumber: true,
-                    })}
-                    placeholder="42850"
-                    className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"
-                  />
-
-                  {errors.km_inicial && (
-                    <span className="text-xs text-red-600">
-                      {errors.km_inicial.message}
-                    </span>
-                  )}
-                </label>
-              )}
+              {/* El KM inicial no se pide aquí: lo registra garita al escanear la salida. */}
 
               {/* PLANTA DE ORIGEN */}
               <label className="space-y-1.5">
