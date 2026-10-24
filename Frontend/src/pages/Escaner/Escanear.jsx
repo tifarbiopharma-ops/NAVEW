@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
-import { Camera, CheckCircle2, AlertCircle, RefreshCw, XCircle, Image, Upload } from 'lucide-react';
+import { Camera, CheckCircle2, AlertCircle, RefreshCw, XCircle } from 'lucide-react';
 import { BrowserQRCodeReader } from '@zxing/library';
 import storeAuth from '../../context/storeAuth';
 import Formato from './Formato';
@@ -23,7 +23,6 @@ const Escanear = ({ isOpen = true, onClose, onSuccess, tipo = 'paqueteria' }) =>
   const [qrFinalizado, setQrFinalizado] = useState(false);
   const [finalizacion, setFinalizacion] = useState(null);
   const [kmFinal, setKmFinal] = useState('');
-  const [archivo, setArchivo] = useState(null);
   const [guardandoFinalizacion, setGuardandoFinalizacion] = useState(false);
   const [errorKm, setErrorKm] = useState('');
   const [salidaRegistrada, setSalidaRegistrada] = useState(false);
@@ -31,9 +30,6 @@ const Escanear = ({ isOpen = true, onClose, onSuccess, tipo = 'paqueteria' }) =>
 
   const videoRef = useRef(null);
   const codeReaderRef = useRef(null);
-  const cameraFileRef = useRef(null);
-  const galleryFileRef = useRef(null);
-  const uploadFileRef = useRef(null);
 
   // 1) Obtener cámaras disponibles
   useEffect(() => {
@@ -181,8 +177,12 @@ const Escanear = ({ isOpen = true, onClose, onSuccess, tipo = 'paqueteria' }) =>
       if (tiempoRestante > 0) {
         await new Promise((resolve) => setTimeout(resolve, tiempoRestante));
       }
-      if (mensajeResultado?.type === 'success' && tipo === 'transporte' && datosResultado?.escaneos === 2 && (datosResultado.requiereKmFinal || datosResultado.requiereFactura)) {
+      if (mensajeResultado?.type === 'success' && tipo === 'transporte' && datosResultado?.escaneos === 2 && datosResultado.requiereKmFinal) {
         setFinalizacion(datosResultado);
+      } else if (mensajeResultado?.type === 'success' && tipo === 'transporte' && datosResultado?.escaneos === 2 && datosResultado.requiereFactura) {
+        // La factura del traslado privado la sube el solicitante desde Proceso, no garita.
+        setResultadoTipo('pendiente-factura');
+        setAprobado(true);
       } else if (mensajeResultado?.type === 'success' && (tipo === 'transporte' || tipo === 'externo') && datosResultado?.escaneos === 1) {
         if(tipo === 'externo') {
           setAcompanantes(datosResultado.numeroAcompanantes ?? 0);
@@ -213,39 +213,20 @@ const Escanear = ({ isOpen = true, onClose, onSuccess, tipo = 'paqueteria' }) =>
     }
     setGuardandoFinalizacion(true);
     try {
-      if (finalizacion.requiereKmFinal) {
-        const kmInicial = Number(finalizacion.traslado.Km_Inicial);
-        const kmIngresado = Number(kmFinal);
-        if (!Number.isFinite(kmIngresado) || kmIngresado <= kmInicial) {
-          setErrorKm(`El KM final debe ser mayor que el KM inicial (${kmInicial}).`);
-          return;
-        }
-        setErrorKm('');
+      const kmInicial = Number(finalizacion.traslado.Km_Inicial);
+      const kmIngresado = Number(kmFinal);
+      if (!Number.isFinite(kmIngresado) || kmIngresado <= kmInicial) {
+        setErrorKm(`El KM final debe ser mayor que el KM inicial (${kmInicial}).`);
+        return;
       }
-      let evidenciaCosto;
-      if (finalizacion.requiereFactura) {
-        if (!archivo) throw new Error('Selecciona una foto o PDF de la factura');
-        const formData = new FormData();
-        formData.append('imagen', archivo);
-        const uploadResponse = await fetch(`${API}/api/imagenes`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${currentToken}` },
-          body: formData,
-        });
-        const uploadData = await uploadResponse.json();
-        if (!uploadResponse.ok) throw new Error(uploadData?.msg || 'No se pudo subir la factura');
-        evidenciaCosto = uploadData.imagen?.objectName || uploadData.imagen?.url;
-      }
+      setErrorKm('');
       const response = await fetch(`${API}/api/traslados/finalizar/${finalizacion.traslado.ID_Traslado}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${currentToken}`,
         },
-        body: JSON.stringify({
-          ...(finalizacion.requiereKmFinal ? { km_final: Number(kmFinal) } : {}),
-          ...(finalizacion.requiereFactura ? { evidencia_costo: evidenciaCosto } : {}),
-        }),
+        body: JSON.stringify({ km_final: kmIngresado }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.msg || 'No se pudo finalizar el traslado');
@@ -296,49 +277,25 @@ const Escanear = ({ isOpen = true, onClose, onSuccess, tipo = 'paqueteria' }) =>
 }
 
   if (finalizacion) {
-    const esFactura = finalizacion.requiereFactura;
     return (
       <form onSubmit={guardarFinalizacion} className="rounded-xl bg-white p-6">
         <h2 className="text-xl font-bold text-[#17243d]">Segundo QR registrado</h2>
-        <p className="mt-2 text-sm text-slate-500">
-          {esFactura ? 'Adjunta la factura del traslado.' : 'Ingresa el KM final del vehículo.'}
-        </p>
-        {esFactura ? (
-          <>
-            <input ref={cameraFileRef} type="file" accept="image/*" capture="environment" onChange={(event) => setArchivo(event.target.files?.[0] || null)} className="hidden" />
-            <input ref={galleryFileRef} type="file" accept="image/*" onChange={(event) => setArchivo(event.target.files?.[0] || null)} className="hidden" />
-            <input ref={uploadFileRef} type="file" accept="image/*,application/pdf" onChange={(event) => setArchivo(event.target.files?.[0] || null)} className="hidden" />
-            <div className="mt-5 grid grid-cols-3 gap-3">
-              <button type="button" onClick={() => cameraFileRef.current?.click()} className="flex flex-col items-center gap-2 rounded-lg border border-slate-200 p-3 text-xs font-semibold text-[#315b86] hover:bg-slate-50">
-                <Camera size={22} /> Cámara
-              </button>
-              <button type="button" onClick={() => galleryFileRef.current?.click()} className="flex flex-col items-center gap-2 rounded-lg border border-slate-200 p-3 text-xs font-semibold text-[#315b86] hover:bg-slate-50">
-                <Image size={22} /> Galería
-              </button>
-              <button type="button" onClick={() => uploadFileRef.current?.click()} className="flex flex-col items-center gap-2 rounded-lg border border-slate-200 p-3 text-xs font-semibold text-[#315b86] hover:bg-slate-50">
-                <Upload size={22} /> Archivos
-              </button>
-            </div>
-            <p className="mt-3 text-xs text-slate-500">{archivo ? `Archivo seleccionado: ${archivo.name}` : 'Selecciona una foto o PDF de la factura.'}</p>
-          </>
-        ) : (
-          <>
-            <input
-              type="number"
-              min={Number(finalizacion.traslado.Km_Inicial) + 0.01}
-              step="0.01"
-              required
-              value={kmFinal}
-              onChange={(event) => {
-                setKmFinal(event.target.value);
-                setErrorKm('');
-              }}
-              placeholder={`42850`}
-              className={`mt-5 w-full rounded-lg border p-3 text-sm ${errorKm ? 'border-red-400' : 'border-slate-200'}`}
-            />
-            {errorKm && <p className="mt-2 text-xs font-semibold text-red-600">{errorKm}</p>}
-          </>
-        )}
+        <p className="mt-2 text-sm text-slate-500">Ingresa el KM final del vehículo.</p>
+        <input
+          type="number"
+          min={Number(finalizacion.traslado.Km_Inicial) + 0.01}
+          step="0.01"
+          required
+          value={kmFinal}
+          onChange={(event) => {
+            setKmFinal(event.target.value);
+            setErrorKm('');
+          }}
+          placeholder={`42850`}
+          className={`mt-5 w-full rounded-lg border p-3 text-sm ${errorKm ? 'border-red-400' : 'border-slate-200'}`}
+        />
+        {errorKm && <p className="mt-2 text-xs font-semibold text-red-600">{errorKm}</p>}
+        {message && <p className="mt-2 text-xs font-semibold text-red-600">{message.text}</p>}
         <button type="submit" disabled={guardandoFinalizacion} className="mt-5 rounded-lg bg-[#17243d] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
           {guardandoFinalizacion ? 'Guardando...' : 'Finalizar traslado'}
         </button>
@@ -368,7 +325,9 @@ const Escanear = ({ isOpen = true, onClose, onSuccess, tipo = 'paqueteria' }) =>
         <p className="mt-2 text-sm text-slate-500">
           {resultadoTipo === 'paqueteria'
             ? 'El envío ha sido registrado exitosamente.'
-            : 'El traslado fue finalizado correctamente.'}
+            : resultadoTipo === 'pendiente-factura'
+              ? 'El solicitante debe subir la factura desde Proceso para finalizar el traslado.'
+              : 'El traslado fue finalizado correctamente.'}
         </p>
         <button
           type="button"

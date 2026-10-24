@@ -7,6 +7,7 @@ import {
 } from '../utils/jerarquia.js';
 import { registrarReporteTraslado } from '../utils/reportesTraslados.js';
 import { resolverAprobadorSolicitud } from '../utils/verificarAprobadorSolicitud.js';
+import { ROLES_GARITA, registrarIntentoDenegado } from '../middlewares/roles.js';
 
 // ==========================================
 // 1. HELPERS INTERNOS
@@ -695,7 +696,8 @@ const finalizarTraslado = async (req, res) => {
       `SELECT
          Tipo_Traslado,
          Estado_Actual,
-         Km_Inicial
+         Km_Inicial,
+         ID_Solicitante
        FROM Traslados_Personal
        WHERE ID_Traslado = ?
        FOR UPDATE`,
@@ -724,6 +726,29 @@ const finalizarTraslado = async (req, res) => {
       traslado.Tipo_Traslado === 'PERSONAL'
         ? 'Pendiente KM final'
         : 'Pendiente factura';
+
+    // El KM final lo registra garita; la factura la sube quien solicitó el traslado.
+    const rol = String(req.user?.rol || '').toLowerCase();
+    const esDueno = Number(traslado.ID_Solicitante) === Number(req.user?.idColaborador);
+    const autorizado = traslado.Tipo_Traslado === 'PERSONAL'
+      ? ROLES_GARITA.includes(rol)
+      : esDueno;
+
+    if (!autorizado) {
+      await connection.rollback();
+      await registrarIntentoDenegado(
+        req,
+        'traslado',
+        id,
+        traslado.Tipo_Traslado === 'PERSONAL' ? 'km_final_fuera_de_garita' : 'factura_de_otro_solicitante'
+      );
+
+      return res.status(403).json({
+        msg: traslado.Tipo_Traslado === 'PERSONAL'
+          ? 'Solo el personal de garita puede registrar el KM final'
+          : 'Solo quien solicitó el traslado puede subir su factura',
+      });
+    }
 
     if (traslado.Estado_Actual !== estadoEsperado) {
       await connection.rollback();

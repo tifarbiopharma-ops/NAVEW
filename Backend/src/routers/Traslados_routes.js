@@ -25,7 +25,7 @@ router.get('/historial', verificarTokenJWT, getTraslados);
 // Aprobación (Jefes)
 router.put('/approve/:id', verificarTokenJWT, approveTraslado);
 
-// Operaciones en Garita (Seguridad)
+// Cierre del traslado: KM final (garita) o factura (el solicitante). El permiso se valida en el controlador según el tipo.
 router.put('/finalizar/:id', verificarTokenJWT, finalizarTraslado);
 
 export default router;

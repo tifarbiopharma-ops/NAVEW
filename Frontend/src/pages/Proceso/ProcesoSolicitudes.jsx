@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { LoaderCircle, Search, QrCode, X, ScanQrCode, Eye, Check, XCircle, ChevronDown } from 'lucide-react';
+import { LoaderCircle, Search, QrCode, X, ScanQrCode, Eye, Check, XCircle, ChevronDown, Receipt } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast, ToastContainer } from 'react-toastify';
 import { useParams } from 'react-router-dom';
@@ -8,6 +8,7 @@ import { getAuthClaims } from "../../utils/authClaims";
 
 // Importación del escáner
 import Escanear from '../Escaner/Escanear';
+import SubirFactura from './SubirFactura';
 
 const API = import.meta.env.VITE_BACKEND_URL;
 
@@ -182,6 +183,7 @@ const ProcesoSolicitudes = () => {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [approvingId, setApprovingId] = useState(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [facturaPara, setFacturaPara] = useState(null);
   const [expandedRequestId, setExpandedRequestId] = useState(null);
   const [miPerfil, setMiPerfil] = useState(null);
 
@@ -256,6 +258,13 @@ const ProcesoSolicitudes = () => {
   const statuses = useMemo(() => ['TODOS', ...new Set(visibleRequests.map((item) => item.status).filter(Boolean))], [visibleRequests]);
 
   const currentUserId = miPerfil?.idColaborador ?? miPerfil?.ID_COLABORADOR ?? null;
+
+  // Solo quien solicitó un traslado privado sube su factura (el backend lo vuelve a validar).
+  const puedeSubirFactura = (item) =>
+    modulo === 'transporte' &&
+    item.status === 'Pendiente factura' &&
+    currentUserId != null &&
+    String(item.requesterId) === String(currentUserId);
 
   const filteredRequests = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -428,6 +437,7 @@ const ProcesoSolicitudes = () => {
                                     </>
                                   )}
                                   {!isJefe && item.qrToken && (modulo === 'paqueteria' || item.status === 'Aprobado') && <button onClick={() => setSelectedQr({ code: item.code, token: item.qrToken, companions: item.companions })} className="rounded-lg border border-slate-200 bg-white p-1.5 text-[#17243d]" title="Ver Código QR"><QrCode size={15} /></button>}
+                                  {puedeSubirFactura(item) && <button onClick={() => setFacturaPara(item)} className="rounded-lg bg-[#315b86] p-1.5 text-white" title="Subir factura"><Receipt size={15} /></button>}
                                 </div>
                               )}
                             </div>
@@ -506,6 +516,15 @@ const ProcesoSolicitudes = () => {
                                   <span>Ver QR</span>
                                 </button>
                               )}
+                              {puedeSubirFactura(item) && (
+                                <button
+                                  onClick={() => setFacturaPara(item)}
+                                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#315b86] px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-[#223a5d]"
+                                  title="Subir factura"
+                                >
+                                  <Receipt size={14} /> Subir factura
+                                </button>
+                              )}
                             </div>
                           </td>
                         )}
@@ -536,6 +555,18 @@ const ProcesoSolicitudes = () => {
               </div>
             </div>
           </div>
+        )}
+
+        {facturaPara && (
+          <SubirFactura
+            traslado={facturaPara}
+            token={token}
+            onClose={() => setFacturaPara(null)}
+            onFinalizado={() => {
+              setFacturaPara(null);
+              loadRequests();
+            }}
+          />
         )}
 
         {selectedRequest && (
