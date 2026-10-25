@@ -1,8 +1,22 @@
 import pool from '../database.js';
-import { obtenerJefesDirectos } from './jerarquia.js';
+import { obtenerJefes } from './organigrama/index.js';
 import { ROLES_APROBADORES } from '../middlewares/roles.js';
 
+// Colaboradores (de la lista dada) cuyo usuario de NAVEW tiene un rol aprobador.
+const conRolAprobador = async (ids) => {
+  const [rows] = await pool.query(
+    `SELECT c.ID_COLABORADOR AS id
+     FROM Colaboradores c
+     INNER JOIN usuarios u ON u.cedula = c.CEDULA
+     WHERE c.ID_COLABORADOR IN (?) AND LOWER(u.rol) IN (?)
+     ORDER BY c.ID_COLABORADOR`,
+    [ids, ROLES_APROBADORES]
+  );
+  return rows.map((row) => Number(row.id));
+};
+
 // Devuelve todos los colaboradores que pueden aprobar la solicitud (al menos uno).
+// El organigrama dice quiénes son los jefes; NAVEW solo exige que tengan un rol aprobador.
 // No se interpreta un error de configuración como ausencia de superior.
 export const resolverAprobadoresSolicitud = async (idColaborador) => {
   const id = Number(idColaborador);
@@ -10,27 +24,16 @@ export const resolverAprobadoresSolicitud = async (idColaborador) => {
     throw new Error('Colaborador no válido');
   }
 
-  const jefes = await obtenerJefesDirectos(id);
-  if (jefes.length) return jefes;
+  const { jefes, raiz } = await obtenerJefes(id);
 
-  const [rows] = await pool.query(`
-    SELECT jer.SUPERIOR_JERARQUICO AS superior,
-           LOWER(u.rol) AS rol
-    FROM Colaboradores c
-    INNER JOIN Cargos cargo ON cargo.ID_CARGOS = c.CARGO
-    INNER JOIN Jerarquia jer
-      ON jer.CARGO = c.CARGO
-     AND jer.DEPARTAMENTO = cargo.DEPARTAMENTO
-     AND jer.AREA = cargo.AREA
-    INNER JOIN usuarios u ON u.cedula = c.CEDULA
-    WHERE c.ID_COLABORADOR = ?
-  `, [id]);
+  if (jefes.length) {
+    const aprobadores = await conRolAprobador(jefes);
+    if (aprobadores.length) return aprobadores;
+    throw new Error('Tu jefe en el organigrama no tiene un usuario aprobador en NAVEW. Solicita revisión al administrador.');
+  }
 
-  // Autoaprobación únicamente si el organigrama marca expresamente
-  // este cargo como raíz (SUPERIOR_JERARQUICO = NULL).
-  const esRaiz = rows.length > 0 && rows.every(row => row.superior == null);
-  const rolHabilitado = rows.some(row => ROLES_APROBADORES.includes(row.rol));
-  if (esRaiz && rolHabilitado) return [id];
+  // Autoaprobación únicamente si el organigrama marca este cargo como raíz.
+  if (raiz && (await conRolAprobador([id])).length) return [id];
 
   throw new Error('No se encontró un superior activo o falta configurar el organigrama. Solicita revisión al administrador.');
 };

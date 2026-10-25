@@ -1,7 +1,7 @@
 import pool from '../database.js';
 import crypto from 'node:crypto';
 import { registrarReporteAcceso } from '../utils/reportesAccesos.js';
-import { obtenerColaboradoresACargo } from '../utils/jerarquia.js';
+import { obtenerColaboradoresACargo } from '../utils/organigrama/index.js';
 import { descartarOtrasAprobaciones, resolverAprobadoresSolicitud } from '../utils/verificarAprobadorSolicitud.js';
 import { ROLES_SUPERIORES } from '../middlewares/roles.js';
 
