@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { registrarReporteAcceso } from '../utils/reportesAccesos.js';
 import { obtenerColaboradoresACargo, obtenerJefeDirecto } from '../utils/jerarquia.js';
 import { resolverAprobadorSolicitud } from '../utils/verificarAprobadorSolicitud.js';
+import { ROLES_SUPERIORES } from '../middlewares/roles.js';
 
 const ROLES_SOLICITUD = new Set(['solicitante', 'jefe', 'administrador', 'subgerentegeneral', 'gerentegeneral', 'presidente', 'subgerente', 'gerente']);
 //colaborador 
@@ -302,18 +303,9 @@ const obtenerAccesosExternos = async (req, res) => {
   try {
     const rol = (req.user?.rol || '').toLowerCase();
     const params = [idColaborador];
-	const rolesSuperiores = [
-	'jefe',
-	'subgerente',
-	'gerente',
-	'subgerentegeneral',
-	'gerentegeneral',
-	'presidente'
-	];
-
 	let filtro = '';
 
-    if (rolesSuperiores.includes(rol)) {
+    if (ROLES_SUPERIORES.includes(rol)) {
       const idsSubordinados = await obtenerColaboradoresACargo(idColaborador);
 
       const idsPermitidos = [

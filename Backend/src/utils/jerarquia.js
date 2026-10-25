@@ -1,15 +1,18 @@
 
 import pool from '../database.js';
+import { ROLES_APROBADORES } from '../middlewares/roles.js';
 
 /**
  * Obtiene el jefe directo de un colaborador
  * según su cargo, departamento y área.
  *
+ * La fila de Jerarquia del colaborador debe coincidir con el departamento
+ * y el área de su cargo: es la misma regla que usa obtenerColaboradoresACargo,
+ * así quien aprueba una solicitud siempre la ve en su histórico.
+ *
  * @param {number} idColaborador
  * @returns {Promise<number|null>}
  */
-
-
 const obtenerJefeDirecto = async (idColaborador) => {
   try {
     const id = Number(idColaborador);
@@ -30,6 +33,7 @@ const obtenerJefeDirecto = async (idColaborador) => {
       INNER JOIN Jerarquia jer
         ON jer.CARGO = emp.CARGO
         AND jer.DEPARTAMENTO = cargo_emp.DEPARTAMENTO
+        AND jer.AREA = cargo_emp.AREA
 
       INNER JOIN Colaboradores jefe
         ON jefe.CARGO = jer.SUPERIOR_JERARQUICO
@@ -37,26 +41,17 @@ const obtenerJefeDirecto = async (idColaborador) => {
 
       INNER JOIN usuarios usuario_jefe
         ON usuario_jefe.cedula = jefe.CEDULA
-        AND LOWER(usuario_jefe.rol) IN (
-          'jefe',
-          'administrador',
-          'subgerentegeneral'
-        )
+        AND LOWER(usuario_jefe.rol) IN (?)
 
       WHERE emp.ID_COLABORADOR = ?
         AND jefe.ID_COLABORADOR <> emp.ID_COLABORADOR
 
-      ORDER BY
-        CASE
-          WHEN jer.AREA = cargo_emp.AREA THEN 0
-          ELSE 1
-        END,
-        jefe.ID_COLABORADOR ASC
+      ORDER BY jefe.ID_COLABORADOR ASC
 
       LIMIT 1
     `;
 
-    const [rows] = await pool.query(query, [id]);
+    const [rows] = await pool.query(query, [ROLES_APROBADORES, id]);
 
     if (rows.length === 0) {
       console.warn(
@@ -82,6 +77,10 @@ const obtenerJefeDirecto = async (idColaborador) => {
 /**
  * Obtiene los colaboradores subordinados a un jefe
  * recorriendo recursivamente la jerarquía.
+ *
+ * Igual que el CRUD de jerarquía (repo BACK_FRONT_FARBIOPHARMA), cada cadena
+ * vive dentro de un mismo departamento y área: un colaborador cuenta solo si
+ * su cargo coincide con el departamento y el área de su fila en Jerarquia.
  *
  * @param {number} idJefe
  * @returns {Promise<number[]>}

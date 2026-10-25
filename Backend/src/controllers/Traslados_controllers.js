@@ -7,7 +7,7 @@ import {
 } from '../utils/jerarquia.js';
 import { registrarReporteTraslado } from '../utils/reportesTraslados.js';
 import { resolverAprobadorSolicitud } from '../utils/verificarAprobadorSolicitud.js';
-import { ROLES_GARITA, registrarIntentoDenegado } from '../middlewares/roles.js';
+import { ROLES_GARITA, ROLES_SUPERIORES, registrarIntentoDenegado } from '../middlewares/roles.js';
 import { registrarReporteArchivo } from '../utils/reportesArchivos.js';
 import {
   SEGUNDOS_ENLACE_TEMPORAL,
@@ -432,15 +432,6 @@ const getTraslados = async (req, res) => {
       });
     }
 
-    const rolesSuperiores = [
-      'jefe',
-      'subgerente',
-      'gerente',
-      'subgerentegeneral',
-      'gerentegeneral',
-      'presidente'
-    ];
-
     let query = `
       SELECT
         t.*,
@@ -473,7 +464,7 @@ const getTraslados = async (req, res) => {
 
     if (!['administrador', 'supervisor'].includes(rol)) {
 
-      if (rolesSuperiores.includes(rol)) {
+      if (ROLES_SUPERIORES.includes(rol)) {
         const idsSubordinados =
           await obtenerColaboradoresACargo(idUsuario);
 
@@ -827,16 +818,6 @@ const finalizarTraslado = async (req, res) => {
 // ==========================================
 // 9. FACTURA DEL TRASLADO PRIVADO
 // ==========================================
-
-// Mismos roles que ven en el historial los traslados de sus subordinados.
-const ROLES_SUPERIORES = [
-  'jefe',
-  'subgerente',
-  'gerente',
-  'subgerentegeneral',
-  'gerentegeneral',
-  'presidente',
-];
 
 // Cada factura vive en la carpeta de su traslado: la ruta dice a quién pertenece.
 const rutaFactura = (idTraslado, mimetype) => {

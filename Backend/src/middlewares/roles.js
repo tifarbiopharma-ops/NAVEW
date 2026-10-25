@@ -5,6 +5,19 @@ import { registrarReporteAcceso } from '../utils/reportesAccesos.js';
 // Roles que operan en garita (escaneo de QR y registro de movimientos físicos).
 const ROLES_GARITA = ['supervisor', 'administrador'];
 
+// Roles que ven en el histórico las solicitudes de toda su cadena en el organigrama.
+const ROLES_SUPERIORES = [
+  'jefe',
+  'subgerente',
+  'gerente',
+  'subgerentegeneral',
+  'gerentegeneral',
+  'presidente',
+];
+
+// Roles que pueden aprobar solicitudes cuando el organigrama los marca como jefe.
+const ROLES_APROBADORES = [...ROLES_SUPERIORES, 'administrador'];
+
 const ACCION_DENEGADA = 'INTENTO_NO_AUTORIZADO';
 const SIN_ID = 'SIN_ID';
 
@@ -67,4 +80,4 @@ const permitirRoles = (roles, { modulo, obtenerId, mensaje } = {}) => {
   };
 };
 
-export { ROLES_GARITA, permitirRoles, registrarIntentoDenegado };
+export { ROLES_GARITA, ROLES_SUPERIORES, ROLES_APROBADORES, permitirRoles, registrarIntentoDenegado };
