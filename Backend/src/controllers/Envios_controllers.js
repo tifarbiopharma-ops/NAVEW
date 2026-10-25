@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import pool from '../database.js';
 import { obtenerColaboradoresACargo } from '../utils/jerarquia.js';
 import { registrarReporteEnvio } from '../utils/reportesEnvios.js';
+import { ROLES_SUPERIORES } from '../middlewares/roles.js';
 
 const ROLES_SOLICITUD = new Set([
   'solicitante',
@@ -347,10 +348,7 @@ const obtenerEnviosPaqueteria = async (req, res) => {
     let filtro = '';
     const params = [];
 
-    if (rol === 'jefe' && req.query.historico === '1') {
-      filtro = 'WHERE e.ID_Responsable = ?';
-      params.push(idColaborador);
-    } else if (rol === 'jefe') {
+    if (ROLES_SUPERIORES.includes(rol)) {
       const subordinados = await obtenerColaboradoresACargo(idColaborador);
 
       const idsVisibles = [

@@ -108,7 +108,6 @@ const HistoricoSolicitudes = () => {
   const isJefe = rolesSuperiores.includes(rolActual);
   const supervisorSoloTodas = isSupervisor && modulo !== 'paqueteria';
   const soloTodas = supervisorSoloTodas;
-  const soloMis = isJefe && modulo === 'paqueteria';
   const mostrarFiltrosScope = isSupervisor || isJefe;
   // La factura la ven el solicitante, sus superiores y el administrador (no garita).
   const mostrarFacturas = modulo === 'transporte' && !isSupervisor;
@@ -122,16 +121,11 @@ const HistoricoSolicitudes = () => {
   const [facturaDe, setFacturaDe] = useState(null);
 
   useEffect(() => {
-    setScope(soloMis ? 'MIS_SOLICITUDES' : 'TODOS');
-  }, [soloMis]);
-
-  useEffect(() => {
     const loadHistory = async () => {
       if (!token) return;
       setLoading(true);
       try {
-        const historyQuery = modulo === 'paqueteria' && isJefe ? '?historico=1' : '';
-        const response = await fetch(`${API}${config.endpoint}${historyQuery}`, {
+        const response = await fetch(`${API}${config.endpoint}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();
@@ -148,7 +142,7 @@ const HistoricoSolicitudes = () => {
     };
 
     loadHistory();
-  }, [token, modulo, isJefe, config.endpoint, config.responseKey]);
+  }, [token, modulo, config.endpoint, config.responseKey]);
 
   const filteredRequests = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -160,7 +154,6 @@ const HistoricoSolicitudes = () => {
 
       const matchesScope =
         soloTodas ||
-        (soloMis && scope === 'MIS_SOLICITUDES') ||
         !mostrarFiltrosScope ||
         scope === 'TODOS' ||
         (scope === 'MIS_SOLICITUDES' && (
@@ -170,7 +163,7 @@ const HistoricoSolicitudes = () => {
 
       return matchesQuery && matchesScope;
     });
-  }, [requests, query, scope, mostrarFiltrosScope, soloTodas, soloMis, currentUserId, nombreUsuario]);
+  }, [requests, query, scope, mostrarFiltrosScope, soloTodas, currentUserId, nombreUsuario]);
 
   return (
     <>
@@ -188,7 +181,7 @@ const HistoricoSolicitudes = () => {
             {/* Botones de filtro: solo en Paquetería */}
             {mostrarFiltrosScope && (
               <div className="mb-5 mt-4 flex flex-wrap gap-2.5">
-                {!soloMis && <button
+                <button
                   onClick={() => setScope('TODOS')}
                   className={`rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition-all ${
                     scope === 'TODOS'
@@ -197,8 +190,8 @@ const HistoricoSolicitudes = () => {
                   }`}
                 >
                   Todas las Solicitudes
-                </button>}
-                {(soloMis || !soloTodas) && (
+                </button>
+                {!soloTodas && (
                   <button
                     onClick={() => setScope('MIS_SOLICITUDES')}
                     className={`rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition-all ${
