@@ -3,26 +3,28 @@ import pool from '../database.js';
 import { ROLES_APROBADORES } from '../middlewares/roles.js';
 
 /**
- * Obtiene el jefe directo de un colaborador
+ * Obtiene los jefes directos de un colaborador
  * según su cargo, departamento y área.
  *
  * La fila de Jerarquia del colaborador debe coincidir con el departamento
  * y el área de su cargo: es la misma regla que usa obtenerColaboradoresACargo,
  * así quien aprueba una solicitud siempre la ve en su histórico.
+ * Como en el CRUD de jerarquía, si varias personas ocupan el cargo superior,
+ * todas son aprobadoras.
  *
  * @param {number} idColaborador
- * @returns {Promise<number|null>}
+ * @returns {Promise<number[]>}
  */
-const obtenerJefeDirecto = async (idColaborador) => {
+const obtenerJefesDirectos = async (idColaborador) => {
   try {
     const id = Number(idColaborador);
 
     if (!Number.isSafeInteger(id) || id <= 0) {
-      return null;
+      return [];
     }
 
     const query = `
-      SELECT
+      SELECT DISTINCT
         jefe.ID_COLABORADOR AS idJefe
 
       FROM Colaboradores emp
@@ -47,8 +49,6 @@ const obtenerJefeDirecto = async (idColaborador) => {
         AND jefe.ID_COLABORADOR <> emp.ID_COLABORADOR
 
       ORDER BY jefe.ID_COLABORADOR ASC
-
-      LIMIT 1
     `;
 
     const [rows] = await pool.query(query, [ROLES_APROBADORES, id]);
@@ -58,16 +58,18 @@ const obtenerJefeDirecto = async (idColaborador) => {
         'No se encontró un aprobador para el colaborador:',
         id
       );
-      return null;
+      return [];
     }
 
-    console.log('Solicitante:', id);
-    console.log('Aprobador encontrado:', rows[0].idJefe);
+    const jefes = rows.map((row) => Number(row.idJefe));
 
-    return rows[0].idJefe;
+    console.log('Solicitante:', id);
+    console.log('Aprobadores encontrados:', jefes);
+
+    return jefes;
 
   } catch (error) {
-    console.error('Error al obtener el jefe directo:', error);
+    console.error('Error al obtener los jefes directos:', error);
     throw error;
   }
 };
@@ -150,6 +152,6 @@ const obtenerColaboradoresACargo = async (idJefe) => {
 };
 
 export {
-  obtenerJefeDirecto,
+  obtenerJefesDirectos,
   obtenerColaboradoresACargo,
 };

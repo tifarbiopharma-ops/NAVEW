@@ -1,8 +1,8 @@
 import pool from '../database.js';
 import crypto from 'node:crypto';
 import { registrarReporteAcceso } from '../utils/reportesAccesos.js';
-import { obtenerColaboradoresACargo, obtenerJefeDirecto } from '../utils/jerarquia.js';
-import { resolverAprobadorSolicitud } from '../utils/verificarAprobadorSolicitud.js';
+import { obtenerColaboradoresACargo } from '../utils/jerarquia.js';
+import { descartarOtrasAprobaciones, resolverAprobadoresSolicitud } from '../utils/verificarAprobadorSolicitud.js';
 import { ROLES_SUPERIORES } from '../middlewares/roles.js';
 
 const ROLES_SOLICITUD = new Set(['solicitante', 'jefe', 'administrador', 'subgerentegeneral', 'gerentegeneral', 'presidente', 'subgerente', 'gerente']);
@@ -197,7 +197,7 @@ const crearAccesoExterno = async (req, res) => {
 		}
 
 		const idAcceso = crypto.randomUUID();
-		const idAprobador = await resolverAprobadorSolicitud(req.user.idColaborador);
+		const idAprobadores = await resolverAprobadoresSolicitud(req.user.idColaborador);
 
 		await connection.query(
 		`INSERT INTO Accesos_Externos
@@ -263,11 +263,12 @@ const crearAccesoExterno = async (req, res) => {
 			 [idAcceso, req.user.idColaborador, JSON.stringify({ empresa: empresa.trim(), visitante: nombre_apellido.trim(), acompanantes: Number(numero_acompanantes) })]
 		);
 
+		// Una aprobación pendiente por cada jefe; la resuelve el primero que responda.
 		await connection.query(
 			`INSERT INTO Aprobaciones
 			 (TIPO_SOLICITUD, ID_SOLICITUD, NIVEL_APROBACION, ID_APROBADOR, ESTADO)
-			 VALUES ('EXTERNO', ?, 1, ?, 'PENDIENTE')`,
-			[idAcceso, idAprobador]
+			 VALUES ?`,
+			[idAprobadores.map((idAprobador) => ['EXTERNO', idAcceso, 1, idAprobador, 'PENDIENTE'])]
 		);
 
 		await connection.commit();
@@ -497,22 +498,23 @@ const aprobarAccesoExterno = async (req, res) => {
             return res.status(403).json({ msg: 'No eres el aprobador asignado a esta solicitud' });
         }
         if (Number(idSolicitante) === Number(idColaborador)) {
-            const autorizado = await resolverAprobadorSolicitud(idColaborador);
-            if (Number(autorizado) !== Number(idColaborador)) {
+            const autorizados = await resolverAprobadoresSolicitud(idColaborador);
+            if (!autorizados.includes(Number(idColaborador))) {
                 await connection.rollback();
                 return res.status(403).json({ msg: 'Tu superior debe aprobar esta solicitud' });
             }
         }
 
 		const qrToken = aprobado ? `EXTERNO|${id}|ACOMPANANTES:${numeroAcompanantes}|${crypto.randomUUID()}` : null;
-		if (aprobaciones.length) {
-			await connection.query(
-				`UPDATE Aprobaciones
-				 SET ESTADO = ?, FECHA_RESPUESTA = NOW()
-				 WHERE ID_APROBACION = ?`,
-				[estadoAprobacion, aprobaciones[0].ID_APROBACION]
-			);
-		}
+		await connection.query(
+			`UPDATE Aprobaciones
+			 SET ESTADO = ?, FECHA_RESPUESTA = NOW()
+			 WHERE ID_APROBACION = ?`,
+			[estadoAprobacion, aprobaciones[0].ID_APROBACION]
+		);
+		const otrosAprobadores = await descartarOtrasAprobaciones(
+			connection, 'EXTERNO', id, aprobaciones[0].ID_APROBACION
+		);
 
 		await connection.query(
 			`UPDATE Accesos_Externos
@@ -540,7 +542,7 @@ const aprobarAccesoExterno = async (req, res) => {
 			idAcceso: id,
 			estadoAnterior,
 			estadoNuevo: estado,
-			detalles: { numero_acompanantes: numeroAcompanantes },
+			detalles: { numero_acompanantes: numeroAcompanantes, otros_aprobadores: otrosAprobadores },
 		});
 		return res.json({ success: true, estado, qrToken });
 	} catch (error) {

@@ -1,12 +1,12 @@
 
 import pool from '../database.js';
 import crypto from 'node:crypto';
-import {
-  obtenerColaboradoresACargo,
-  obtenerJefeDirecto,
-} from '../utils/jerarquia.js';
+import { obtenerColaboradoresACargo } from '../utils/jerarquia.js';
 import { registrarReporteTraslado } from '../utils/reportesTraslados.js';
-import { resolverAprobadorSolicitud } from '../utils/verificarAprobadorSolicitud.js';
+import {
+  descartarOtrasAprobaciones,
+  resolverAprobadoresSolicitud,
+} from '../utils/verificarAprobadorSolicitud.js';
 import { ROLES_GARITA, ROLES_SUPERIORES, registrarIntentoDenegado } from '../middlewares/roles.js';
 import { registrarReporteArchivo } from '../utils/reportesArchivos.js';
 import {
@@ -98,7 +98,7 @@ const setupTraslado = async (
     );
   }
 
-  const idAprobador = await resolverAprobadorSolicitud(idSolicitante);
+  const idAprobadores = await resolverAprobadoresSolicitud(idSolicitante);
 
   const idTraslado = crypto.randomUUID();
 
@@ -137,6 +137,7 @@ const setupTraslado = async (
     ]
   );
 
+  // Una aprobación pendiente por cada jefe; la resuelve el primero que responda.
   await connection.query(
     `INSERT INTO Aprobaciones
      (
@@ -146,11 +147,11 @@ const setupTraslado = async (
        ID_APROBADOR,
        ESTADO
      )
-     VALUES ('TRASLADO', ?, 1, ?, 'PENDIENTE')`,
-    [idTraslado, idAprobador]
+     VALUES ?`,
+    [idAprobadores.map((idAprobador) => ['TRASLADO', idTraslado, 1, idAprobador, 'PENDIENTE'])]
   );
 
-  return { idTraslado, idAprobador };
+  return { idTraslado, idAprobadores };
 };
 
 // ==========================================
@@ -582,8 +583,8 @@ const approveTraslado = async (req, res) => {
       'SELECT ID_Solicitante FROM Traslados_Personal WHERE ID_Traslado = ?', [id]
     );
     if (Number(propietario.ID_Solicitante) === Number(idAprobador)) {
-      const autorizado = await resolverAprobadorSolicitud(idAprobador);
-      if (Number(autorizado) !== Number(idAprobador)) {
+      const autorizados = await resolverAprobadoresSolicitud(idAprobador);
+      if (!autorizados.includes(Number(idAprobador))) {
         await connection.rollback();
         return res.status(403).json({ msg: 'Tu superior debe aprobar esta solicitud' });
       }
@@ -627,6 +628,10 @@ const approveTraslado = async (req, res) => {
       ]
     );
 
+    const otrosAprobadores = await descartarOtrasAprobaciones(
+      connection, 'TRASLADO', id, aprobaciones[0].ID_APROBACION
+    );
+
     if (dbEstado === 'Aprobado') {
       await connection.query(
         `UPDATE Traslados_Personal
@@ -661,6 +666,7 @@ const approveTraslado = async (req, res) => {
         solicitante: traslado.solicitante,
         tipo_traslado: traslado.Tipo_Traslado,
         comentario: comentario || null,
+        otros_aprobadores: otrosAprobadores,
       },
     });
 
