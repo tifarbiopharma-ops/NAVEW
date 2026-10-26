@@ -27,8 +27,6 @@
   "dependencies": {
     "minio": "^8.0.7",
     "multer": "^2.4.0",
-    "node-telegram-bot-api": "^1.2.0",
-    "minio": "^8.0.5",
-    "multer": "^2.0.2"
+    "node-telegram-bot-api": "^1.2.0"
   }
 }
