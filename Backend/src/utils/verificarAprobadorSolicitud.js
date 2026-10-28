@@ -1,6 +1,7 @@
 import pool from '../database.js';
 import { obtenerJefes } from './organigrama/index.js';
 import { ROLES_APROBADORES } from '../middlewares/roles.js';
+import { ErrorNegocio } from './errores.js';
 
 // Colaboradores (de la lista dada) cuyo usuario de NAVEW tiene un rol aprobador.
 const conRolAprobador = async (ids) => {
@@ -21,7 +22,7 @@ const conRolAprobador = async (ids) => {
 export const resolverAprobadoresSolicitud = async (idColaborador) => {
   const id = Number(idColaborador);
   if (!Number.isSafeInteger(id) || id <= 0) {
-    throw new Error('Colaborador no válido');
+    throw new ErrorNegocio('Tu usuario no tiene un colaborador asociado', 403);
   }
 
   const { jefes, raiz } = await obtenerJefes(id);
@@ -29,13 +30,15 @@ export const resolverAprobadoresSolicitud = async (idColaborador) => {
   if (jefes.length) {
     const aprobadores = await conRolAprobador(jefes);
     if (aprobadores.length) return aprobadores;
-    throw new Error('Tu jefe en el organigrama no tiene un usuario aprobador en NAVEW. Solicita revisión al administrador.');
+    console.warn('Organigrama: los jefes', jefes, 'del colaborador', id, 'no tienen usuario aprobador en NAVEW');
+    throw new ErrorNegocio('Tu jefe en el organigrama no tiene un usuario aprobador en NAVEW. Solicita revisión al administrador.', 409);
   }
 
   // Autoaprobación únicamente si el organigrama marca este cargo como raíz.
   if (raiz && (await conRolAprobador([id])).length) return [id];
 
-  throw new Error('No se encontró un superior activo o falta configurar el organigrama. Solicita revisión al administrador.');
+  console.warn('Organigrama: sin superior activo para el colaborador', id);
+  throw new ErrorNegocio('No se encontró un superior activo o falta configurar el organigrama. Solicita revisión al administrador.', 409);
 };
 
 // Cuando un jefe responde, las aprobaciones pendientes de los demás ya no aplican.

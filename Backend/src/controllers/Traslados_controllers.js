@@ -2,6 +2,7 @@
 import pool from '../database.js';
 import crypto from 'node:crypto';
 import { obtenerColaboradoresACargo } from '../utils/organigrama/index.js';
+import { ErrorNegocio, responderError } from '../utils/errores.js';
 import { registrarReporteTraslado } from '../utils/reportesTraslados.js';
 import {
   descartarOtrasAprobaciones,
@@ -75,7 +76,7 @@ const setupTraslado = async (
   const idSolicitante = req.user.idColaborador;
 
   if (!idSolicitante) {
-    throw new Error('Usuario sin colaborador asociado');
+    throw new ErrorNegocio('Tu usuario no tiene un colaborador asociado', 403);
   }
 
   const {
@@ -93,9 +94,7 @@ const setupTraslado = async (
     !id_planta_origen ||
     !id_planta_destino
   ) {
-    throw new Error(
-      'Faltan campos obligatorios para el traslado'
-    );
+    throw new ErrorNegocio('Faltan campos obligatorios para el traslado', 400);
   }
 
   const idAprobadores = await resolverAprobadoresSolicitud(idSolicitante);
@@ -286,9 +285,7 @@ const createTrasladoEmpresarial = async (req, res) => {
   } catch (error) {
     if (!committed) await connection.rollback();
 
-    return res.status(500).json({
-      msg: 'No se pudo crear el traslado',
-    });
+    return responderError(res, error, 'No se pudo crear el traslado');
   } finally {
     connection.release();
   }
@@ -348,9 +345,7 @@ if (res.headersSent) { await connection.rollback(); return; }
   } catch (error) {
     if (!committed) await connection.rollback();
 
-    return res.status(500).json({
-      msg: 'No se pudo crear el traslado',
-    });
+    return responderError(res, error, 'No se pudo crear el traslado');
   } finally {
     connection.release();
   }
@@ -409,9 +404,7 @@ const createTrasladoPrivado = async (req, res) => {
   } catch (error) {
     if (!committed) await connection.rollback();
 
-    return res.status(500).json({
-      msg: 'No se pudo crear el traslado',
-    });
+    return responderError(res, error, 'No se pudo crear el traslado');
   } finally {
     connection.release();
   }
