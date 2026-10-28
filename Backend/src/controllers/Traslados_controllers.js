@@ -9,7 +9,6 @@ import {
   resolverAprobadoresSolicitud,
 } from '../utils/verificarAprobadorSolicitud.js';
 import { ROLES_GARITA, ROLES_SUPERIORES, registrarIntentoDenegado } from '../middlewares/roles.js';
-import { registrarReporteArchivo } from '../utils/reportesArchivos.js';
 import {
   SEGUNDOS_ENLACE_TEMPORAL,
   extensionPorTipo,
@@ -898,24 +897,14 @@ const subirFacturaTraslado = async (req, res) => {
       estadoNuevo: 'Finalizado',
       detalles: {
         tipo_traslado: 'PRIVADO',
+        // Dónde quedó la factura en MinIO; quién y cuándo ya son columnas del reporte.
+        bucket,
         factura: objectName,
         nombre_original: req.file.originalname,
         tipo_mime: req.file.mimetype,
         tamanio: req.file.size,
       },
     });
-
-    const auditado = await registrarReporteArchivo({
-      usuarioId: req.user.id,
-      usuarioNombre: req.user.nombre || null,
-      accion: 'SUBIR_FACTURA_TRASLADO',
-      bucket,
-      objectName,
-      nombreOriginal: req.file.originalname,
-      tipoMime: req.file.mimetype,
-      tamanio: req.file.size,
-    });
-    if (!auditado) console.warn('Factura subida, pero no se pudo registrar su auditoría de archivos');
 
     return res.status(200).json({
       success: true,
