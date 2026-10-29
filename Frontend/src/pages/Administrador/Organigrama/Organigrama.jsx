@@ -101,6 +101,7 @@ function OrganigramaInner() {
   const token = storeAuth((state) => state.token);
   const [guardando, setGuardando] = useState(false);
   const [hayCambiosColor, setHayCambiosColor] = useState(false);
+  const [mostrarColaboradores, setMostrarColaboradores] = useState(false);
   const inputNodes = data?.nodes;
   const inputEdges = data?.edges;
   useEffect(() => {
@@ -319,9 +320,22 @@ function OrganigramaInner() {
       : changes;
     onNodesChange(permitidos);
   }
+
+  const nodosVisibles = useMemo(
+  () =>
+    nodes.map((node) => ({
+      ...node,
+      data: {
+        ...node.data,
+        mostrarColaboradores,
+      },
+    })),
+  [nodes, mostrarColaboradores],
+);
+
   if (loading) {
     return (
-      <div className="flex h-[calc(100dvh-80px)] min-h-[420px] w-full flex-col items-center justify-center gap-4 bg-slate-50 font-sans text-sm text-slate-600">
+      <div className="flex h-[calc(100dvh-80px)] min-h-[420px] w-full flex-col items-center justify-center gap-4 bg-slate-50 [font-family:inherit] text-sm text-slate-600">
         <span
           className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600 motion-reduce:animate-none"
           aria-hidden="true"
@@ -333,7 +347,7 @@ function OrganigramaInner() {
 
   if (error) {
     return (
-      <div className="flex h-[calc(100dvh-80px)] min-h-[420px] w-full flex-col items-center justify-center gap-4 bg-slate-50 px-6 text-center font-sans">
+      <div className="flex h-[calc(100dvh-80px)] min-h-[420px] w-full flex-col items-center justify-center gap-4 bg-slate-50 px-6 text-center [font-family:inherit] text-sm text-slate-600">
         <p className="text-sm font-medium text-red-600" role="alert">
           {error}
         </p>
@@ -345,14 +359,14 @@ function OrganigramaInner() {
   }
 
   return (
-    <div className="flex w-full min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50 font-sans text-slate-900 shadow-sm">
+    <div className="flex w-full min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50 [font-family:inherit] text-slate-900 shadow-sm">
       <header className="z-10 flex shrink-0 flex-col gap-5 border-b border-slate-200 bg-white px-4 py-5 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
+            <h1 className="text-4xl font-semibold text-slate-950">
               Organigrama
             </h1>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm font-medium text-slate-700">
               <span>{nodes.length} cargos</span>
               <span aria-hidden="true">·</span>
               <span
@@ -416,7 +430,7 @@ function OrganigramaInner() {
           <div className="min-w-0 xl:col-span-4">
             <label
               htmlFor="organigrama-empleado"
-              className="mb-1.5 block text-xs font-semibold text-slate-600"
+              className="mb-1.5 block text-sm font-medium text-slate-700"
             >
               Buscar empleado
             </label>
@@ -434,7 +448,7 @@ function OrganigramaInner() {
           <div className="min-w-0 xl:col-span-4">
             <label
               htmlFor="organigrama-cargo"
-              className="mb-1.5 block text-xs font-semibold text-slate-600"
+              className="mb-1.5 block text-sm font-medium text-slate-700"
             >
               Seleccionar cargo
             </label>
@@ -560,6 +574,16 @@ function OrganigramaInner() {
             >
               ⛶ Ver todo
             </button>
+            <button
+                type="button"
+                className={BUTTON_CLASSES}
+                aria-pressed={mostrarColaboradores}
+                onClick={() => setMostrarColaboradores((actual) => !actual)}
+              >
+                {mostrarColaboradores
+                  ? 'Ocultar colaboradores'
+                  : 'Mostrar colaboradores'}
+          </button>
           </div>
           <p
             className="min-w-0 max-w-xl break-words text-xs leading-relaxed text-slate-600"
@@ -579,7 +603,7 @@ function OrganigramaInner() {
 
       <div className="relative h-[65vh] min-h-[420px] w-full shrink-0">
         <ReactFlow
-          nodes={nodes}
+          nodes={nodosVisibles}
           edges={edges}
           nodeTypes={nodeTypes}
           onNodesChange={gestionarCambiosNodos}
