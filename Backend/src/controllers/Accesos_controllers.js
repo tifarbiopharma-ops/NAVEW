@@ -4,6 +4,7 @@ import { registrarReporteAcceso } from '../utils/reportesAccesos.js';
 import { obtenerColaboradoresACargo } from '../utils/organigrama/index.js';
 import { descartarOtrasAprobaciones, resolverAprobadoresSolicitud } from '../utils/verificarAprobadorSolicitud.js';
 import { ROLES_SUPERIORES } from '../middlewares/roles.js';
+import { responderError } from '../utils/errores.js';
 
 const ROLES_SOLICITUD = new Set(['solicitante', 'jefe', 'administrador', 'subgerentegeneral', 'gerentegeneral', 'presidente', 'subgerente', 'gerente']);
 //colaborador 
@@ -285,7 +286,7 @@ const crearAccesoExterno = async (req, res) => {
 		return res.status(201).json({ success: true, msg: 'Solicitud de acceso externo creada', idAcceso });
 	} catch (error) {
 		try { await connection.rollback(); } catch (rollbackError) { console.error('Error en rollback:', rollbackError); }
-		return res.status(500).json({ msg: 'No se pudo crear la solicitud de acceso externo' });
+		return responderError(res, error, 'No se pudo crear la solicitud de acceso externo');
 	} finally {
 		connection.release();
 	}

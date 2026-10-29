@@ -2,13 +2,13 @@
 import pool from '../database.js';
 import crypto from 'node:crypto';
 import { obtenerColaboradoresACargo } from '../utils/organigrama/index.js';
+import { ErrorNegocio, responderError } from '../utils/errores.js';
 import { registrarReporteTraslado } from '../utils/reportesTraslados.js';
 import {
   descartarOtrasAprobaciones,
   resolverAprobadoresSolicitud,
 } from '../utils/verificarAprobadorSolicitud.js';
 import { ROLES_GARITA, ROLES_SUPERIORES, registrarIntentoDenegado } from '../middlewares/roles.js';
-import { registrarReporteArchivo } from '../utils/reportesArchivos.js';
 import {
   SEGUNDOS_ENLACE_TEMPORAL,
   extensionPorTipo,
@@ -75,7 +75,7 @@ const setupTraslado = async (
   const idSolicitante = req.user.idColaborador;
 
   if (!idSolicitante) {
-    throw new Error('Usuario sin colaborador asociado');
+    throw new ErrorNegocio('Tu usuario no tiene un colaborador asociado', 403);
   }
 
   const {
@@ -93,9 +93,7 @@ const setupTraslado = async (
     !id_planta_origen ||
     !id_planta_destino
   ) {
-    throw new Error(
-      'Faltan campos obligatorios para el traslado'
-    );
+    throw new ErrorNegocio('Faltan campos obligatorios para el traslado', 400);
   }
 
   const idAprobadores = await resolverAprobadoresSolicitud(idSolicitante);
@@ -286,9 +284,7 @@ const createTrasladoEmpresarial = async (req, res) => {
   } catch (error) {
     if (!committed) await connection.rollback();
 
-    return res.status(500).json({
-      msg: 'No se pudo crear el traslado',
-    });
+    return responderError(res, error, 'No se pudo crear el traslado');
   } finally {
     connection.release();
   }
@@ -348,9 +344,7 @@ if (res.headersSent) { await connection.rollback(); return; }
   } catch (error) {
     if (!committed) await connection.rollback();
 
-    return res.status(500).json({
-      msg: 'No se pudo crear el traslado',
-    });
+    return responderError(res, error, 'No se pudo crear el traslado');
   } finally {
     connection.release();
   }
@@ -409,9 +403,7 @@ const createTrasladoPrivado = async (req, res) => {
   } catch (error) {
     if (!committed) await connection.rollback();
 
-    return res.status(500).json({
-      msg: 'No se pudo crear el traslado',
-    });
+    return responderError(res, error, 'No se pudo crear el traslado');
   } finally {
     connection.release();
   }
@@ -905,24 +897,14 @@ const subirFacturaTraslado = async (req, res) => {
       estadoNuevo: 'Finalizado',
       detalles: {
         tipo_traslado: 'PRIVADO',
+        // Dónde quedó la factura en MinIO; quién y cuándo ya son columnas del reporte.
+        bucket,
         factura: objectName,
         nombre_original: req.file.originalname,
         tipo_mime: req.file.mimetype,
         tamanio: req.file.size,
       },
     });
-
-    const auditado = await registrarReporteArchivo({
-      usuarioId: req.user.id,
-      usuarioNombre: req.user.nombre || null,
-      accion: 'SUBIR_FACTURA_TRASLADO',
-      bucket,
-      objectName,
-      nombreOriginal: req.file.originalname,
-      tipoMime: req.file.mimetype,
-      tamanio: req.file.size,
-    });
-    if (!auditado) console.warn('Factura subida, pero no se pudo registrar su auditoría de archivos');
 
     return res.status(200).json({
       success: true,
