@@ -223,6 +223,11 @@ const ProcesoSolicitudes = () => {
     }
   };
 
+  const handleScannerClose = async () => {
+    setIsScannerOpen(false);
+    await loadRequests();
+  };
+
   const handleApproval = async (request, accion) => {
     setApprovingId(request.id);
     try {
@@ -551,7 +556,7 @@ const ProcesoSolicitudes = () => {
 
               <h3 className="mb-4 text-lg font-bold text-[#17243d]">Escanear Código QR</h3>
               <div className="overflow-hidden rounded-xl bg-slate-50 p-2 border border-slate-100">
-                <Escanear tipo={modulo} onClose={() => setIsScannerOpen(false)} />
+                <Escanear tipo={modulo} onClose={handleScannerClose} />
               </div>
             </div>
           </div>

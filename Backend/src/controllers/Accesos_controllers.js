@@ -460,8 +460,8 @@ const aprobarAccesoExterno = async (req, res) => {
 			return res.status(400).json({ msg: 'Acción de aprobación inválida' });
 		}
 		const aprobado = accion === 'Aprobado';
-		const estado = aprobado ? 'Aprobado' : 'RECHAZADO';
-		const estadoAprobacion = estado;
+		const estado = aprobado ? 'Aprobado' : 'Rechazado';
+		const estadoAprobacion = aprobado ? 'APROBADO' : 'RECHAZADO';
 
 		await connection.beginTransaction();
 		const [accesoRows] = await connection.query(

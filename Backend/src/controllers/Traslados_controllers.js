@@ -536,7 +536,9 @@ const approveTraslado = async (req, res) => {
     }
 
     const dbEstado =
-      accion === 'Aprobado' ? 'Aprobado' : 'RECHAZADO';
+      accion === 'Aprobado' ? 'Aprobado' : 'Rechazado';
+    const estadoAprobacion =
+      accion === 'Aprobado' ? 'APROBADO' : 'RECHAZADO';
 
     await connection.beginTransaction();
 
@@ -614,7 +616,7 @@ const approveTraslado = async (req, res) => {
            FECHA_RESPUESTA = NOW()
        WHERE ID_APROBACION = ?`,
       [
-        dbEstado,
+        estadoAprobacion,
         comentario || null,
         aprobaciones[0].ID_APROBACION,
       ]
@@ -669,6 +671,8 @@ const approveTraslado = async (req, res) => {
     });
   } catch (error) {
     if (!committed) await connection.rollback();
+
+    console.error('Error al procesar aprobación de traslado:', error);
 
     return res.status(500).json({
       msg: 'Error al procesar la solicitud',

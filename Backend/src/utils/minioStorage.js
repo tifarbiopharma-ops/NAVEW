@@ -10,11 +10,13 @@ const extensionPorTipo = {
 };
 
 const MAX_BYTES = Number(process.env.MINIO_MAX_FILE_BYTES || 10 * 1024 * 1024);
+const DIAS_RETENCION_FACTURAS = 30;
 
 // Los enlaces para ver un archivo duran poco: se piden de nuevo cada vez.
 const SEGUNDOS_ENLACE_TEMPORAL = 5 * 60;
 
 let minioClient;
+let politicaRetencionPromise;
 
 const obtenerConfiguracion = () => {
   const endpoint = (process.env.MINIO_ENDPOINT || '').replace(/^https?:\/\//i, '').replace(/\/$/, '');
@@ -52,7 +54,26 @@ const validarArchivo = (archivo) => {
   return null;
 };
 
+const configurarRetencionFacturas = async () => {
+  if (!politicaRetencionPromise) {
+    const { cliente, bucket } = obtenerCliente();
+    politicaRetencionPromise = cliente.setBucketLifecycle(bucket, {
+      Rule: [{
+        ID: 'eliminar-facturas-a-los-30-dias',
+        Prefix: 'facturas/',
+        Status: 'Enabled',
+        Expiration: { Days: DIAS_RETENCION_FACTURAS },
+      }],
+    }).catch((error) => {
+      politicaRetencionPromise = null;
+      throw error;
+    });
+  }
+  await politicaRetencionPromise;
+};
+
 const subirArchivo = async (objectName, archivo) => {
+  await configurarRetencionFacturas();
   const { cliente, bucket } = obtenerCliente();
   await cliente.putObject(bucket, objectName, archivo.buffer, archivo.size, {
     'Content-Type': archivo.mimetype,
@@ -73,9 +94,11 @@ const enlaceTemporal = async (objectName) => {
 
 export {
   MAX_BYTES,
+  DIAS_RETENCION_FACTURAS,
   SEGUNDOS_ENLACE_TEMPORAL,
   extensionPorTipo,
   validarArchivo,
+  configurarRetencionFacturas,
   subirArchivo,
   eliminarArchivo,
   enlaceTemporal,

@@ -337,6 +337,18 @@ CREATE TABLE `Traslados_Personal` (
     KEY `idx_traslados_planta_destino` (`ID_Planta_Destino`),
     KEY `idx_traslados_estado` (`Estado_Actual`),
 
+    CONSTRAINT `chk_traslados_estado`
+        CHECK (`Estado_Actual` COLLATE utf8mb4_bin IN (
+            'Solicitado',
+            'Aprobado',
+            'Rechazado',
+            'Cancelado',
+            'En camino',
+            'Pendiente KM final',
+            'Pendiente factura',
+            'Finalizado'
+        )),
+
     CONSTRAINT `fk_traslados_solicitante`
         FOREIGN KEY (`ID_Solicitante`)
         REFERENCES `Colaboradores` (`ID_COLABORADOR`)
