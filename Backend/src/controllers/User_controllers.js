@@ -1,5 +1,6 @@
 
 import bcryptjs from 'bcryptjs';
+import { createHash, randomBytes } from 'node:crypto';
 import pool from '../database.js';
 import { crearTokenJWT } from '../middlewares/JWT.js';
 import { registrarReporteUsuario } from '../utils/reportesUsuarios.js';
@@ -13,8 +14,12 @@ const ROLES = [
   'gerentegeneral',
   'gerente',
   'subgerente',
-  'presidente'
+  'presidente',
+  'talento humano'
 ];
+
+const esRolTalentoHumano = (rol) =>
+  String(rol || '').trim().toLowerCase().replace(/\s+/g, '') === 'talentohumano';
 
 const DOMINIOS = [
   '@farbiopharma.com',
@@ -198,6 +203,41 @@ const login = async (req, res) => {
 
   } catch (err) {
     return errorInterno(res, 'Error en login:', err);
+  }
+};
+
+// Emite un código opaco, de un solo uso, para crear la sesión del panel de RRHH.
+// El JWT de NAVEW nunca se envía al navegador destino.
+const crearCodigoAccesoRRHH = async (req, res) => {
+  if (!esRolTalentoHumano(req.user?.rol)) {
+    return res.status(403).json({ msg: 'Acceso restringido a Talento Humano' });
+  }
+
+  const codigo = randomBytes(32).toString('base64url');
+  const hashCodigo = createHash('sha256').update(codigo).digest('hex');
+  const expira = new Date(Date.now() + 60_000)
+    .toISOString()
+    .slice(0, 19)
+    .replace('T', ' ');
+
+  try {
+    await pool.query(
+      `DELETE FROM rrhh_sso_codes
+       WHERE expires_at <= UTC_TIMESTAMP() OR consumed_at IS NOT NULL`
+    );
+    await pool.query(
+      `INSERT INTO rrhh_sso_codes (code_hash, user_id, expires_at)
+       VALUES (?, ?, ?)`,
+      [hashCodigo, req.user.id, expira]
+    );
+
+    return res.status(201).json({ code: codigo });
+  } catch (error) {
+    if (error.code === 'ER_NO_SUCH_TABLE') {
+      return res.status(503).json({ msg: 'El acceso SSO de Talento Humano aún no está habilitado' });
+    }
+    console.error('No se pudo emitir el código SSO de RRHH:', error.code || 'ERROR');
+    return res.status(500).json({ msg: 'No se pudo iniciar la sesión de Talento Humano' });
   }
 };
 
@@ -1107,6 +1147,7 @@ const eliminarUsuario = async (req, res) => {
 
 export {
   login,
+  crearCodigoAccesoRRHH,
   obtenerMiPerfil,
   obtenerColaboradorPorCedula,
   registro,

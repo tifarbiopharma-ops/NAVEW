@@ -531,6 +531,9 @@ const EditarUsuario = () => {
                   <option value="presidente">
                     Presidente
                   </option>
+                  <option value="talento humano">
+                    Talento Humano
+                  </option>
                 </select>
 
                 {errors.rol && (

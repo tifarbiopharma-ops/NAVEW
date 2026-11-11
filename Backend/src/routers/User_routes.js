@@ -2,6 +2,7 @@ import express from 'express';
 import { 
   obtenerMiPerfil,
   obtenerColaboradorPorCedula,
+  crearCodigoAccesoRRHH,
   registro, 
   login, 
   obtenerUsuarios, 
@@ -16,6 +17,8 @@ const router = express.Router();
 // POST - Login de usuario
 // La ruta es /api/users/login
 router.post('/login', login);
+// Emisión de código temporal para iniciar sesión en BACK_FRONT_FARBIOPHARMA.
+router.post('/sso/rrhh/codigo', verificarTokenJWT, crearCodigoAccesoRRHH);
 // GET - Obtener perfil del usuario
 // La ruta es /api/users/mi-perfil
 router.get('/mi-perfil', verificarTokenJWT, obtenerMiPerfil);

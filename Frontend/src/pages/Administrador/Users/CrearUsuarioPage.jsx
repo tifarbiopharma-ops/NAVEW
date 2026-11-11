@@ -580,6 +580,7 @@ const CrearUsuarioPage = () => {
                   <option value="gerentegeneral">Gerente General</option>
                   <option value="gerente">Gerente</option>
                   <option value="subgerente">Subgerente</option>
+                  <option value="talento humano">Talento Humano</option>
                 </select>
 
                 {errors.rol && (
