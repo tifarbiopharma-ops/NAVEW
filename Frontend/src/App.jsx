@@ -87,12 +87,22 @@ const RedirectToTalentoHumano = ({ token }) => {
   );
 };
 
+const CerrarSesionNavew = () => {
+  useEffect(() => {
+    storeAuth.getState().logout();
+    window.location.replace('/login');
+  }, []);
+
+  return <div role="status" className="p-6">Cerrando sesión…</div>;
+};
+
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         {/* 🔹 Redirigir raíz a login */}
         <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/logout" element={<CerrarSesionNavew />} />
 
         {/* 🔹 Rutas públicas */}
         <Route element={<PublicRoute />}>
