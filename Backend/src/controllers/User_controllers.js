@@ -241,6 +241,56 @@ const crearCodigoAccesoRRHH = async (req, res) => {
   }
 };
 
+// Canjea un codigo emitido por la sesion Flask de Talento Humano y devuelve
+// un JWT de NAVEW de corta duracion. El codigo se consume una sola vez.
+const canjearCodigoAccesoRRHH = async (req, res) => {
+  const frontendOrigin = String(process.env.FRONTEND_URL || '').replace(/\/$/, '');
+  if (!frontendOrigin || req.get('Origin') !== frontendOrigin) {
+    return res.status(403).json({ msg: 'Origen no autorizado' });
+  }
+
+  const codigo = req.body?.code;
+  if (typeof codigo !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(codigo)) {
+    return res.status(400).json({ msg: 'Codigo de acceso invalido' });
+  }
+
+  const hashCodigo = createHash('sha256').update(codigo, 'ascii').digest('hex');
+  try {
+    const [consumo] = await pool.query(
+      `UPDATE rrhh_sso_codes
+       SET consumed_at = UTC_TIMESTAMP()
+       WHERE code_hash = ?
+         AND consumed_at IS NULL
+         AND expires_at > UTC_TIMESTAMP()`,
+      [hashCodigo]
+    );
+    if (consumo.affectedRows !== 1) {
+      return res.status(401).json({ msg: 'El codigo vencio o ya fue utilizado' });
+    }
+
+    const [usuarios] = await pool.query(
+      `SELECT u.id, u.rol, u.estado
+       FROM rrhh_sso_codes s
+       INNER JOIN usuarios u ON u.id = s.user_id
+       WHERE s.code_hash = ?
+       LIMIT 1`,
+      [hashCodigo]
+    );
+    const usuario = usuarios[0];
+    if (!usuario || usuario.estado !== 'activo' || !esRolTalentoHumano(usuario.rol)) {
+      return res.status(403).json({ msg: 'La cuenta no tiene acceso al organigrama' });
+    }
+
+    return res.status(200).json({ token: crearTokenJWT(usuario.id, usuario.rol) });
+  } catch (error) {
+    if (error.code === 'ER_NO_SUCH_TABLE') {
+      return res.status(503).json({ msg: 'El acceso SSO de Talento Humano aun no esta habilitado' });
+    }
+    console.error('No se pudo canjear el codigo SSO de RRHH:', error.code || 'ERROR');
+    return res.status(500).json({ msg: 'No se pudo abrir el organigrama' });
+  }
+};
+
 // =============================================
 // OBTENER MI PERFIL
 // =============================================
@@ -1148,6 +1198,7 @@ const eliminarUsuario = async (req, res) => {
 export {
   login,
   crearCodigoAccesoRRHH,
+  canjearCodigoAccesoRRHH,
   obtenerMiPerfil,
   obtenerColaboradorPorCedula,
   registro,

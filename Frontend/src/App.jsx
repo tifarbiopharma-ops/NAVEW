@@ -13,6 +13,7 @@ import Dashboard from "./layout/Dashboard";
 
 // Pages
 import Login from "./pages/Autenticación/Login";
+import SsoRRHH from "./pages/Autenticación/SsoRRHH";
 import AdminUsuarios from "./pages/Administrador/Users/AdminUsuarios";
 import CrearUsuarioPage from "./pages/Administrador/Users/CrearUsuarioPage";
 import EditarUsuario from "./pages/Administrador/Users/EditarUsuario";
@@ -103,6 +104,17 @@ function App() {
         {/* 🔹 Redirigir raíz a login */}
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/logout" element={<CerrarSesionNavew />} />
+        <Route path="/sso/rrhh" element={<SsoRRHH />} />
+        <Route
+          path="/organigrama/rrhh"
+          element={
+            <PrivateRouteWithRole allowedRoles={["talento humano"]}>
+              <main className="min-h-screen w-full bg-white p-2 sm:p-4">
+                <Organigrama />
+              </main>
+            </PrivateRouteWithRole>
+          }
+        />
 
         {/* 🔹 Rutas públicas */}
         <Route element={<PublicRoute />}>
@@ -183,7 +195,7 @@ function App() {
             path="admin/usuarios/editar/:id"
             element={<PrivateRouteWithRole allowedRoles={["administrador"]}><EditarUsuario /></PrivateRouteWithRole>}
           />
-          {/* 🔹 Organigrama (solo admin) */}
+          {/* Organigrama completo dentro del Dashboard solo para administradores */}
           <Route
             path="admin/organigrama"
             element={

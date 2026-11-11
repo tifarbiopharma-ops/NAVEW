@@ -1,9 +1,13 @@
 import pool from '../database.js';
 
+const puedeGestionarOrganigrama = (rol) => {
+  const normalizado = String(rol || '').trim().toLowerCase().replace(/\s+/g, '');
+  return normalizado === 'administrador' || normalizado === 'talentohumano';
+};
+
 const obtenerOrganigrama = async (req, res) => {
-  const rol = String(req.user?.rol || '').trim().toLowerCase();
-  if (rol !== 'administrador') {
-    return res.status(403).json({ msg: 'Acceso restringido a administradores' });
+  if (!puedeGestionarOrganigrama(req.user?.rol)) {
+    return res.status(403).json({ msg: 'Acceso restringido al organigrama' });
   }
 
   try {
@@ -119,11 +123,9 @@ const obtenerOrganigrama = async (req, res) => {
 
 
 const guardarColoresOrganigrama = async (req, res) => {
-  const rol = String(req.user?.rol || '').trim().toLowerCase();
-
-  if (rol !== 'administrador') {
+  if (!puedeGestionarOrganigrama(req.user?.rol)) {
     return res.status(403).json({
-      msg: 'Acceso restringido a administradores',
+      msg: 'Acceso restringido al organigrama',
     });
   }
 

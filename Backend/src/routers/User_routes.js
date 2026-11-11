@@ -3,13 +3,14 @@ import {
   obtenerMiPerfil,
   obtenerColaboradorPorCedula,
   crearCodigoAccesoRRHH,
+  canjearCodigoAccesoRRHH,
   registro, 
   login, 
   obtenerUsuarios, 
   obtenerUsuario, 
   actualizarUsuario, 
   eliminarUsuario 
-} from '../controllers/user_controllers.js';
+} from '../controllers/User_controllers.js';
 import { verificarTokenJWT } from '../middlewares/JWT.js';
 
 const router = express.Router();
@@ -19,6 +20,7 @@ const router = express.Router();
 router.post('/login', login);
 // Emisión de código temporal para iniciar sesión en BACK_FRONT_FARBIOPHARMA.
 router.post('/sso/rrhh/codigo', verificarTokenJWT, crearCodigoAccesoRRHH);
+router.post('/sso/rrhh/canjear', canjearCodigoAccesoRRHH);
 // GET - Obtener perfil del usuario
 // La ruta es /api/users/mi-perfil
 router.get('/mi-perfil', verificarTokenJWT, obtenerMiPerfil);

@@ -23,6 +23,10 @@ export function useOrganigrama() {
       const url = `${import.meta.env.VITE_BACKEND_URL}/api/jerarquia/organigrama`;
       const json = await fetchDataBackend(url, null, "GET", token, false);
 
+      if (json?.success === false || Number(json?.status) >= 400) {
+        throw new Error(json.msg || "Error cargando el organigrama");
+      }
+
       setData(json || { nodes: [], edges: [] });
     } catch (e) {
       console.error(e);
