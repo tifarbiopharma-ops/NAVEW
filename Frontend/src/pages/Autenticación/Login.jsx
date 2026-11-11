@@ -1,6 +1,6 @@
 
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { ToastContainer, toast } from 'react-toastify';
@@ -105,34 +105,8 @@ const Login = () => {
     }
   };
 
-  // ==========================================
-  // CARGAR FUENTE
-  // ==========================================
-
-  useEffect(() => {
-    const fontLink = document.createElement('link');
-
-    fontLink.href =
-      'https://fonts.googleapis.com/css2?family=Gowun+Batang&display=swap';
-
-    fontLink.rel = 'stylesheet';
-
-    document.head.appendChild(fontLink);
-
-    return () => {
-      if (document.head.contains(fontLink)) {
-        document.head.removeChild(fontLink);
-      }
-    };
-  }, []);
-
   return (
-    <div
-      className="flex min-h-screen flex-col bg-white lg:h-screen lg:flex-row lg:overflow-hidden"
-      style={{
-        fontFamily: 'Gowun Batang, serif',
-      }}
-    >
+    <div className="flex min-h-screen flex-col bg-white font-sans lg:h-screen lg:flex-row lg:overflow-hidden">
       <ToastContainer />
 
       {/* ==========================================
@@ -173,44 +147,6 @@ const Login = () => {
       <div className="flex min-h-screen w-full flex-col bg-white lg:min-h-0 lg:w-[37%] lg:overflow-y-auto">
 
         {/* ======================================
-            LOGOS SUPERIORES
-        ====================================== */}
-
-        <div className="flex w-full items-center justify-between gap-4 px-5 pt-6 sm:px-10 lg:px-7 lg:pt-8 xl:px-10">
-
-          {/* FAR BIOPHARMA */}
-
-          <div className="flex h-16 min-w-0 flex-1 items-center justify-center">
-            <img
-              src="/logo.png"
-              alt="Farbiopharma"
-              className="max-h-14 max-w-full object-contain"
-            />
-          </div>
-
-          {/* INPEL */}
-
-          <div className="flex h-16 min-w-0 flex-1 items-center justify-center">
-            <img
-              src="/inpel.png"
-              alt="INPEL"
-              className="max-h-14 max-w-full object-contain"
-            />
-          </div>
-
-          {/* CLAREL */}
-
-          <div className="flex h-16 min-w-0 flex-1 items-center justify-center">
-            <img
-              src="/clarel.png"
-              alt="CLAREL"
-              className="max-h-14 max-w-full object-contain"
-            />
-          </div>
-
-        </div>
-
-        {/* ======================================
             CONTENIDO CENTRAL
         ====================================== */}
 
@@ -219,37 +155,11 @@ const Login = () => {
           <div className="w-full max-w-[360px]">
 
             {/* ==================================
-                LOGO NAVEW
-            ================================== */}
-
-            <div className="mb-8 flex items-center justify-center">
-
-              <div
-                className="text-6xl font-black tracking-tighter text-[#17243d]"
-                style={{
-                  fontFamily: 'Arial Black, Arial, sans-serif',
-                }}
-              >
-                NA
-                <span className="text-[#3970a8]">
-                  VE
-                </span>
-                W
-              </div>
-
-            </div>
-
-            {/* ==================================
                 ENCABEZADO
             ================================== */}
 
-            <div className="mb-8 text-center">
-
-              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-[#8493a9]">
-                Bienvenido
-              </p>
-
-              <h1 className="text-3xl font-semibold text-[#17243D]">
+            <div className="mb-7 text-center">
+              <h1 className="text-3xl font-semibold tracking-tight text-[#17243D]">
                 Iniciar sesión
               </h1>
 
@@ -264,7 +174,7 @@ const Login = () => {
             ================================== */}
 
             <form
-              className="flex w-full flex-col gap-5"
+              className="flex w-full flex-col gap-4"
               onSubmit={handleSubmit(loginUser)}
             >
 
@@ -390,27 +300,7 @@ const Login = () => {
 
             </form>
 
-            {/* ==================================
-                TEXTO INFERIOR
-            ================================== */}
-
-            <div className="mt-8 text-center">
-              <p className="text-xs text-slate-400">
-                Sistema de gestión NAVEW
-              </p>
-            </div>
-
           </div>
-        </div>
-
-        {/* ======================================
-            PIE DE PÁGINA
-        ====================================== */}
-
-        <div className="px-6 pb-6 text-center">
-          <p className="text-[11px] text-slate-400">
-            © {new Date().getFullYear()} Farbiopharma
-          </p>
         </div>
 
       </div>
