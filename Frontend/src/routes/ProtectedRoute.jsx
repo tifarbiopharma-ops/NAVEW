@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import storeAuth from '../context/storeAuth';
-import { isTokenValid } from '../utils/authClaims';
+import { esTalentoHumano, isTokenValid } from '../utils/authClaims';
+import AccesoTalentoHumano from '../pages/Autenticación/AccesoTalentoHumano';
 
 export default function ProtectedRoute({ children }) {
   const token = storeAuth((state) => state.token);
@@ -16,6 +17,8 @@ export default function ProtectedRoute({ children }) {
   if (!valid) {
     return <Navigate to="/login" replace />;
   }
+
+  if (esTalentoHumano(token)) return <AccesoTalentoHumano token={token} />;
 
   return children;
 }

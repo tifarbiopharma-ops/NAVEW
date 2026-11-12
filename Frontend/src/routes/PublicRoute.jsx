@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import storeAuth from '../context/storeAuth';
-import { isTokenValid } from '../utils/authClaims';
+import { esTalentoHumano, isTokenValid } from '../utils/authClaims';
+import AccesoTalentoHumano from '../pages/Autenticación/AccesoTalentoHumano';
 
 export default function PublicRoute() {
   const token = storeAuth((state) => state.token);
@@ -14,6 +15,7 @@ export default function PublicRoute() {
   }, [token, valid]);
 
   if (valid) {
+    if (esTalentoHumano(token)) return <AccesoTalentoHumano token={token} />;
     return <Navigate to="/dashboard" replace />;
   }
 

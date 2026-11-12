@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import PublicRoute from "./routes/PublicRoute";
@@ -6,7 +6,7 @@ import ProtectedRoute from "./routes/ProtectedRoute";
 import PrivateRouteWithRole from "./routes/PrivateRouteWithRole";
 import storeAuth from "./context/storeAuth";
 import { getAuthClaims } from "./utils/authClaims";
-import { redirigirATalentoHumano } from "./utils/rrhhSso";
+import { cerrarSesionNavew } from "./utils/cerrarSesionNavew";
 
 // Layouts
 import Dashboard from "./layout/Dashboard";
@@ -31,10 +31,6 @@ const DashboardHomeRedirect = () => {
   const token = storeAuth((state) => state.token);
   const claims = getAuthClaims(token);
   const userRole = String(claims?.rol ?? '').trim().toLowerCase();
-
-  if (userRole.replace(/\s+/g, '') === 'talentohumano') {
-    return <RedirectToTalentoHumano token={token} />;
-  }
 
   if (!token) {
     return <Navigate to="/login" replace />;
@@ -69,32 +65,9 @@ const DashboardHomeRedirect = () => {
   );
 };
 
-const RedirectToTalentoHumano = ({ token }) => {
-  const iniciado = useRef(false);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (iniciado.current) return;
-    iniciado.current = true;
-    redirigirATalentoHumano(token).catch((err) => {
-      setError(err?.response?.data?.msg || err.message || 'No se pudo abrir Talento Humano.');
-    });
-  }, [token]);
-
-  return (
-    <div role={error ? 'alert' : 'status'} className="p-6">
-      {error || 'Abriendo el panel de Talento Humano…'}
-    </div>
-  );
-};
-
 const CerrarSesionNavew = () => {
-  useEffect(() => {
-    storeAuth.getState().logout();
-    window.location.replace('/login');
-  }, []);
-
-  return <div role="status" className="p-6">Cerrando sesión…</div>;
+  useLayoutEffect(() => { cerrarSesionNavew(); }, []);
+  return null;
 };
 
 function App() {

@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import storeAuth from '../../context/storeAuth';
+import { esTalentoHumano } from '../../utils/authClaims';
+import { redirigirATalentoHumano } from '../../utils/rrhhSso';
 
 // ==========================================
 // VALORES INICIALES
@@ -59,6 +61,7 @@ const Login = () => {
 
   const loginUser = async (data) => {
     setIsLoading(true);
+    let redirigiendo = false;
 
     try {
       const response = await axios.post(
@@ -77,6 +80,12 @@ const Login = () => {
       const { token, msg } = response.data || {};
 
       if (token) {
+        if (esTalentoHumano(token)) {
+          // Mantener el login durante el canje SSO; no montar el Dashboard.
+          await redirigirATalentoHumano(token);
+          redirigiendo = true;
+          return;
+        }
         // Guardar token en Zustand
         setToken(token);
 
@@ -86,7 +95,7 @@ const Login = () => {
         }
 
         // Redirigir al Dashboard
-        navigate('/dashboard');
+        navigate('/dashboard', { replace: true });
       } else {
         toast.error(
           'No se recibió el token de autenticación'
@@ -101,7 +110,7 @@ const Login = () => {
 
       console.error('Error en login:', error);
     } finally {
-      setIsLoading(false);
+      if (!redirigiendo) setIsLoading(false);
     }
   };
 

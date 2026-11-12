@@ -17,3 +17,6 @@ export const isTokenValid = (token) => {
   const now = Math.floor(Date.now() / 1000);
   return now < claims.exp;
 };
+
+export const esTalentoHumano = (token) =>
+  String(getAuthClaims(token)?.rol || '').replace(/\s+/g, '').toLowerCase() === 'talentohumano';

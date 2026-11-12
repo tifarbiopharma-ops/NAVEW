@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const obtenerDestinoRRHH = () => {
+export const obtenerDestinoRRHH = () => {
   const configurada = import.meta.env.VITE_RRHH_URL;
   if (!configurada) {
     throw new Error('Falta configurar la dirección del panel de Talento Humano.');
@@ -35,6 +35,7 @@ export const redirigirATalentoHumano = async (token) => {
 
   const form = document.createElement('form');
   form.method = 'POST';
+  form.target = '_top';
   form.action = `${destino}/sso/consume`;
   form.hidden = true;
 
