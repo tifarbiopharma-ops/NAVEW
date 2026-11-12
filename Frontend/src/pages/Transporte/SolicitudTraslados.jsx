@@ -54,8 +54,8 @@ const SolicitudTraslados = () => {
   const [plantas, setPlantas] = useState([]);
   const [ubicacionOrigenId, setUbicacionOrigenId] = useState('');
 
-  const [loadingChoferes, setLoadingChoferes] = useState(false);
-  const [loadingPlantas, setLoadingPlantas] = useState(false);
+  const [loadingChoferes, setLoadingChoferes] = useState(true);
+  const [loadingPlantas, setLoadingPlantas] = useState(true);
 
   const {
     register,
@@ -86,15 +86,16 @@ const SolicitudTraslados = () => {
     if (!token || !canCreate) return;
 
     let activo = true;
+    const controller = new AbortController();
 
     const cargarChoferes = async () => {
       setLoadingChoferes(true);
-      setLoadingPlantas(true);
 
       try {
         const response = await fetch(
           `${API}/api/traslados/choferes`,
           {
+            signal: controller.signal,
             headers: {
               Authorization: `Bearer ${token}`,
             },
@@ -112,17 +113,30 @@ const SolicitudTraslados = () => {
         if (!activo) return;
 
         setChoferes(data.choferes || []);
+      } catch (error) {
+        if (activo) {
+          toast.error(error.message || 'No se pudieron cargar los choferes');
+        }
+      } finally {
+        if (activo) setLoadingChoferes(false);
+      }
+    };
 
+    const cargarPlantas = async () => {
+      setLoadingPlantas(true);
+
+      try {
         const plantasResponse = await fetch(
           `${API}/api/traslados/plantas`,
           {
+            signal: controller.signal,
             headers: {
               Authorization: `Bearer ${token}`,
             },
           }
         );
 
-        const plantasData = await plantasResponse.json();
+        const plantasData = await plantasResponse.json().catch(() => ({}));
 
         if (!plantasResponse.ok) {
           throw new Error(
@@ -155,21 +169,20 @@ const SolicitudTraslados = () => {
       } catch (error) {
         if (activo) {
           toast.error(
-            error.message || 'No se pudieron cargar los catálogos'
+            error.message || 'No se pudieron cargar las plantas'
           );
         }
       } finally {
-        if (activo) {
-          setLoadingChoferes(false);
-          setLoadingPlantas(false);
-        }
+        if (activo) setLoadingPlantas(false);
       }
     };
 
     cargarChoferes();
+    cargarPlantas();
 
     return () => {
       activo = false;
+      controller.abort();
     };
   }, [token, canCreate, setValue]);
 
@@ -361,10 +374,11 @@ const onSubmit = async (formData) => {
                     {...register('id_chofer', {
                       required: 'El chofer es obligatorio',
                     })}
+                    value={form.id_chofer ?? ''}
                     disabled={loadingChoferes}
                     className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"
                   >
-                    <option value="">
+                    <option key={loadingChoferes ? 'cargando' : 'listo'} value="" disabled>
                       {loadingChoferes
                         ? 'Cargando choferes...'
                         : 'Seleccione un chofer'}
@@ -433,7 +447,7 @@ const onSubmit = async (formData) => {
                   disabled={loadingPlantas}
                   className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"
                 >
-                  <option value="">
+                  <option key={loadingPlantas ? 'cargando' : 'listo'} value="" disabled>
                     {loadingPlantas
                       ? 'Cargando plantas...'
                       : 'Seleccione una planta'}
@@ -470,10 +484,11 @@ const onSubmit = async (formData) => {
                   {...register('id_planta_destino', {
                     required: 'La planta de destino es obligatoria',
                   })}
+                  value={form.id_planta_destino ?? ''}
                   disabled={loadingPlantas}
                   className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"
                 >
-                  <option value="">
+                  <option key={loadingPlantas ? 'cargando' : 'listo'} value="" disabled>
                     {loadingPlantas
                       ? 'Cargando plantas...'
                       : 'Seleccione una planta de destino'}
