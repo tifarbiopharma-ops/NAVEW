@@ -4,6 +4,7 @@ import pool from '../database.js';
 import { obtenerColaboradoresACargo } from '../utils/organigrama/index.js';
 import { registrarReporteEnvio } from '../utils/reportesEnvios.js';
 import { ROLES_SUPERIORES } from '../middlewares/roles.js';
+import { estadoEnvioEnBase, mostrarEstadoEnvio } from '../utils/estadosEnvio.js';
 
 const ROLES_SOLICITUD = new Set([
   'solicitante',
@@ -251,7 +252,7 @@ const crearEnvioPaqueteria = async (req, res) => {
         Estado_Actual,
         QR_Token
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Solicitado', ?)`,
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         idPaquete,
         fecha_salida,
@@ -266,6 +267,7 @@ const crearEnvioPaqueteria = async (req, res) => {
         id_planta_destino,
         id_area_destino,
         destinatario,
+        estadoEnvioEnBase('Solicitado'),
         qrToken,
       ]
     );
@@ -397,7 +399,10 @@ const obtenerEnviosPaqueteria = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      envios,
+      envios: envios.map((envio) => ({
+        ...envio,
+        Estado_Actual: mostrarEstadoEnvio(envio.Estado_Actual),
+      })),
     });
   } catch (error) {
     console.error('Error al obtener envíos de paquetería:', error);

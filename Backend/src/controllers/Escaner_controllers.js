@@ -3,6 +3,7 @@ import { registrarReporteAcceso } from '../utils/reportesAccesos.js';
 import { registrarReporteTraslado } from '../utils/reportesTraslados.js';
 import { registrarReporteEnvio } from '../utils/reportesEnvios.js';
 import { estadoTrasladoEnBase, mostrarEstadoTraslado } from '../utils/estadosTraslado.js';
+import { estadoEnvioEnBase, mostrarEstadoEnvio } from '../utils/estadosEnvio.js';
 import { notificarLlegadaPedido } from '../telegram/telegramService.js';
 
 const MINUTOS_COOLDOWN = 5; // 5 minutos anti-duplicado (mismo escaneo)
@@ -330,7 +331,7 @@ const verificarQRPaquetería = async (req, res) => {
       `UPDATE Envios_Paqueteria
        SET ${campoActualizar} = NOW(), Estado_Actual = ?
        WHERE ID_Paquete = ? AND ${campoActualizar} IS NULL AND Estado_Actual = ?`,
-      [nuevoEstado, envio.ID_Paquete, envio.Estado_Actual]
+      [estadoEnvioEnBase(nuevoEstado), envio.ID_Paquete, envio.Estado_Actual]
     );
 
     if (!resultado.affectedRows) {
@@ -344,7 +345,7 @@ const verificarQRPaquetería = async (req, res) => {
     await auditar(registrarReporteEnvio, {
       usuarioId: req.user.id, usuarioNombre: req.user.nombre,
       accion: esPrimerEscaneo ? 'SALIDA_QR' : 'LLEGADA_QR', idPaquete: envio.ID_Paquete,
-      estadoAnterior: envio.Estado_Actual, estadoNuevo: nuevoEstado,
+      estadoAnterior: mostrarEstadoEnvio(envio.Estado_Actual), estadoNuevo: nuevoEstado,
       detalles: {
         [campoActualizar]: new Date().toISOString(),
       },
@@ -375,7 +376,7 @@ const verificarQRPaquetería = async (req, res) => {
       escaneos: esPrimerEscaneo ? 1 : 2,
       restantes: esPrimerEscaneo ? 1 : 0,
       estado: nuevoEstado,
-      envio,
+      envio: { ...envio, Estado_Actual: nuevoEstado },
     });
   } catch (error) {
     if (enTransaccion) await connection.rollback();

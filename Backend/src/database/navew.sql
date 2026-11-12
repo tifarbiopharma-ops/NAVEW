@@ -415,6 +415,13 @@ CREATE TABLE `Envios_Paqueteria` (
     KEY `idx_envios_area_destino` (`ID_Area_Destino`),
     KEY `idx_envios_estado` (`Estado_Actual`),
 
+    CONSTRAINT `chk_envios_estado`
+        CHECK (`Estado_Actual` COLLATE utf8mb4_bin IN (
+            'SOLICITADO',
+            'EN CAMINO',
+            'FINALIZADO'
+        )),
+
     CONSTRAINT `fk_envios_responsable`
         FOREIGN KEY (`ID_Responsable`)
         REFERENCES `Colaboradores` (`ID_COLABORADOR`)
