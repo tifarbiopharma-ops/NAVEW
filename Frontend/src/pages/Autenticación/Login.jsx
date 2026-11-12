@@ -116,7 +116,7 @@ const Login = () => {
       <div className="relative hidden min-h-screen overflow-hidden bg-[#eef5fc] lg:block lg:w-[63%]">
 
         <img
-          src="/fondo-login.jpg"
+          src="/fondo-login.png"
           alt="NAVEW - Transporte, paquetería y servicios externos"
           className="absolute inset-0 h-full w-full object-cover object-left"
         />
@@ -157,6 +157,18 @@ const Login = () => {
             {/* ==================================
                 ENCABEZADO
             ================================== */}
+
+            <div className="mb-8 text-center">
+              <div
+                role="img"
+                aria-label="NAVEW"
+                className="inline-flex items-baseline text-[4.7rem] font-extrabold leading-none tracking-[-0.075em] text-[#17243D]"
+              >
+                <span>NA</span>
+                <span className="text-[#3D7DBA]">VE</span>
+                <span>W</span>
+              </div>
+            </div>
 
             <div className="mb-7 text-center">
               <h1 className="text-3xl font-semibold tracking-tight text-[#17243D]">
