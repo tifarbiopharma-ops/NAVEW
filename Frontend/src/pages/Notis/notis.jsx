@@ -236,16 +236,7 @@ const AvisarLlegada = ({ open, onClose, token }) => {
             </div>
           )}
 
-          <div className="flex justify-end gap-3 border-t border-borde-suave pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={enviando}
-              className="rounded-xl border border-borde px-4 py-2.5 text-sm font-semibold text-texto-secundario transition hover:bg-fondo"
-            >
-              Cerrar
-            </button>
-
+          <div className="flex flex-col gap-3 border-t border-borde-suave pt-4">
             <button
               type="button"
               onClick={enviarAviso}
@@ -255,7 +246,7 @@ const AvisarLlegada = ({ open, onClose, token }) => {
                 !idUbicacion ||
                 Boolean(exito)
               }
-              className="flex items-center gap-2 rounded-xl bg-principal px-5 py-2.5 text-sm font-semibold text-inverso transition hover:bg-acento disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-principal px-5 py-2.5 text-sm font-semibold text-inverso transition hover:bg-acento disabled:cursor-not-allowed disabled:opacity-50"
             >
               {enviando ? (
                 <Loader2
@@ -267,6 +258,14 @@ const AvisarLlegada = ({ open, onClose, token }) => {
               )}
 
               {enviando ? "Enviando..." : "Enviar"}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={enviando}
+              className="self-end rounded-xl border border-borde px-4 py-2.5 text-sm font-semibold text-texto-secundario transition hover:bg-fondo"
+            >
+              Cerrar
             </button>
           </div>
         </div>

@@ -304,7 +304,7 @@ const Escanear = ({ isOpen = true, onClose, onSuccess, tipo = 'paqueteria' }) =>
           className={`mt-5 w-full rounded-lg border p-3 text-sm ${message ? 'border-error-borde' : 'border-borde'}`}
         />
         {message && <p className="mt-2 text-xs font-semibold text-error">{message.text}</p>}
-        <button type="submit" disabled={guardandoSalida} className="mt-5 rounded-lg bg-principal px-5 py-2.5 text-sm font-semibold text-inverso disabled:opacity-60">
+        <button type="submit" disabled={guardandoSalida} className="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-principal px-5 py-2.5 text-sm font-semibold text-inverso disabled:opacity-60">
           {guardandoSalida ? 'Registrando...' : 'Registrar salida'}
         </button>
       </form>
@@ -366,7 +366,7 @@ const Escanear = ({ isOpen = true, onClose, onSuccess, tipo = 'paqueteria' }) =>
         />
         {errorKm && <p className="mt-2 text-xs font-semibold text-error">{errorKm}</p>}
         {message && <p className="mt-2 text-xs font-semibold text-error">{message.text}</p>}
-        <button type="submit" disabled={guardandoFinalizacion} className="mt-5 rounded-lg bg-principal px-5 py-2.5 text-sm font-semibold text-inverso disabled:opacity-60">
+        <button type="submit" disabled={guardandoFinalizacion} className="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-principal px-5 py-2.5 text-sm font-semibold text-inverso disabled:opacity-60">
           {guardandoFinalizacion ? 'Guardando...' : 'Finalizar traslado'}
         </button>
       </form>

@@ -245,7 +245,7 @@ const SolicitudPaqueteria = () => {
               </label>
 
               <div className="md:col-span-2">
-                <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-lg bg-principal px-5 py-2.5 text-sm font-semibold text-inverso transition hover:bg-principal-hover disabled:cursor-not-allowed disabled:opacity-60">
+                <button type="submit" disabled={saving} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-principal px-5 py-2.5 text-sm font-semibold text-inverso transition hover:bg-principal-hover disabled:cursor-not-allowed disabled:opacity-60">
                   {saving ? <LoaderCircle className="animate-spin" size={16} /> : <Send size={16} />}
                   {saving ? 'Guardando...' : 'Guardar solicitud'}
                 </button>

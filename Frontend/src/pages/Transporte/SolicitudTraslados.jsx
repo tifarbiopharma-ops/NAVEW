@@ -579,7 +579,7 @@ const onSubmit = async (formData) => {
                   type="submit"
                   disabled={isGenerating}
                   aria-busy={isGenerating}
-                  className="inline-flex items-center gap-2 rounded-md bg-principal px-5 py-2.5 text-xs font-bold text-inverso shadow-sm transition hover:bg-principal-hover disabled:opacity-60"
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-principal px-5 py-2.5 text-xs font-bold text-inverso shadow-sm transition hover:bg-principal-hover disabled:opacity-60"
                 >
                   <span className="inline-flex shrink-0" aria-hidden="true" translate="no">
                     <LoaderCircle

@@ -665,15 +665,7 @@ const CrearUsuarioPage = () => {
 
             {/* BOTONES */}
 
-            <div className="flex flex-wrap gap-4 justify-end mt-4">
-              <button
-                type="button"
-                onClick={handleExit}
-                className="rounded-3xl border border-borde-fuerte bg-superficie px-6 py-3 text-sm font-semibold text-texto-secundario transition hover:bg-fondo"
-              >
-                Cancelar
-              </button>
-
+            <div className="mt-4 flex flex-col gap-3">
               <button
                 type="submit"
                 disabled={
@@ -682,13 +674,20 @@ const CrearUsuarioPage = () => {
                   buscandoColaborador ||
                   !colaboradorEncontrado
                 }
-                className="rounded-3xl bg-principal px-6 py-3 text-sm font-semibold text-inverso transition hover:bg-principal-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-3xl bg-principal px-6 py-3 text-sm font-semibold text-inverso transition hover:bg-principal-hover disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {enviando
                   ? 'Creando...'
                   : isValidating
                     ? 'Validando...'
                     : 'Crear usuario'}
+              </button>
+              <button
+                type="button"
+                onClick={handleExit}
+                className="self-end rounded-3xl border border-borde-fuerte bg-superficie px-6 py-3 text-sm font-semibold text-texto-secundario transition hover:bg-fondo"
+              >
+                Cancelar
               </button>
             </div>
 

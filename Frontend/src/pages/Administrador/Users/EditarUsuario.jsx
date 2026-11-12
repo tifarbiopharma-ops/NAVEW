@@ -639,25 +639,24 @@ const EditarUsuario = () => {
 
             {/* BOTONES */}
 
-            <div className="mt-4 flex flex-wrap justify-end gap-4">
-              <button
-                type="button"
-                onClick={handleExit}
-                className="rounded-3xl border border-borde-fuerte bg-superficie px-6 py-3 text-sm font-semibold text-texto-secundario transition hover:bg-fondo"
-              >
-                Cancelar
-              </button>
-
+            <div className="mt-4 flex flex-col gap-3">
               <button
                 type="submit"
                 disabled={enviando || isValidating}
-                className="rounded-3xl bg-principal px-6 py-3 text-sm font-semibold text-inverso transition hover:bg-principal-hover disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-3xl bg-principal px-6 py-3 text-sm font-semibold text-inverso transition hover:bg-principal-hover disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {enviando
                   ? 'Actualizando...'
                   : isValidating
                     ? 'Validando...'
                     : 'Guardar cambios'}
+              </button>
+              <button
+                type="button"
+                onClick={handleExit}
+                className="self-end rounded-3xl border border-borde-fuerte bg-superficie px-6 py-3 text-sm font-semibold text-texto-secundario transition hover:bg-fondo"
+              >
+                Cancelar
               </button>
             </div>
           </form>
