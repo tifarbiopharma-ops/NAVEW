@@ -3,6 +3,7 @@ import pool from '../database.js';
 import crypto from 'node:crypto';
 import { obtenerColaboradoresACargo } from '../utils/organigrama/index.js';
 import { ErrorNegocio, responderError } from '../utils/errores.js';
+import { estadoTrasladoEnBase, mostrarEstadoTraslado } from '../utils/estadosTraslado.js';
 import { registrarReporteTraslado } from '../utils/reportesTraslados.js';
 import {
   descartarOtrasAprobaciones,
@@ -51,7 +52,9 @@ const obtenerDatosTraslado = async (connection, idTraslado) => {
     [idTraslado]
   );
 
-  return rows[0] || null;
+  return rows[0]
+    ? { ...rows[0], Estado_Actual: mostrarEstadoTraslado(rows[0].Estado_Actual) }
+    : null;
 };
 
 const datosCreacion = (traslado) => ({
@@ -127,7 +130,7 @@ const setupTraslado = async (
       hora_salida,
       motivo_viaje,
       observaciones || null,
-      'Solicitado',
+      estadoTrasladoEnBase('Solicitado'),
       idSolicitante,
       id_planta_origen,
       id_planta_destino,
@@ -501,6 +504,7 @@ const getTraslados = async (req, res) => {
       // La ruta interna de MinIO no sale al navegador: la factura se pide con GET /:id/factura.
       traslados: rows.map(({ Evidencia_Costo, ...traslado }) => ({
         ...traslado,
+        Estado_Actual: mostrarEstadoTraslado(traslado.Estado_Actual),
         tieneFactura: Boolean(Evidencia_Costo),
         puedeAprobar: Boolean(traslado.puedeAprobar)
       }))
@@ -550,7 +554,7 @@ const approveTraslado = async (req, res) => {
       await connection.rollback();
       return res.status(404).json({ msg: 'Traslado no encontrado' });
     }
-    if (estadoRows[0].Estado_Actual !== 'Solicitado') {
+    if (mostrarEstadoTraslado(estadoRows[0].Estado_Actual) !== 'Solicitado') {
       await connection.rollback();
       return res.status(409).json({ msg: 'La solicitud ya fue procesada' });
     }
@@ -632,14 +636,14 @@ const approveTraslado = async (req, res) => {
          SET Estado_Actual = ?,
              QR_Token = ?
          WHERE ID_Traslado = ?`,
-        [dbEstado, id, id]
+        [estadoTrasladoEnBase(dbEstado), id, id]
       );
     } else {
       await connection.query(
         `UPDATE Traslados_Personal
          SET Estado_Actual = ?
          WHERE ID_Traslado = ?`,
-        [dbEstado, id]
+        [estadoTrasladoEnBase(dbEstado), id]
       );
     }
 
@@ -748,7 +752,7 @@ const finalizarTraslado = async (req, res) => {
       });
     }
 
-    if (traslado.Estado_Actual !== 'Pendiente KM final') {
+    if (mostrarEstadoTraslado(traslado.Estado_Actual) !== 'Pendiente KM final') {
       await connection.rollback();
 
       return res.status(400).json({
@@ -777,9 +781,9 @@ const finalizarTraslado = async (req, res) => {
     await connection.query(
       `UPDATE Traslados_Personal
        SET Km_Final = ?,
-           Estado_Actual = 'Finalizado'
+           Estado_Actual = ?
        WHERE ID_Traslado = ?`,
-      [kmFinal, id]
+      [kmFinal, estadoTrasladoEnBase('Finalizado'), id]
     );
 
     const detallesFinalizacion = {
@@ -797,7 +801,7 @@ const finalizarTraslado = async (req, res) => {
       usuarioNombre: req.user.nombre,
       accion: 'FINALIZAR_TRASLADO',
       idTraslado: id,
-      estadoAnterior: traslado.Estado_Actual,
+      estadoAnterior: mostrarEstadoTraslado(traslado.Estado_Actual),
       estadoNuevo: 'Finalizado',
       detalles: detallesFinalizacion,
     });
@@ -873,7 +877,7 @@ const subirFacturaTraslado = async (req, res) => {
       return res.status(403).json({ msg: 'Solo quien solicitó el traslado puede subir su factura' });
     }
 
-    if (traslado.Estado_Actual !== 'Pendiente factura') {
+    if (mostrarEstadoTraslado(traslado.Estado_Actual) !== 'Pendiente factura') {
       await connection.rollback();
       return res.status(400).json({ msg: 'El traslado no está pendiente de factura' });
     }
@@ -884,9 +888,9 @@ const subirFacturaTraslado = async (req, res) => {
     await connection.query(
       `UPDATE Traslados_Personal
        SET Evidencia_Costo = ?,
-           Estado_Actual = 'Finalizado'
+           Estado_Actual = ?
        WHERE ID_Traslado = ?`,
-      [objectName, id]
+      [objectName, estadoTrasladoEnBase('Finalizado'), id]
     );
 
     await connection.commit();
@@ -897,7 +901,7 @@ const subirFacturaTraslado = async (req, res) => {
       usuarioNombre: req.user.nombre,
       accion: 'FINALIZAR_TRASLADO',
       idTraslado: id,
-      estadoAnterior: traslado.Estado_Actual,
+      estadoAnterior: mostrarEstadoTraslado(traslado.Estado_Actual),
       estadoNuevo: 'Finalizado',
       detalles: {
         tipo_traslado: 'PRIVADO',

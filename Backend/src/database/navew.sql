@@ -339,14 +339,14 @@ CREATE TABLE `Traslados_Personal` (
 
     CONSTRAINT `chk_traslados_estado`
         CHECK (`Estado_Actual` COLLATE utf8mb4_bin IN (
-            'Solicitado',
-            'Aprobado',
-            'Rechazado',
-            'Cancelado',
-            'En camino',
-            'Pendiente KM final',
-            'Pendiente factura',
-            'Finalizado'
+            'SOLICITADO',
+            'APROBADO',
+            'RECHAZADO',
+            'CANCELADO',
+            'EN CAMINO',
+            'PENDIENTE KM FINAL',
+            'PENDIENTE FACTURA',
+            'FINALIZADO'
         )),
 
     CONSTRAINT `fk_traslados_solicitante`

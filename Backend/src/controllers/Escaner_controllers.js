@@ -2,6 +2,7 @@ import pool from '../database.js';
 import { registrarReporteAcceso } from '../utils/reportesAccesos.js';
 import { registrarReporteTraslado } from '../utils/reportesTraslados.js';
 import { registrarReporteEnvio } from '../utils/reportesEnvios.js';
+import { estadoTrasladoEnBase, mostrarEstadoTraslado } from '../utils/estadosTraslado.js';
 import { notificarLlegadaPedido } from '../telegram/telegramService.js';
 
 const MINUTOS_COOLDOWN = 5; // 5 minutos anti-duplicado (mismo escaneo)
@@ -139,7 +140,8 @@ const verificarQRTransporte = async (req, res) => {
     if (traslado.QR_Entrada) {
       return res.status(400).json({ msg: 'Este código QR ya fue escaneado en salida y entrada' });
     }
-    if (traslado.Estado_Actual !== 'Aprobado' && traslado.Estado_Actual !== 'En camino') {
+    const estadoActual = mostrarEstadoTraslado(traslado.Estado_Actual);
+    if (estadoActual !== 'Aprobado' && estadoActual !== 'En camino') {
       return res.status(400).json({ msg: 'El traslado no está disponible para escaneo' });
     }
 
@@ -183,9 +185,9 @@ const verificarQRTransporte = async (req, res) => {
     const [resultado] = await connection.query(
       `UPDATE Traslados_Personal
        SET ${campo} = NOW(), Estado_Actual = ?, Km_Inicial = COALESCE(?, Km_Inicial),
-           Hora_Llegada = IF(? = 'Finalizado', CURRENT_TIME(), Hora_Llegada)
+           Hora_Llegada = IF(? = 'FINALIZADO', CURRENT_TIME(), Hora_Llegada)
        WHERE ID_Traslado = ? AND ${campo} IS NULL AND Estado_Actual = ?`,
-      [estado, kmInicial, estado, traslado.ID_Traslado, traslado.Estado_Actual]
+      [estadoTrasladoEnBase(estado), kmInicial, estadoTrasladoEnBase(estado), traslado.ID_Traslado, traslado.Estado_Actual]
     );
     if (!resultado.affectedRows) {
       await connection.rollback(); enTransaccion = false;
@@ -196,7 +198,7 @@ const verificarQRTransporte = async (req, res) => {
     await auditar(registrarReporteTraslado, {
       usuarioId: req.user.id, usuarioNombre: req.user.nombre,
       accion: esSalida ? 'SALIDA_QR' : 'LLEGADA_QR', idTraslado: traslado.ID_Traslado,
-      estadoAnterior: traslado.Estado_Actual, estadoNuevo: estado,
+      estadoAnterior: estadoActual, estadoNuevo: estado,
       detalles: {
         escaneo: esSalida ? 'SALIDA' : 'ENTRADA',
         ...(esSalidaPersonal ? { km_inicial: kmInicial } : {}),
