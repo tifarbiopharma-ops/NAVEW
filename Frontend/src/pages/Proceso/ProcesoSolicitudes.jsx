@@ -440,7 +440,7 @@ const ProcesoSolicitudes = () => {
                                   {(isJefe || userRole === 'administrador' || userRole === 'subgerentegeneral') && (modulo === 'transporte' || modulo === 'externo') && item.puedeAprobar && item.status === 'Solicitado' && (
                                     <>
                                       <button onClick={() => handleApproval(item, 'Aprobado')} disabled={approvingId === item.id} className="rounded-lg bg-acento p-1.5 text-inverso disabled:opacity-50" title="Aprobar"><Check size={15} /></button>
-                                      <button onClick={() => handleApproval(item, 'Rechazado')} disabled={approvingId === item.id} className="rounded-lg border border-enfasis bg-suave p-1.5 text-principal disabled:opacity-50" title="Rechazar"><XCircle size={15} /></button>
+                                      <button onClick={() => handleApproval(item, 'Rechazado')} disabled={approvingId === item.id} className="rounded-lg border border-error-borde bg-error-fondo p-1.5 text-error transition-colors hover:bg-error hover:text-inverso focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error focus-visible:ring-offset-2 disabled:opacity-50" title="Rechazar"><XCircle size={15} /></button>
                                     </>
                                   )}
                                   {!isJefe && item.qrToken && (modulo === 'paqueteria' || item.status === 'Aprobado') && <button onClick={() => setSelectedQr({ code: item.code, token: item.qrToken, companions: item.companions })} className="rounded-lg border border-borde bg-superficie p-1.5 text-principal" title="Ver Código QR"><QrCode size={15} /></button>}
@@ -506,7 +506,7 @@ const ProcesoSolicitudes = () => {
                                   <button
                                     onClick={() => handleApproval(item, 'Rechazado')}
                                     disabled={approvingId === item.id}
-                                    className="inline-flex items-center gap-1.5 rounded-lg border border-enfasis bg-suave px-2.5 py-1.5 text-xs font-semibold text-principal transition hover:bg-suave-hover disabled:opacity-50"
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-error-borde bg-error-fondo px-2.5 py-1.5 text-xs font-semibold text-error transition-colors hover:bg-error hover:text-inverso focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error focus-visible:ring-offset-2 disabled:opacity-50"
                                     title="Rechazar"
                                   >
                                     <XCircle size={14} /> Rechazar
