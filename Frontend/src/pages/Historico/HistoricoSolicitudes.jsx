@@ -74,8 +74,8 @@ const normalizeRequest = (item, modulo) => {
   return {
     id: item.ID_Acceso,
     code: `EXT-${String(item.ID_Acceso).slice(0, 8).toUpperCase()}`,
-    requester: item.empleado_nombre || item.nombre_solicitante || 'Sin solicitante',
-    requesterId: item.ID_Empleado || item.ID_Solicitante || item.ID_Usuario || item.id,
+    requester: item.solicitante_nombre || item.nombre_solicitante || item.empleado_nombre || 'Sin solicitante',
+    requesterId: item.ID_Solicitante ?? item.ID_Empleado ?? item.ID_Usuario ?? item.id,
     area: item.Area_Visita || 'Acceso externo',
     origin: item.planta_origen_nombre || 'Sin origen',
     destination: item.planta_destino_nombre || 'Sin destino',

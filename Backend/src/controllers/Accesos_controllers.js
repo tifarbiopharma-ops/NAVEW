@@ -5,6 +5,7 @@ import { obtenerColaboradoresACargo } from '../utils/organigrama/index.js';
 import { descartarOtrasAprobaciones, resolverAprobadoresSolicitud } from '../utils/verificarAprobadorSolicitud.js';
 import { ROLES_SUPERIORES } from '../middlewares/roles.js';
 import { responderError } from '../utils/errores.js';
+import { estadoAccesoEnBase, mostrarEstadoAcceso } from '../utils/estadosAcceso.js';
 
 const ROLES_SOLICITUD = new Set(['solicitante', 'jefe', 'administrador', 'subgerentegeneral', 'gerentegeneral', 'presidente', 'subgerente', 'gerente']);
 //colaborador 
@@ -92,8 +93,8 @@ const obtenerCatalogosAcceso = async (req, res) => {
 ;
 
 const crearAccesoExterno = async (req, res) => {
-	const idColaborador = req.user?.idColaborador;
-	if (!idColaborador) {
+	const idColaborador = Number(req.user?.idColaborador);
+	if (!Number.isSafeInteger(idColaborador) || idColaborador <= 0) {
 		return res.status(403).json({ msg: 'Tu usuario no tiene un colaborador asociado' });
 	}
 
@@ -124,6 +125,10 @@ const crearAccesoExterno = async (req, res) => {
 
 		if ([empresa, nombre_apellido, cedula, telefono, id_empleado_visitado, area_visita, id_planta_destino, fecha_visita].some((value) => !value)) {
 			return res.status(400).json({ msg: 'Completa todos los campos obligatorios de la visita' });
+		}
+		const idEmpleadoVisitado = Number(id_empleado_visitado);
+		if (!Number.isSafeInteger(idEmpleadoVisitado) || idEmpleadoVisitado <= 0) {
+			return res.status(400).json({ msg: 'La persona visitada debe ser un colaborador válido' });
 		}
 		if (!Number.isInteger(Number(numero_acompanantes)) || Number(numero_acompanantes) < 0 || Number(numero_acompanantes) > 20) {
 			return res.status(400).json({ msg: 'El número de acompañantes debe estar entre 0 y 20' });
@@ -169,7 +174,7 @@ const crearAccesoExterno = async (req, res) => {
 		const [empleado] = await connection.query(
 			`SELECT ID_COLABORADOR FROM Colaboradores
 			 WHERE ID_COLABORADOR = ? AND ESTADO = 'ACTIVO'`,
-			[id_empleado_visitado]
+			[idEmpleadoVisitado]
 		);
 		if (!empleado.length) {
 			await connection.rollback();
@@ -205,6 +210,7 @@ const crearAccesoExterno = async (req, res) => {
 		(
 			ID_Acceso,
 			ID_Externo,
+			ID_Solicitante,
 			Numero_Acompanantes,
 			ID_Empleado_Visitado,
 			Area_Visita,
@@ -215,18 +221,20 @@ const crearAccesoExterno = async (req, res) => {
 			Motivo,
 			Estado_Actual
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Solicitado')`,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		[
 			idAcceso,
 			idExterno,
-			Number(numero_acompanantes),
 			idColaborador,
+			Number(numero_acompanantes),
+			idEmpleadoVisitado,
 			area_visita.trim(),
 			idUbicacionDestino,
 			fecha_visita,
 			hora_ingreso || null,
 			hora_salida || null,
-			motivo?.trim() || null
+			motivo?.trim() || null,
+			estadoAccesoEnBase('Solicitado')
 		]
 		);
 
@@ -304,7 +312,7 @@ const obtenerAccesosExternos = async (req, res) => {
 
   try {
     const rol = (req.user?.rol || '').toLowerCase();
-    const params = [idColaborador];
+    const params = [idColaborador, estadoAccesoEnBase('Solicitado')];
 	let filtro = '';
 
     if (ROLES_SUPERIORES.includes(rol)) {
@@ -315,16 +323,16 @@ const obtenerAccesosExternos = async (req, res) => {
       ];
 
       filtro = `
-        WHERE a.ID_Empleado_Visitado IN (
+        WHERE (a.ID_Empleado_Visitado IN (
           ${idsPermitidos.map(() => '?').join(', ')}
-        )
+        ) OR a.ID_Solicitante = ?)
       `;
 
-      params.push(...idsPermitidos);
+      params.push(...idsPermitidos, idColaborador);
 
     } else if (!['administrador', 'supervisor'].includes(rol)) {
-      filtro = 'WHERE a.ID_Empleado_Visitado = ?';
-      params.push(idColaborador);
+      filtro = 'WHERE (a.ID_Empleado_Visitado = ? OR a.ID_Solicitante = ?)';
+      params.push(idColaborador, idColaborador);
     }
 
     const [accesos] = await pool.query(
@@ -337,9 +345,9 @@ const obtenerAccesosExternos = async (req, res) => {
         ext.Telefono AS externo_telefono,
 
         a.ID_Empleado_Visitado,
-        a.ID_Empleado_Visitado AS ID_Solicitante,
+        a.ID_Solicitante,
         col.NOMBRE AS solicitante_nombre,
-        col.NOMBRE AS empleado_nombre,
+        visitado.NOMBRE AS empleado_nombre,
 
         EXISTS (
           SELECT 1
@@ -348,7 +356,7 @@ const obtenerAccesosExternos = async (req, res) => {
             AND ap.ID_SOLICITUD = a.ID_Acceso
             AND ap.ID_APROBADOR = ?
             AND ap.ESTADO = 'PENDIENTE'
-            AND a.Estado_Actual = 'Solicitado'
+            AND a.Estado_Actual = ?
         ) AS puedeAprobar,
 
         a.Numero_Acompanantes,
@@ -370,7 +378,10 @@ const obtenerAccesosExternos = async (req, res) => {
         ON ext.ID_Externo = a.ID_Externo
 
       INNER JOIN Colaboradores col
-        ON col.ID_COLABORADOR = a.ID_Empleado_Visitado
+        ON col.ID_COLABORADOR = a.ID_Solicitante
+
+      INNER JOIN Colaboradores visitado
+        ON visitado.ID_COLABORADOR = a.ID_Empleado_Visitado
 
       INNER JOIN Ubicaciones p
         ON p.ID_UBICACIONES = a.ID_Ubicacion_Destino
@@ -417,6 +428,7 @@ const obtenerAccesosExternos = async (req, res) => {
       );
 
       accesos.forEach((acceso) => {
+        acceso.Estado_Actual = mostrarEstadoAcceso(acceso.Estado_Actual);
         acceso.acompanantes =
           acompanantesPorAcceso[acceso.ID_Acceso] || [];
 
@@ -465,7 +477,7 @@ const aprobarAccesoExterno = async (req, res) => {
 
 		await connection.beginTransaction();
 		const [accesoRows] = await connection.query(
-			'SELECT Numero_Acompanantes, Estado_Actual, ID_Empleado_Visitado AS ID_Solicitante FROM Accesos_Externos WHERE ID_Acceso = ? FOR UPDATE',
+			'SELECT Numero_Acompanantes, Estado_Actual, ID_Solicitante FROM Accesos_Externos WHERE ID_Acceso = ? FOR UPDATE',
 			[id]
 		);
 		if (!accesoRows.length) {
@@ -473,7 +485,7 @@ const aprobarAccesoExterno = async (req, res) => {
 			return res.status(404).json({ msg: 'La solicitud de acceso externo no existe' });
 		}
 		const numeroAcompanantes = Number(accesoRows[0].Numero_Acompanantes || 0);
-		const estadoAnterior = accesoRows[0].Estado_Actual;
+		const estadoAnterior = mostrarEstadoAcceso(accesoRows[0].Estado_Actual);
 		if (estadoAnterior !== 'Solicitado') {
 			await connection.rollback();
 			return res.status(409).json({ msg: 'La solicitud ya fue procesada' });
@@ -521,7 +533,7 @@ const aprobarAccesoExterno = async (req, res) => {
 			`UPDATE Accesos_Externos
 			 SET Estado_Actual = ?, QR_Token = ?
 			 WHERE ID_Acceso = ?`,
-			[estado, qrToken, id]
+			[estadoAccesoEnBase(estado), qrToken, id]
 		);
 
 		await connection.query(

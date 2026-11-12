@@ -4,6 +4,7 @@ import { registrarReporteTraslado } from '../utils/reportesTraslados.js';
 import { registrarReporteEnvio } from '../utils/reportesEnvios.js';
 import { estadoTrasladoEnBase, mostrarEstadoTraslado } from '../utils/estadosTraslado.js';
 import { estadoEnvioEnBase, mostrarEstadoEnvio } from '../utils/estadosEnvio.js';
+import { estadoAccesoEnBase, mostrarEstadoAcceso } from '../utils/estadosAcceso.js';
 import { notificarLlegadaPedido } from '../telegram/telegramService.js';
 
 const MINUTOS_COOLDOWN = 5; // 5 minutos anti-duplicado (mismo escaneo)
@@ -55,7 +56,8 @@ const verificarQRExterno = async (req, res) => {
     if (acceso.QR_Salida) {
       return res.status(400).json({ msg: 'Este código QR ya fue registrado en salida y entrada' });
     }
-    if (acceso.Estado_Actual !== 'Aprobado' && acceso.Estado_Actual !== 'Entrada registrada') {
+    const estadoActual = mostrarEstadoAcceso(acceso.Estado_Actual);
+    if (estadoActual !== 'Aprobado' && estadoActual !== 'Entrada registrada') {
       return res.status(400).json({ msg: 'El acceso externo no está disponible para escaneo' });
     }
 
@@ -67,10 +69,10 @@ const verificarQRExterno = async (req, res) => {
     const [resultado] = await connection.query(
       `UPDATE Accesos_Externos
        SET ${campo} = NOW(), Estado_Actual = ?,
-           Hora_Ingreso = IF(? = 'Entrada registrada', CURRENT_TIME(), Hora_Ingreso),
-           Hora_Salida = IF(? = 'Finalizado', CURRENT_TIME(), Hora_Salida)
+           Hora_Ingreso = IF(? = 'ENTRADA REGISTRADA', CURRENT_TIME(), Hora_Ingreso),
+           Hora_Salida = IF(? = 'FINALIZADO', CURRENT_TIME(), Hora_Salida)
        WHERE ID_Acceso = ? AND ${campo} IS NULL AND Estado_Actual = ?`,
-      [estado, estado, estado, acceso.ID_Acceso, acceso.Estado_Actual]
+      [estadoAccesoEnBase(estado), estadoAccesoEnBase(estado), estadoAccesoEnBase(estado), acceso.ID_Acceso, acceso.Estado_Actual]
     );
     if (!resultado.affectedRows) {
       if (enTransaccion) { await connection.rollback(); enTransaccion = false; }
@@ -81,7 +83,7 @@ const verificarQRExterno = async (req, res) => {
     await auditar(registrarReporteAcceso, {
       usuarioId: req.user.id, usuarioNombre: req.user.nombre,
       accion: esEntrada ? 'ENTRADA_QR' : 'SALIDA_QR', idAcceso: acceso.ID_Acceso,
-      estadoAnterior: acceso.Estado_Actual, estadoNuevo: estado,
+      estadoAnterior: estadoActual, estadoNuevo: estado,
       detalles: { escaneo: esEntrada ? 'ENTRADA' : 'SALIDA', numero_acompanantes: acompanantesQr }
     });
     return res.json({

@@ -76,7 +76,7 @@ const normalizeRequest = (item, module) => {
     id: item.ID_Acceso,
     code: `EXT-${String(item.ID_Acceso).slice(0, 8).toUpperCase()}`,
     requester: item.solicitante_nombre || item.nombre_solicitante || 'Sin solicitante identificado',
-    requesterId: item.ID_Empleado_Visitado,
+    requesterId: item.ID_Solicitante ?? item.ID_Empleado_Visitado,
     provider: item.externo_nombre || 'Sin visitante',
     company: item.externo_empresa || 'Sin empresa',
     identification: item.externo_cedula || 'Sin cédula',

@@ -467,11 +467,12 @@ CREATE TABLE `Envios_Paqueteria` (
 CREATE TABLE `Accesos_Externos` (
     `ID_Acceso` VARCHAR(36) NOT NULL,
     `ID_Externo` VARCHAR(64) NOT NULL,
+    `ID_Solicitante` INT NOT NULL,
     `ID_Empleado_Visitado` INT NOT NULL,
     `Numero_Acompanantes` INT NOT NULL DEFAULT 0,
 
     `Area_Visita` VARCHAR(100) NOT NULL,
-    `ID_Planta_Destino` VARCHAR(10) NOT NULL,
+    `ID_Ubicacion_Destino` INT NULL,
 
     `Fecha_Visita` DATE NOT NULL,
     `Hora_Ingreso` TIME NULL,
@@ -481,8 +482,9 @@ CREATE TABLE `Accesos_Externos` (
     `Estado_Actual` VARCHAR(30) NOT NULL,
 
     `QR_Token` TEXT NULL,
-    `QR_Salida` TEXT NULL,
-    `QR_Llegada` TEXT NULL,
+    `QR_Salida` DATETIME NULL,
+    `QR_Entrada` DATETIME NULL,
+    `Motivo_Cancelacion` VARCHAR(255) NULL,
 
     `Fecha_Creacion` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `Fecha_Actualizacion` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -490,9 +492,26 @@ CREATE TABLE `Accesos_Externos` (
     PRIMARY KEY (`ID_Acceso`),
 
     KEY `idx_accesos_externo` (`ID_Externo`),
+    KEY `idx_accesos_solicitante` (`ID_Solicitante`),
     KEY `idx_accesos_empleado_visitado` (`ID_Empleado_Visitado`),
-    KEY `idx_accesos_planta_destino` (`ID_Planta_Destino`),
+    KEY `idx_accesos_planta_destino` (`ID_Ubicacion_Destino`),
     KEY `idx_accesos_estado` (`Estado_Actual`),
+
+    CONSTRAINT `chk_accesos_estado`
+        CHECK (`Estado_Actual` COLLATE utf8mb4_bin IN (
+            'SOLICITADO',
+            'APROBADO',
+            'RECHAZADO',
+            'CANCELADO',
+            'ENTRADA REGISTRADA',
+            'FINALIZADO'
+        )),
+
+    CONSTRAINT `fk_accesos_solicitante`
+        FOREIGN KEY (`ID_Solicitante`)
+        REFERENCES `Colaboradores` (`ID_COLABORADOR`)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE,
 
     CONSTRAINT `fk_accesos_externo`
         FOREIGN KEY (`ID_Externo`)
@@ -507,8 +526,8 @@ CREATE TABLE `Accesos_Externos` (
         ON UPDATE CASCADE,
 
     CONSTRAINT `fk_accesos_planta_destino`
-        FOREIGN KEY (`ID_Planta_Destino`)
-        REFERENCES `Plantas` (`ID_Planta`)
+        FOREIGN KEY (`ID_Ubicacion_Destino`)
+        REFERENCES `Ubicaciones` (`ID_UBICACIONES`)
         ON DELETE RESTRICT
         ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
