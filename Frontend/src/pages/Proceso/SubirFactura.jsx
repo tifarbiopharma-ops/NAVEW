@@ -107,63 +107,63 @@ const SubirFactura = ({ traslado, token, onClose, onFinalizado }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-      <form onSubmit={enviar} className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-principal/40 p-4 backdrop-blur-sm">
+      <form onSubmit={enviar} className="relative w-full max-w-md rounded-2xl border border-borde bg-superficie p-6 shadow-xl">
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          className="absolute right-4 top-4 rounded-lg p-1 text-texto-muted hover:bg-superficie-muted hover:text-texto-secundario"
           title="Cerrar"
         >
           <X size={18} />
         </button>
 
         <div className="mb-4 flex items-center gap-3">
-          <div className="rounded-xl bg-[#e5effd] p-2.5 text-[#315b86]"><Receipt size={20} /></div>
+          <div className="rounded-xl bg-suave p-2.5 text-acento"><Receipt size={20} /></div>
           <div>
-            <h3 className="text-lg font-bold text-[#17243d]">Subir factura</h3>
-            <p className="text-xs text-slate-500">{traslado.code}</p>
+            <h3 className="text-lg font-bold text-principal">Subir factura</h3>
+            <p className="text-xs text-texto-muted">{traslado.code}</p>
           </div>
         </div>
 
-        <p className="text-sm text-slate-500">Adjunta una foto o PDF de la factura de tu traslado privado.</p>
+        <p className="text-sm text-texto-muted">Adjunta una foto o PDF de la factura de tu traslado privado.</p>
 
         <input ref={galleryFileRef} type="file" accept="image/*" onChange={seleccionar} className="hidden" />
         <input ref={uploadFileRef} type="file" accept="application/pdf,.pdf" onChange={seleccionar} className="hidden" />
         <div className="mt-5 grid grid-cols-3 gap-3">
-          <button type="button" onClick={abrirCamara} className="flex flex-col items-center gap-2 rounded-lg border border-slate-200 p-3 text-xs font-semibold text-[#315b86] hover:bg-slate-50">
+          <button type="button" onClick={abrirCamara} className="flex flex-col items-center gap-2 rounded-lg border border-borde p-3 text-xs font-semibold text-acento hover:bg-fondo">
             <Camera size={22} /> Cámara
           </button>
-          <button type="button" onClick={() => galleryFileRef.current?.click()} className="flex flex-col items-center gap-2 rounded-lg border border-slate-200 p-3 text-xs font-semibold text-[#315b86] hover:bg-slate-50">
+          <button type="button" onClick={() => galleryFileRef.current?.click()} className="flex flex-col items-center gap-2 rounded-lg border border-borde p-3 text-xs font-semibold text-acento hover:bg-fondo">
             <Image size={22} /> Galería
           </button>
-          <button type="button" onClick={() => uploadFileRef.current?.click()} className="flex flex-col items-center gap-2 rounded-lg border border-slate-200 p-3 text-xs font-semibold text-[#315b86] hover:bg-slate-50">
+          <button type="button" onClick={() => uploadFileRef.current?.click()} className="flex flex-col items-center gap-2 rounded-lg border border-borde p-3 text-xs font-semibold text-acento hover:bg-fondo">
             <Upload size={22} /> Archivos
           </button>
         </div>
-        <p className="mt-3 text-xs text-slate-500">
+        <p className="mt-3 text-xs text-texto-muted">
           {archivo ? `Archivo seleccionado: ${archivo.name}` : 'Cámara: foto. Galería: fotos. Archivos: PDF. Hasta 10 MB.'}
         </p>
-        {error && <p className="mt-2 text-xs font-semibold text-red-600">{error}</p>}
-        {camaraError && <p className="mt-2 text-xs font-semibold text-red-600">{camaraError}</p>}
+        {error && <p className="mt-2 text-xs font-semibold text-error">{error}</p>}
+        {camaraError && <p className="mt-2 text-xs font-semibold text-error">{camaraError}</p>}
 
         <button
           type="submit"
           disabled={enviando}
-          className="mt-5 w-full rounded-lg bg-[#17243d] py-2.5 text-sm font-semibold text-white transition hover:bg-[#223a5d] disabled:opacity-60"
+          className="mt-5 w-full rounded-lg bg-principal py-2.5 text-sm font-semibold text-inverso transition hover:bg-principal-hover disabled:opacity-60"
         >
           {enviando ? 'Subiendo...' : 'Subir factura y finalizar'}
         </button>
       </form>
       {camaraAbierta && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/70 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-4 shadow-xl">
-            <video ref={videoRef} autoPlay playsInline className="h-[55vh] w-full rounded-xl bg-black object-cover" />
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-principal/70 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-superficie p-4 shadow-xl">
+            <video ref={videoRef} autoPlay playsInline className="h-[55vh] w-full rounded-xl bg-principal object-cover" />
             <div className="mt-4 flex justify-end gap-2">
-              <button type="button" onClick={cerrarCamara} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600">
+              <button type="button" onClick={cerrarCamara} className="rounded-lg border border-borde px-4 py-2 text-sm font-semibold text-texto-secundario">
                 Cancelar
               </button>
-              <button type="button" onClick={tomarFoto} className="rounded-lg bg-[#17243d] px-4 py-2 text-sm font-semibold text-white">
+              <button type="button" onClick={tomarFoto} className="rounded-lg bg-principal px-4 py-2 text-sm font-semibold text-inverso">
                 Tomar foto
               </button>
             </div>

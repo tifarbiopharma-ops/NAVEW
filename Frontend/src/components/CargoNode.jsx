@@ -66,7 +66,7 @@ function CargoNode({ data }) {
             absolute -top-[13px] right-3.5
             rounded-[7px] bg-[var(--cargo-border)]
             px-2.5 py-1 text-[10px] font-bold
-            uppercase tracking-wide text-white
+            uppercase tracking-wide text-inverso
           "
         >
           Cargo máximo
@@ -89,7 +89,7 @@ function CargoNode({ data }) {
       <div className="flex-1">
         {colaboradores.length > 0 ? (
           <>
-            <ul className="m-0 list-none space-y-1 p-0 text-xs text-gray-700">
+            <ul className="m-0 list-none space-y-1 p-0 text-xs text-texto-secundario">
               {visibles.map((nombre, index) => (
                 <li
                   key={`${nombre}-${index}`}
@@ -124,13 +124,13 @@ function CargoNode({ data }) {
             </ul>
 
             {!mostrarTodos && colaboradores.length > 2 && (
-              <p className="mb-0 mt-1 text-[10px] text-gray-500">
+              <p className="mb-0 mt-1 text-[10px] text-texto-muted">
                 +{colaboradores.length - 2} colaboradores
               </p>
             )}
           </>
         ) : (
-          <p className="m-0 text-xs italic text-gray-500">
+          <p className="m-0 text-xs italic text-texto-muted">
             Vacante
           </p>
         )}

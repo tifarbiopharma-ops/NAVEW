@@ -276,30 +276,30 @@ const onSubmit = async (formData) => {
 
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+    <div className="min-h-screen bg-fondo p-4 md:p-8">
       <ToastContainer position="top-right" autoClose={4000} />
 
       <div className="mx-auto max-w-7xl space-y-1">
         {canCreate && (
           <div className="mb-4">
-            <h1 className="text-2xl font-bold text-[#17243d] md:text-3xl">
+            <h1 className="text-2xl font-bold text-principal md:text-3xl">
               Solicitud de Transporte
             </h1>
 
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-texto-muted">
               Registra una nueva solicitud de transporte para su respectiva gestión.
             </p>
           </div>
         )}
 
         {canCreate && (
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-7">
+          <div className="rounded-3xl border border-borde bg-superficie p-6 shadow-sm md:p-7">
             <div className="mb-6 flex items-center gap-3">
-              <div className="rounded-xl bg-[#17243d] p-2.5 text-white">
+              <div className="rounded-xl bg-principal p-2.5 text-inverso">
                 <ClipboardList size={19} />
               </div>
 
-              <h2 className="text-lg font-bold text-[#17243d]">
+              <h2 className="text-lg font-bold text-principal">
                 Datos de la solicitud
               </h2>
             </div>
@@ -328,8 +328,8 @@ const onSubmit = async (formData) => {
                   onClick={() => setTabIndex(id)}
                   className={`flex min-w-32 items-center justify-center gap-2 rounded-md border px-5 py-2.5 text-xs font-bold transition ${
                     tabIndex === id
-                      ? 'border-[#17243d] bg-[#17243d] text-white shadow-sm'
-                      : 'border-slate-200 bg-white text-[#315b86] hover:border-[#9ab2cc]'
+                      ? 'border-principal bg-principal text-inverso shadow-sm'
+                      : 'border-borde bg-superficie text-acento hover:border-borde-fuerte'
                   }`}
                 >
                   <Icon size={15} />
@@ -344,7 +344,7 @@ const onSubmit = async (formData) => {
             >
               {/* FECHA DE SALIDA */}
               <label className="space-y-1.5">
-                <span className="text-xs font-bold text-[#17243d]">
+                <span className="text-xs font-bold text-principal">
                   Fecha de salida
                 </span>
 
@@ -353,11 +353,11 @@ const onSubmit = async (formData) => {
                   {...register('fecha_salida', {
                     required: 'La fecha de salida es obligatoria',
                   })}
-                  className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"
+                  className="w-full rounded-md border border-borde bg-fondo px-3 py-2.5 text-sm outline-none focus:border-acento"
                 />
 
                 {errors.fecha_salida && (
-                  <span className="text-xs text-red-600">
+                  <span className="text-xs text-error">
                     {errors.fecha_salida.message}
                   </span>
                 )}
@@ -366,7 +366,7 @@ const onSubmit = async (formData) => {
               {/* CHOFER */}
               {tabIndex === 'EMPRESARIAL' && (
                 <label className="space-y-1.5">
-                  <span className="text-xs font-bold text-[#17243d]">
+                  <span className="text-xs font-bold text-principal">
                     Chofer
                   </span>
 
@@ -376,7 +376,7 @@ const onSubmit = async (formData) => {
                     })}
                     value={form.id_chofer ?? ''}
                     disabled={loadingChoferes}
-                    className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"
+                    className="w-full rounded-md border border-borde bg-fondo px-3 py-2.5 text-sm outline-none focus:border-acento"
                   >
                     <option key={loadingChoferes ? 'cargando' : 'listo'} value="" disabled>
                       {loadingChoferes
@@ -392,7 +392,7 @@ const onSubmit = async (formData) => {
                   </select>
 
                   {errors.id_chofer && (
-                    <span className="text-xs text-red-600">
+                    <span className="text-xs text-error">
                       {errors.id_chofer.message}
                     </span>
                   )}
@@ -401,7 +401,7 @@ const onSubmit = async (formData) => {
 
               {/* HORA DE SALIDA */}
               <label className="space-y-1.5">
-                <span className="text-xs font-bold text-[#17243d]">
+                <span className="text-xs font-bold text-principal">
                   Hora de salida
                 </span>
 
@@ -410,11 +410,11 @@ const onSubmit = async (formData) => {
                   {...register('hora_salida', {
                     required: 'La hora de salida es obligatoria',
                   })}
-                  className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"
+                  className="w-full rounded-md border border-borde bg-fondo px-3 py-2.5 text-sm outline-none focus:border-acento"
                 />
 
                 {errors.hora_salida && (
-                  <span className="text-xs text-red-600">
+                  <span className="text-xs text-error">
                     {errors.hora_salida.message}
                   </span>
                 )}
@@ -424,7 +424,7 @@ const onSubmit = async (formData) => {
 
               {/* PLANTA DE ORIGEN */}
               <label className="space-y-1.5">
-                <span className="text-xs font-bold text-[#17243d]">
+                <span className="text-xs font-bold text-principal">
                   Planta de origen
                 </span>
 
@@ -445,7 +445,7 @@ const onSubmit = async (formData) => {
                     );
                   }}
                   disabled={loadingPlantas}
-                  className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"
+                  className="w-full rounded-md border border-borde bg-fondo px-3 py-2.5 text-sm outline-none focus:border-acento"
                 >
                   <option key={loadingPlantas ? 'cargando' : 'listo'} value="" disabled>
                     {loadingPlantas
@@ -468,7 +468,7 @@ const onSubmit = async (formData) => {
                 </select>
 
                 {errors.id_planta_origen && (
-                  <span className="text-xs text-red-600">
+                  <span className="text-xs text-error">
                     {errors.id_planta_origen.message}
                   </span>
                 )}
@@ -476,7 +476,7 @@ const onSubmit = async (formData) => {
 
               {/* PLANTA DE DESTINO */}
               <label className="space-y-1.5">
-                <span className="text-xs font-bold text-[#17243d]">
+                <span className="text-xs font-bold text-principal">
                   Planta de destino
                 </span>
 
@@ -486,7 +486,7 @@ const onSubmit = async (formData) => {
                   })}
                   value={form.id_planta_destino ?? ''}
                   disabled={loadingPlantas}
-                  className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"
+                  className="w-full rounded-md border border-borde bg-fondo px-3 py-2.5 text-sm outline-none focus:border-acento"
                 >
                   <option key={loadingPlantas ? 'cargando' : 'listo'} value="" disabled>
                     {loadingPlantas
@@ -509,7 +509,7 @@ const onSubmit = async (formData) => {
                 </select>
 
                 {errors.id_planta_destino && (
-                  <span className="text-xs text-red-600">
+                  <span className="text-xs text-error">
                     {errors.id_planta_destino.message}
                   </span>
                 )}
@@ -517,7 +517,7 @@ const onSubmit = async (formData) => {
 
               {/* MOTIVO */}
               <label className="space-y-1.5 md:col-span-2">
-                <span className="text-xs font-bold text-[#17243d]">
+                <span className="text-xs font-bold text-principal">
                   Motivo
                 </span>
 
@@ -530,11 +530,11 @@ const onSubmit = async (formData) => {
                   })}
                   rows={2}
                   placeholder="Ingrese el motivo de la salida..."
-                  className="w-full resize-none rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none placeholder:text-slate-400 focus:border-[#315b86]"
+                  className="w-full resize-none rounded-md border border-borde bg-fondo px-3 py-2.5 text-sm outline-none placeholder:text-texto-muted focus:border-acento"
                 />
 
                 {errors.motivo_viaje && (
-                  <span className="text-xs text-red-600">
+                  <span className="text-xs text-error">
                     {errors.motivo_viaje.message}
                   </span>
                 )}
@@ -544,7 +544,7 @@ const onSubmit = async (formData) => {
               {(tabIndex === 'PERSONAL' ||
                 tabIndex === 'PRIVADO') && (
                 <label className="space-y-1.5">
-                  <span className="text-xs font-bold text-[#17243d]">
+                  <span className="text-xs font-bold text-principal">
                     Monto $
                   </span>
 
@@ -562,11 +562,11 @@ const onSubmit = async (formData) => {
                       valueAsNumber: true,
                     })}
                     placeholder="$1.50"
-                    className="w-full rounded-md border border-slate-200 bg-[#f5f7fa] px-3 py-2.5 text-sm outline-none placeholder:text-slate-400 focus:border-[#315b86]"
+                    className="w-full rounded-md border border-borde bg-fondo px-3 py-2.5 text-sm outline-none placeholder:text-texto-muted focus:border-acento"
                   />
 
                   {errors.monto_solicitado && (
-                    <span className="text-xs text-red-600">
+                    <span className="text-xs text-error">
                       {errors.monto_solicitado.message}
                     </span>
                   )}
@@ -579,7 +579,7 @@ const onSubmit = async (formData) => {
                   type="submit"
                   disabled={isGenerating}
                   aria-busy={isGenerating}
-                  className="inline-flex items-center gap-2 rounded-md bg-[#17243d] px-5 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#223a5d] disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-md bg-principal px-5 py-2.5 text-xs font-bold text-inverso shadow-sm transition hover:bg-principal-hover disabled:opacity-60"
                 >
                   <span className="inline-flex shrink-0" aria-hidden="true" translate="no">
                     <LoaderCircle

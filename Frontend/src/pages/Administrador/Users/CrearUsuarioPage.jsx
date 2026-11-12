@@ -399,28 +399,28 @@ const CrearUsuarioPage = () => {
   // ==========================================
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-fondo text-principal">
       <ToastContainer />
 
       <div className="max-w-6xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
 
         <div className="space-y-4 mb-6">
           <div className="space-y-2">
-            <p className="text-sm uppercase tracking-[0.22em] text-slate-500">
+            <p className="text-sm uppercase tracking-[0.22em] text-texto-muted">
               Administración de usuarios
             </p>
 
-            <h1 className="text-4xl font-semibold text-slate-950">
+            <h1 className="text-4xl font-semibold text-principal">
               Crear nuevo usuario
             </h1>
 
-            <p className="max-w-2xl text-slate-600">
+            <p className="max-w-2xl text-texto-secundario">
               Registra un nuevo usuario para que pueda acceder al sistema.
             </p>
           </div>
         </div>
 
-        <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/50">
+        <div className="rounded-4xl border border-borde bg-superficie p-6 shadow-sm shadow-borde/50">
 
           <form
             onSubmit={handleSubmit(onSubmit)}
@@ -431,17 +431,17 @@ const CrearUsuarioPage = () => {
               {/* NOMBRE */}
 
               <div className="flex flex-col">
-                <label className="text-slate-800 font-semibold mb-2">
+                <label className="text-principal font-semibold mb-2">
                   Nombre *
                 </label>
 
                 <input
                   type="text"
                   placeholder="Apellidos y nombres del colaborador"
-                  className={`rounded-3xl border px-4 py-3 text-slate-900 outline-none transition focus:ring-2 ${
+                  className={`rounded-3xl border px-4 py-3 text-principal outline-none transition focus:ring-2 ${
                     errors.nombre
-                      ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-100'
-                      : 'border-slate-200 bg-slate-50 focus:border-slate-400 focus:ring-slate-200'
+                      ? 'border-error-borde bg-error-fondo focus:border-error-borde focus:ring-error-fondo'
+                      : 'border-borde bg-fondo focus:border-acento focus:ring-suave'
                   }`}
                   {...register('nombre', {
                     validate: validateNombre
@@ -451,13 +451,13 @@ const CrearUsuarioPage = () => {
                 />
 
                 {errors.nombre && (
-                  <p className="text-red-600 text-sm mt-2 font-medium">
+                  <p className="text-error text-sm mt-2 font-medium">
                     {errors.nombre.message}
                   </p>
                 )}
 
                 {buscandoColaborador && (
-                  <p className="mt-2 text-xs text-slate-500">
+                  <p className="mt-2 text-xs text-texto-muted">
                     Buscando colaborador...
                   </p>
                 )}
@@ -465,7 +465,7 @@ const CrearUsuarioPage = () => {
                 {!buscandoColaborador &&
                   cedulaActual?.length === 10 &&
                   !colaboradorEncontrado && (
-                    <p className="mt-2 text-xs font-medium text-red-600">
+                    <p className="mt-2 text-xs font-medium text-error">
                       No se encontró un colaborador con esa cédula.
                     </p>
                   )}
@@ -474,7 +474,7 @@ const CrearUsuarioPage = () => {
               {/* CÉDULA */}
 
               <div className="flex flex-col">
-                <label className="text-slate-800 font-semibold mb-2">
+                <label className="text-principal font-semibold mb-2">
                   Cédula *
                 </label>
 
@@ -483,10 +483,10 @@ const CrearUsuarioPage = () => {
                   placeholder="Ej: 1234567890"
                   inputMode="numeric"
                   maxLength={10}
-                  className={`rounded-3xl border px-4 py-3 text-slate-900 outline-none transition focus:ring-2 ${
+                  className={`rounded-3xl border px-4 py-3 text-principal outline-none transition focus:ring-2 ${
                     errors.cedula
-                      ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-100'
-                      : 'border-slate-200 bg-slate-50 focus:border-slate-400 focus:ring-slate-200'
+                      ? 'border-error-borde bg-error-fondo focus:border-error-borde focus:ring-error-fondo'
+                      : 'border-borde bg-fondo focus:border-acento focus:ring-suave'
                   }`}
                   {...register('cedula', {
                     validate: validateCedula
@@ -494,13 +494,13 @@ const CrearUsuarioPage = () => {
                 />
 
                 {errors.cedula && (
-                  <p className="text-red-600 text-sm mt-2 font-medium">
+                  <p className="text-error text-sm mt-2 font-medium">
                     {errors.cedula.message}
                   </p>
                 )}
 
                 {isValidating && !errors.cedula && (
-                  <p className="text-slate-500 text-xs mt-2">
+                  <p className="text-texto-muted text-xs mt-2">
                     Verificando cédula...
                   </p>
                 )}
@@ -509,7 +509,7 @@ const CrearUsuarioPage = () => {
               {/* USERNAME AUTOMÁTICO */}
 
               <div className="flex flex-col">
-                <label className="text-slate-800 font-semibold mb-2">
+                <label className="text-principal font-semibold mb-2">
                   Nombre de usuario *
                 </label>
 
@@ -518,10 +518,10 @@ const CrearUsuarioPage = () => {
                   placeholder="Se genera automáticamente"
                   value={usernameActual || ''}
                   readOnly
-                  className="rounded-3xl border border-slate-200 bg-slate-100 px-4 py-3 font-semibold text-[#17243D] outline-none placeholder:font-normal placeholder:text-slate-400"
+                  className="rounded-3xl border border-borde bg-superficie-muted px-4 py-3 font-semibold text-principal outline-none placeholder:font-normal placeholder:text-texto-muted"
                 />
 
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 text-xs text-texto-muted">
                   Se genera con la primera letra del primer nombre
                   y el primer apellido, en mayúsculas.
                 </p>
@@ -530,17 +530,17 @@ const CrearUsuarioPage = () => {
               {/* EMAIL OPCIONAL */}
 
               <div className="flex flex-col">
-                <label className="text-slate-800 font-semibold mb-2">
+                <label className="text-principal font-semibold mb-2">
                   Correo electrónico (opcional)
                 </label>
 
                 <input
                   type="email"
                   placeholder="usuario@farbiopharma.com"
-                  className={`rounded-3xl border px-4 py-3 text-slate-900 outline-none transition focus:ring-2 ${
+                  className={`rounded-3xl border px-4 py-3 text-principal outline-none transition focus:ring-2 ${
                     errors.email
-                      ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-100'
-                      : 'border-slate-200 bg-slate-50 focus:border-slate-400 focus:ring-slate-200'
+                      ? 'border-error-borde bg-error-fondo focus:border-error-borde focus:ring-error-fondo'
+                      : 'border-borde bg-fondo focus:border-acento focus:ring-suave'
                   }`}
                   {...register('email', {
                     validate: validateEmail
@@ -548,7 +548,7 @@ const CrearUsuarioPage = () => {
                 />
 
                 {errors.email && (
-                  <p className="text-red-600 text-sm mt-2 font-medium">
+                  <p className="text-error text-sm mt-2 font-medium">
                     {errors.email.message}
                   </p>
                 )}
@@ -557,15 +557,15 @@ const CrearUsuarioPage = () => {
               {/* ROL */}
 
               <div className="flex flex-col">
-                <label className="text-slate-800 font-semibold mb-2">
+                <label className="text-principal font-semibold mb-2">
                   Rol *
                 </label>
 
                 <select
-                  className={`rounded-3xl border px-4 py-3 text-slate-900 outline-none transition focus:ring-2 ${
+                  className={`rounded-3xl border px-4 py-3 text-principal outline-none transition focus:ring-2 ${
                     errors.rol
-                      ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-100'
-                      : 'border-slate-200 bg-slate-50 focus:border-slate-400 focus:ring-slate-200'
+                      ? 'border-error-borde bg-error-fondo focus:border-error-borde focus:ring-error-fondo'
+                      : 'border-borde bg-fondo focus:border-acento focus:ring-suave'
                   }`}
                   {...register('rol', {
                     required: 'El rol es obligatorio'
@@ -584,7 +584,7 @@ const CrearUsuarioPage = () => {
                 </select>
 
                 {errors.rol && (
-                  <p className="text-red-600 text-sm mt-2 font-medium">
+                  <p className="text-error text-sm mt-2 font-medium">
                     {errors.rol.message}
                   </p>
                 )}
@@ -593,7 +593,7 @@ const CrearUsuarioPage = () => {
               {/* CONTRASEÑA */}
 
               <div className="flex flex-col">
-                <label className="text-slate-800 font-semibold mb-2">
+                <label className="text-principal font-semibold mb-2">
                   Contraseña *
                 </label>
 
@@ -602,10 +602,10 @@ const CrearUsuarioPage = () => {
                     type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••••••••"
                     autoComplete="new-password"
-                    className={`w-full rounded-3xl border px-4 py-3 pr-12 text-slate-900 outline-none transition focus:ring-2 ${
+                    className={`w-full rounded-3xl border px-4 py-3 pr-12 text-principal outline-none transition focus:ring-2 ${
                       errors.password
-                        ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-100'
-                        : 'border-slate-200 bg-slate-50 focus:border-slate-400 focus:ring-slate-200'
+                        ? 'border-error-borde bg-error-fondo focus:border-error-borde focus:ring-error-fondo'
+                        : 'border-borde bg-fondo focus:border-acento focus:ring-suave'
                     }`}
                     {...register('password', {
                       validate: validatePassword
@@ -622,7 +622,7 @@ const CrearUsuarioPage = () => {
                         ? 'Ocultar contraseña'
                         : 'Mostrar contraseña'
                     }
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-900"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-texto-muted hover:text-principal"
                   >
                     {showPassword ? (
                       <svg
@@ -631,7 +631,7 @@ const CrearUsuarioPage = () => {
                         height="22"
                         viewBox="0 0 24 24"
                         fill="none"
-                        stroke="#000000"
+                        stroke="currentColor"
                         strokeWidth="2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -646,7 +646,7 @@ const CrearUsuarioPage = () => {
                         height="22"
                         viewBox="0 0 24 24"
                         fill="none"
-                        stroke="#000000"
+                        stroke="currentColor"
                         strokeWidth="2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -660,7 +660,7 @@ const CrearUsuarioPage = () => {
                 </div>
 
                 {errors.password && (
-                  <p className="text-red-600 text-sm mt-2 font-medium">
+                  <p className="text-error text-sm mt-2 font-medium">
                     {errors.password.message}
                   </p>
                 )}
@@ -673,7 +673,7 @@ const CrearUsuarioPage = () => {
               <button
                 type="button"
                 onClick={handleExit}
-                className="rounded-3xl border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                className="rounded-3xl border border-borde-fuerte bg-superficie px-6 py-3 text-sm font-semibold text-texto-secundario transition hover:bg-fondo"
               >
                 Cancelar
               </button>
@@ -686,7 +686,7 @@ const CrearUsuarioPage = () => {
                   buscandoColaborador ||
                   !colaboradorEncontrado
                 }
-                className="rounded-3xl bg-[#17243D] px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-3xl bg-principal px-6 py-3 text-sm font-semibold text-inverso transition hover:bg-principal-hover disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {enviando
                   ? 'Creando...'

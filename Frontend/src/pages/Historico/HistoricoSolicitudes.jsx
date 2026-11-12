@@ -167,16 +167,16 @@ const HistoricoSolicitudes = () => {
 
   return (
     <>
-      <div className="min-h-full bg-[#f4f7fa] p-4 md:p-8">
+      <div className="min-h-full bg-fondo p-4 md:p-8">
         <div className="mx-auto max-w-6xl">
           <div className="mb-5">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#718098]">Histórico</p>
-            <h1 className="mt-2 text-2xl font-bold text-[#17243d] md:text-3xl">{config.title}</h1>
-            <p className="mt-1 text-sm text-slate-500">Consulta el historial de solicitudes completadas.</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-texto-muted">Histórico</p>
+            <h1 className="mt-2 text-2xl font-bold text-principal md:text-3xl">{config.title}</h1>
+            <p className="mt-1 text-sm text-texto-muted">Consulta el historial de solicitudes completadas.</p>
           </div>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
-            <h2 className="text-base font-bold text-[#17243d]">Solicitudes finalizadas</h2>
+          <section className="rounded-2xl border border-borde bg-superficie p-5 shadow-sm md:p-6">
+            <h2 className="text-base font-bold text-principal">Solicitudes finalizadas</h2>
 
             {/* Botones de filtro: solo en Paquetería */}
             {mostrarFiltrosScope && (
@@ -185,8 +185,8 @@ const HistoricoSolicitudes = () => {
                   onClick={() => setScope('TODOS')}
                   className={`rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition-all ${
                     scope === 'TODOS'
-                      ? 'bg-[#17243d] text-white'
-                      : 'border border-slate-200 bg-blue-50/60 text-[#315b86] hover:bg-blue-100/70'
+                      ? 'bg-principal text-inverso'
+                      : 'border border-borde bg-suave/60 text-acento hover:bg-suave-hover/70'
                   }`}
                 >
                   Todas las Solicitudes
@@ -196,8 +196,8 @@ const HistoricoSolicitudes = () => {
                     onClick={() => setScope('MIS_SOLICITUDES')}
                     className={`rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition-all ${
                       scope === 'MIS_SOLICITUDES'
-                        ? 'bg-[#17243d] text-white'
-                        : 'border border-slate-200 bg-blue-50/60 text-[#315b86] hover:bg-blue-100/70'
+                        ? 'bg-principal text-inverso'
+                        : 'border border-borde bg-suave/60 text-acento hover:bg-suave-hover/70'
                     }`}
                   >
                     Mis Solicitudes
@@ -208,60 +208,60 @@ const HistoricoSolicitudes = () => {
 
             <div className="mt-4">
               <label className="relative block">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-texto-muted" />
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Buscar por código o solicitante..."
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-[#315b86]"
+                  className="w-full rounded-lg border border-borde bg-fondo py-2.5 pl-9 pr-3 text-sm outline-none focus:border-acento"
                 />
               </label>
             </div>
 
             {loading ? (
-              <div className="flex items-center gap-2 py-12 text-sm text-slate-500">
+              <div className="flex items-center gap-2 py-12 text-sm text-texto-muted">
                 <LoaderCircle className="animate-spin" size={18} /> Cargando histórico...
               </div>
             ) : filteredRequests.length === 0 ? (
-              <div className="mt-4 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-10 text-center text-sm text-slate-500">
+              <div className="mt-4 rounded-lg border border-dashed border-borde bg-fondo p-10 text-center text-sm text-texto-muted">
                 {config.empty}
               </div>
             ) : (
               <>
               <div className="mt-4 md:hidden">
-                <div className="divide-y divide-slate-200 border-y border-slate-200">
+                <div className="divide-y divide-borde border-y border-borde">
                   {filteredRequests.map((item) => {
                     const isExpanded = expandedRequestId === item.id;
                     return (
-                      <div key={item.id} className="bg-white">
+                      <div key={item.id} className="bg-superficie">
                         <button
                           type="button"
                           onClick={() => setExpandedRequestId(isExpanded ? null : item.id)}
                           className="flex w-full items-center gap-3 px-2 py-3 text-left"
                           aria-expanded={isExpanded}
                         >
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#17243d] text-white">
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-principal text-inverso">
                             <ChevronDown size={15} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                           </span>
                           <span className="min-w-0 flex-1">
-                            <span className="flex items-center justify-between gap-2 text-[10px] text-slate-500">
+                            <span className="flex items-center justify-between gap-2 text-[10px] text-texto-muted">
                               <span className="font-semibold">Código</span>
                               <span className="font-semibold">Solicitante</span>
                             </span>
-                            <span className="mt-1 flex items-start justify-between gap-3 text-[11px] text-[#17243d]">
+                            <span className="mt-1 flex items-start justify-between gap-3 text-[11px] text-principal">
                               <span className="font-bold">{item.code}</span>
                               <span className="truncate text-right">{item.requester}</span>
                             </span>
                           </span>
                         </button>
                         {isExpanded && (
-                          <div className="grid grid-cols-2 gap-3 bg-slate-50 px-11 pb-3 pr-3 text-[11px] text-slate-600">
-                            <div><p className="text-[10px] font-semibold uppercase text-slate-400">{modulo === 'externo' ? 'Área / planta de visita' : 'Área / plantas'}</p><p>{item.area}</p><p>{ubicacionSolicitud(item, modulo)}</p></div>
-                            <div><p className="text-[10px] font-semibold uppercase text-slate-400">Fecha</p><p>{String(item.date || '').slice(0, 10)}</p></div>
-                            <div><p className="text-[10px] font-semibold uppercase text-slate-400">Estado</p><span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">Finalizado</span></div>
+                          <div className="grid grid-cols-2 gap-3 bg-fondo px-11 pb-3 pr-3 text-[11px] text-texto-secundario">
+                            <div><p className="text-[10px] font-semibold uppercase text-texto-muted">{modulo === 'externo' ? 'Área / planta de visita' : 'Área / plantas'}</p><p>{item.area}</p><p>{ubicacionSolicitud(item, modulo)}</p></div>
+                            <div><p className="text-[10px] font-semibold uppercase text-texto-muted">Fecha</p><p>{String(item.date || '').slice(0, 10)}</p></div>
+                            <div><p className="text-[10px] font-semibold uppercase text-texto-muted">Estado</p><span className="inline-flex rounded-full bg-exito-fondo px-2.5 py-1 font-semibold text-exito">Finalizado</span></div>
                             {mostrarFacturas && item.tieneFactura && (
                               <div className="flex items-end">
-                                <button onClick={() => setFacturaDe(item)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#315b86] px-2.5 py-1.5 font-semibold text-white" title="Ver factura">
+                                <button onClick={() => setFacturaDe(item)} className="inline-flex items-center gap-1.5 rounded-lg bg-acento px-2.5 py-1.5 font-semibold text-inverso" title="Ver factura">
                                   <Receipt size={14} /> Ver factura
                                 </button>
                               </div>
@@ -275,7 +275,7 @@ const HistoricoSolicitudes = () => {
               </div>
               <div className="mt-4 hidden overflow-x-auto md:block">
                 <table className="min-w-full text-left text-xs">
-                  <thead className="border-y border-slate-200 bg-slate-50 text-[10px] uppercase text-slate-500">
+                  <thead className="border-y border-borde bg-fondo text-[10px] uppercase text-texto-muted">
                     <tr>
                       <th className="px-3 py-3">Código</th>
                       <th className="px-3 py-3">Solicitante</th>
@@ -287,16 +287,16 @@ const HistoricoSolicitudes = () => {
                   </thead>
                   <tbody>
                     {filteredRequests.map((item) => (
-                      <tr key={item.id} className="border-b border-slate-100 last:border-0">
-                        <td className="px-3 py-4 font-bold text-[#17243d]">{item.code}</td>
-                        <td className="px-3 py-4 text-slate-600">{item.requester}</td>
-                        <td className="px-3 py-4 text-slate-600">
+                      <tr key={item.id} className="border-b border-borde-suave last:border-0">
+                        <td className="px-3 py-4 font-bold text-principal">{item.code}</td>
+                        <td className="px-3 py-4 text-texto-secundario">{item.requester}</td>
+                        <td className="px-3 py-4 text-texto-secundario">
                           <div>{ubicacionSolicitud(item, modulo)}</div>
-                          <div className="mt-1 text-[10px] text-slate-400">{item.area}</div>
+                          <div className="mt-1 text-[10px] text-texto-muted">{item.area}</div>
                         </td>
-                        <td className="px-3 py-4 text-slate-600">{String(item.date || '').slice(0, 10)}</td>
+                        <td className="px-3 py-4 text-texto-secundario">{String(item.date || '').slice(0, 10)}</td>
                         <td className="px-3 py-4">
-                          <span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">
+                          <span className="rounded-full bg-exito-fondo px-3 py-1 font-semibold text-exito">
                             Finalizado
                           </span>
                         </td>
@@ -305,13 +305,13 @@ const HistoricoSolicitudes = () => {
                             {item.tieneFactura ? (
                               <button
                                 onClick={() => setFacturaDe(item)}
-                                className="inline-flex items-center gap-1.5 rounded-lg bg-[#315b86] px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-[#223a5d]"
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-acento px-2.5 py-1.5 text-xs font-semibold text-inverso transition hover:bg-principal-hover"
                                 title="Ver factura"
                               >
                                 <Receipt size={14} /> Ver factura
                               </button>
                             ) : (
-                              <span className="text-slate-300">—</span>
+                              <span className="text-nav-texto">—</span>
                             )}
                           </td>
                         )}

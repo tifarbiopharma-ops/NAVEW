@@ -11,15 +11,15 @@ const UsuariosList = ({
   return (
     <div className="w-full min-w-0">
       {loading ? (
-        <div className="py-16 text-center text-slate-500">
+        <div className="py-16 text-center text-texto-muted">
           Cargando usuarios...
         </div>
       ) : usuarios.length === 0 ? (
-        <div className="py-16 text-center text-slate-500">
+        <div className="py-16 text-center text-texto-muted">
           No se encontraron usuarios.
         </div>
       ) : (
-        <div className="w-full min-w-0 overflow-x-auto rounded-xl border border-slate-200">
+        <div className="w-full min-w-0 overflow-x-auto rounded-xl border border-borde">
           <table className="w-full min-w-[980px] table-fixed text-xs xl:text-sm">
 
             <colgroup>
@@ -33,7 +33,7 @@ const UsuariosList = ({
               <col style={{ width: '14%' }} />
             </colgroup>
 
-            <thead className="bg-slate-950 text-white">
+            <thead className="bg-principal text-inverso">
               <tr>
                 <th className="px-2 py-4 text-left font-semibold tracking-wide">
                   ID
@@ -69,35 +69,35 @@ const UsuariosList = ({
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-slate-200 bg-white">
+            <tbody className="divide-y divide-borde bg-superficie">
               {usuarios.map((usuario, index) => (
                 <tr
                   key={usuario.id}
-                  className={`transition-colors hover:bg-blue-50 ${
+                  className={`transition-colors hover:bg-suave ${
                     index % 2 === 0
-                      ? 'bg-slate-50'
-                      : 'bg-white'
+                      ? 'bg-fondo'
+                      : 'bg-superficie'
                   }`}
                 >
                   {/* ID */}
-                  <td className="px-2 py-4 text-slate-800">
+                  <td className="px-2 py-4 text-principal">
                     {usuario.id}
                   </td>
 
                   {/* NOMBRE */}
-                  <td className="px-2 py-4 font-medium text-slate-900 break-words">
+                  <td className="px-2 py-4 font-medium text-principal break-words">
                     {usuario.nombre || 'Sin nombre'}
                   </td>
 
                   {/* USERNAME */}
-                  <td className="px-2 py-4 font-semibold text-[#17243D] break-words">
+                  <td className="px-2 py-4 font-semibold text-principal break-words">
                     {usuario.username
                       ? String(usuario.username).toUpperCase()
                       : 'Sin asignar'}
                   </td>
 
                   {/* CORREO */}
-                  <td className="px-2 py-4 text-slate-700">
+                  <td className="px-2 py-4 text-texto-secundario">
                     <span
                       className="block truncate"
                       title={usuario.email || ''}
@@ -107,7 +107,7 @@ const UsuariosList = ({
                   </td>
 
                   {/* CÉDULA */}
-                  <td className="px-2 py-4 text-slate-700 whitespace-nowrap">
+                  <td className="px-2 py-4 text-texto-secundario whitespace-nowrap">
                     {usuario.cedula}
                   </td>
 
@@ -115,7 +115,7 @@ const UsuariosList = ({
                   <td className="px-2 py-4">
                     <span
                       title={usuario.rol || ''}
-                      className="inline-flex max-w-full items-center rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-700"
+                      className="inline-flex max-w-full items-center rounded-full bg-superficie-muted px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-texto-secundario"
                     >
                       <span className="block truncate">
                         {usuario.rol || '—'}
@@ -124,7 +124,7 @@ const UsuariosList = ({
                   </td>
 
                   {/* FECHA DE CREACIÓN */}
-                  <td className="px-2 py-4 whitespace-nowrap text-slate-700">
+                  <td className="px-2 py-4 whitespace-nowrap text-texto-secundario">
                     {usuario.created_at
                       ? new Date(
                           usuario.created_at
@@ -138,7 +138,7 @@ const UsuariosList = ({
                       <button
                         type="button"
                         onClick={() => onEdit(usuario)}
-                        className="shrink-0 rounded-xl bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+                        className="shrink-0 rounded-xl bg-principal px-3 py-2 text-xs font-semibold text-inverso transition hover:bg-principal-hover"
                       >
                         Editar
                       </button>

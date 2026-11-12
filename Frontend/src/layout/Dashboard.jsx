@@ -130,19 +130,19 @@ const Dashboard = () => {
   }, []);
 
   const navItemClass = (active) => `group flex items-center gap-1 rounded-md px-1.5 py-2 text-[9px] transition md:gap-3 md:px-3 md:py-3 md:text-sm [&>svg]:h-3 [&>svg]:w-3 md:[&>svg]:h-[18px] md:[&>svg]:w-[18px] ${
-    active ? "bg-[#285789] font-bold text-white" : "text-[#aab8cf] hover:bg-[#1d3558] hover:text-white"
+    active ? "bg-acento font-bold text-inverso" : "text-nav-texto hover:bg-principal-hover hover:text-inverso"
   } ${isCollapsed ? "justify-center" : ""}`;
 
   return (
-    <div className="flex h-screen flex-col bg-[#f4f7fa] font-sans text-[#17243d] md:flex-row">
+    <div className="flex h-screen flex-col bg-fondo font-sans text-principal md:flex-row">
       
       {/* HEADER MÓVIL */}
-      <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:hidden">
-        <div className="text-lg font-black tracking-tight text-[#17243d]">NA<span className="text-[#3970a8]">VE</span>W</div>
+      <div className="flex shrink-0 items-center justify-between border-b border-borde bg-superficie px-4 py-3 md:hidden">
+        <div className="text-lg font-black tracking-tight text-principal">NA<span className="text-marca">VE</span>W</div>
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           aria-label={mobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
-          className="flex h-10 w-10 items-center justify-center rounded-md bg-slate-100 text-[#17243d] transition hover:bg-[#17243d] hover:text-white"
+          className="flex h-10 w-10 items-center justify-center rounded-md bg-superficie-muted text-principal transition hover:bg-principal hover:text-inverso"
         >
           {mobileMenuOpen ? <X size={21} /> : <Menu size={21} />}
         </button>
@@ -150,21 +150,21 @@ const Dashboard = () => {
 
       {/* SIDEBAR */}
       <aside
-        className={`fixed md:relative z-50 transition-all duration-300 ease-in-out bg-[#142744] flex flex-col h-full
+        className={`fixed md:relative z-50 transition-all duration-300 ease-in-out bg-principal flex flex-col h-full
           ${mobileMenuOpen ? "left-0" : "-left-full"} md:left-0 
           ${isCollapsed ? "w-16 md:w-20" : "w-[102px] md:w-50.5"}`}
       >
         <div className="flex h-full flex-col px-1 py-3 md:px-3 md:py-6">
           <div className={`mb-4 px-1 md:mb-8 md:px-3 ${isCollapsed ? "text-center" : ""}`}>
-            <div className="text-[11px] font-black tracking-tight text-white md:text-xl">NA<span className="text-[#77a8d2]">VE</span>W</div>
-            {!isCollapsed && <p className="mt-0.5 text-[5px] font-medium tracking-[0.08em] text-[#9aacbf] md:mt-1 md:text-[9px]">Farbiopharma</p>}
+            <div className="text-[11px] font-black tracking-tight text-inverso md:text-xl">NA<span className="text-enfasis">VE</span>W</div>
+            {!isCollapsed && <p className="mt-0.5 text-[5px] font-medium tracking-[0.08em] text-nav-muted md:mt-1 md:text-[9px]">Farbiopharma</p>}
           </div>
 
           {/* Botón Colapsar (Desktop) */}
           <button
             onClick={toggleSidebar}
             aria-label={isCollapsed ? "Expandir menú" : "Colapsar menú"}
-            className={`absolute -right-3 top-6 z-50 h-7 w-7 items-center justify-center rounded-full border border-[#17243d] bg-[#17243d] text-white shadow-sm transition hover:bg-slate-100 text-[#17243d] hover:text-[#17243d] hover:border-white ${
+            className={`absolute -right-3 top-6 z-50 h-7 w-7 items-center justify-center rounded-full border border-principal bg-principal text-inverso shadow-sm transition hover:bg-superficie-muted hover:text-principal hover:border-superficie ${
               mobileMenuOpen ? "flex" : "hidden md:flex"
             }`}
           >
@@ -176,17 +176,17 @@ const Dashboard = () => {
             <img
               src={getHDImage(perfilUsuario?.avatarUsuario) || "/usuarioSinfoto.jpg"}
               alt="Avatar"
-              className="h-5 w-5 rounded-full border border-[#dce9f7] object-cover shadow-sm md:h-10 md:w-10 md:border-2"
+              className="h-5 w-5 rounded-full border border-borde-acento object-cover shadow-sm md:h-10 md:w-10 md:border-2"
             />
             {!isCollapsed && (
               <div className="ml-1 min-w-0 overflow-hidden md:ml-3">
-                <p className="truncate text-[7px] font-bold text-white md:text-xs">{nombreUsuario}</p>
-                <p className="text-[6px] capitalize text-[#91a4bd] md:text-[10px]">{userRole || "usuario"}</p>
+                <p className="truncate text-[7px] font-bold text-inverso md:text-xs">{nombreUsuario}</p>
+                <p className="text-[6px] capitalize text-nav-muted md:text-[10px]">{userRole || "usuario"}</p>
               </div>
             )}
           </div>
 
-          <hr className="mb-3 border-[#2b4162] md:mb-6" />
+          <hr className="mb-3 border-nav-borde md:mb-6" />
 
           {/* Navegación */}
           <nav className="flex-1 overflow-y-auto">
@@ -254,7 +254,7 @@ const Dashboard = () => {
               {/* Menú Administrador */}
               {esAdministrador && (
                 <>
-                  <p className={`mb-2 mt-4 text-[10px] font-bold uppercase text-[#7186a1] ${isCollapsed ? "text-center" : "px-2"}`}>Admin</p>
+                  <p className={`mb-2 mt-4 text-[10px] font-bold uppercase text-nav-muted ${isCollapsed ? "text-center" : "px-2"}`}>Admin</p>
                   <li>
                     <Link
                       to="/dashboard/admin/usuarios"
@@ -285,7 +285,7 @@ const Dashboard = () => {
           <div className="mt-auto pt-3 md:pt-4">
             <button
               onClick={handleLogout}
-              className={`flex w-full items-center gap-1 rounded-md px-1 py-2 text-[9px] text-[#aab8cf] transition hover:bg-[#6d2932] hover:text-white md:gap-3 md:px-3 md:py-3 md:text-sm [&>svg]:h-3 [&>svg]:w-3 md:[&>svg]:h-[18px] md:[&>svg]:w-[18px] ${isCollapsed ? "justify-center" : ""}`}
+              className={`flex w-full items-center gap-1 rounded-md px-1 py-2 text-[9px] text-nav-texto transition hover:bg-error-hover hover:text-inverso md:gap-3 md:px-3 md:py-3 md:text-sm [&>svg]:h-3 [&>svg]:w-3 md:[&>svg]:h-[18px] md:[&>svg]:w-[18px] ${isCollapsed ? "justify-center" : ""}`}
             >
               <LogOut size={18} />
               {!isCollapsed && <span className="ml-0 font-medium md:ml-3">Cerrar Sesión</span>}
@@ -306,13 +306,13 @@ const Dashboard = () => {
       {/* CONTENIDO PRINCIPAL */}
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar title={tituloSeccion} userName={nombreUsuario} />
-        <main className="min-h-0 flex-1 overflow-y-auto bg-[#f4f7fa]"><Outlet /></main>
+        <main className="min-h-0 flex-1 overflow-y-auto bg-fondo"><Outlet /></main>
       </div>
 
       {/* Overlay para móvil */}
       {mobileMenuOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-30 md:hidden"
+          className="fixed inset-0 bg-principal/50 z-30 md:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}

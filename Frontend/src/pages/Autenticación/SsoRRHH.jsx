@@ -38,8 +38,8 @@ export default function SsoRRHH() {
   }, [navigate, setToken]);
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6 font-sans">
-      <p role="status" className="max-w-lg text-center text-sm text-slate-600">{mensaje}</p>
+    <main className="flex min-h-screen items-center justify-center bg-fondo px-6 font-sans">
+      <p role="status" className="max-w-lg text-center text-sm text-texto-secundario">{mensaje}</p>
     </main>
   );
 }

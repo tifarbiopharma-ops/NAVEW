@@ -21,9 +21,9 @@ const nodeTypes = {
   cargo: CargoNode,
 };
 const BUTTON_CLASSES =
-  "inline-flex min-h-[40px] items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40";
+  "inline-flex min-h-[40px] items-center justify-center gap-2 rounded-lg border border-borde-fuerte bg-superficie px-3 py-2 text-sm font-semibold text-texto-secundario shadow-sm transition-colors hover:border-enfasis hover:bg-suave hover:text-acento focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40";
 const FIELD_CLASSES =
-  "block h-10 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 shadow-sm outline-none transition-colors placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+  "block h-10 w-full min-w-0 rounded-lg border border-borde-fuerte bg-superficie px-3 text-sm text-texto-secundario shadow-sm outline-none transition-colors placeholder:text-texto-muted focus:border-acento focus:ring-2 focus:ring-suave";
 
 const normalizar = (texto) =>
   String(texto || "")
@@ -335,9 +335,9 @@ function OrganigramaInner() {
 
   if (loading) {
     return (
-      <div className="flex h-[calc(100dvh-80px)] min-h-[420px] w-full flex-col items-center justify-center gap-4 bg-slate-50 [font-family:inherit] text-sm text-slate-600">
+      <div className="flex h-[calc(100dvh-80px)] min-h-[420px] w-full flex-col items-center justify-center gap-4 bg-fondo [font-family:inherit] text-sm text-texto-secundario">
         <span
-          className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600 motion-reduce:animate-none"
+          className="h-8 w-8 animate-spin rounded-full border-2 border-borde border-t-blue-600 motion-reduce:animate-none"
           aria-hidden="true"
         />
         <p role="status">Cargando organigrama…</p>
@@ -347,8 +347,8 @@ function OrganigramaInner() {
 
   if (error) {
     return (
-      <div className="flex h-[calc(100dvh-80px)] min-h-[420px] w-full flex-col items-center justify-center gap-4 bg-slate-50 px-6 text-center [font-family:inherit] text-sm text-slate-600">
-        <p className="text-sm font-medium text-red-600" role="alert">
+      <div className="flex h-[calc(100dvh-80px)] min-h-[420px] w-full flex-col items-center justify-center gap-4 bg-fondo px-6 text-center [font-family:inherit] text-sm text-texto-secundario">
+        <p className="text-sm font-medium text-error" role="alert">
           {error}
         </p>
         <button type="button" className={BUTTON_CLASSES} onClick={recargar}>
@@ -359,25 +359,25 @@ function OrganigramaInner() {
   }
 
   return (
-    <div className="flex w-full min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50 [font-family:inherit] text-slate-900 shadow-sm">
-      <header className="z-10 flex shrink-0 flex-col gap-5 border-b border-slate-200 bg-white px-4 py-5 sm:px-6">
+    <div className="flex w-full min-w-0 flex-col overflow-hidden rounded-xl border border-borde bg-fondo [font-family:inherit] text-principal shadow-sm">
+      <header className="z-10 flex shrink-0 flex-col gap-5 border-b border-borde bg-superficie px-4 py-5 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="text-4xl font-semibold text-slate-950">
+            <h1 className="text-4xl font-semibold text-principal">
               Organigrama
             </h1>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm font-medium text-slate-700">
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm font-medium text-texto-secundario">
               <span>{nodes.length} cargos</span>
               <span aria-hidden="true">·</span>
               <span
-                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium ${bloqueado ? "bg-slate-100 text-slate-600" : "bg-emerald-50 text-emerald-700"}`}
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium ${bloqueado ? "bg-superficie-muted text-texto-secundario" : "bg-exito-fondo text-exito"}`}
               >
                 {bloqueado
                   ? "Tarjetas bloqueadas"
                   : "Puedes mover las tarjetas"}
               </span>
               {hayCambiosColor && (
-                <span className="rounded-full bg-amber-50 px-2.5 py-1 font-medium text-amber-800">
+                <span className="rounded-full bg-advertencia-fondo px-2.5 py-1 font-medium text-advertencia">
                   Colores sin guardar
                 </span>
               )}
@@ -430,7 +430,7 @@ function OrganigramaInner() {
           <div className="min-w-0 xl:col-span-4">
             <label
               htmlFor="organigrama-empleado"
-              className="mb-1.5 block text-sm font-medium text-slate-700"
+              className="mb-1.5 block text-sm font-medium text-texto-secundario"
             >
               Buscar empleado
             </label>
@@ -448,7 +448,7 @@ function OrganigramaInner() {
           <div className="min-w-0 xl:col-span-4">
             <label
               htmlFor="organigrama-cargo"
-              className="mb-1.5 block text-sm font-medium text-slate-700"
+              className="mb-1.5 block text-sm font-medium text-texto-secundario"
             >
               Seleccionar cargo
             </label>
@@ -470,7 +470,7 @@ function OrganigramaInner() {
           <div className="min-w-0 md:col-span-2 xl:col-span-4">
             <label
               htmlFor="organigrama-color"
-              className="mb-1.5 block text-xs font-semibold text-slate-600"
+              className="mb-1.5 block text-xs font-semibold text-texto-secundario"
             >
               Color de la rama
             </label>
@@ -481,7 +481,7 @@ function OrganigramaInner() {
                 value={color}
                 disabled={guardando || !cargoSeleccionado}
                 onChange={(event) => setColor(event.target.value)}
-                className="h-10 w-12 shrink-0 cursor-pointer rounded-lg border border-slate-300 bg-white p-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
+                className="h-10 w-12 shrink-0 cursor-pointer rounded-lg border border-borde-fuerte bg-superficie p-1 focus:outline-none focus:ring-2 focus:ring-acento focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
               />
               <button
                 type="button"
@@ -493,7 +493,7 @@ function OrganigramaInner() {
               </button>
               <button
                 type="button"
-                className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-lg border border-blue-600 bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:border-blue-700 hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-lg border border-acento bg-principal px-4 py-2 text-sm font-semibold text-inverso shadow-sm transition-colors hover:border-acento hover:bg-principal-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
                 disabled={guardando || !hayCambiosColor}
                 onClick={guardarCambios}
                 aria-busy={guardando}
@@ -508,14 +508,14 @@ function OrganigramaInner() {
           id="organigrama-resultados"
           className={
             busqueda.trim()
-              ? "max-h-44 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-2"
+              ? "max-h-44 overflow-y-auto rounded-lg border border-borde bg-fondo p-2"
               : "hidden"
           }
         >
           {busqueda.trim() && (
             <>
               {!resultadosEmpleados.length && (
-                <p className="px-3 py-2 text-sm text-slate-500" role="status">
+                <p className="px-3 py-2 text-sm text-texto-muted" role="status">
                   No se encontraron empleados.
                 </p>
               )}
@@ -524,13 +524,13 @@ function OrganigramaInner() {
                   <button
                     type="button"
                     key={`${resultado.nodeId}-${resultado.nombre}-${index}`}
-                    className="min-w-0 rounded-lg border border-transparent px-3 py-2 text-left transition-colors hover:border-blue-200 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
+                    className="min-w-0 rounded-lg border border-transparent px-3 py-2 text-left transition-colors hover:border-borde-acento hover:bg-suave focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-acento"
                     onClick={() => seleccionarCargo(resultado.nodeId)}
                   >
-                    <span className="block break-words text-sm font-semibold text-slate-800">
+                    <span className="block break-words text-sm font-semibold text-principal">
                       {resultado.nombre}
                     </span>
-                    <span className="mt-0.5 block break-words text-xs text-slate-500">
+                    <span className="mt-0.5 block break-words text-xs text-texto-muted">
                       {resultado.cargo}
                     </span>
                   </button>
@@ -540,7 +540,7 @@ function OrganigramaInner() {
           )}
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-borde-suave pt-4">
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -586,7 +586,7 @@ function OrganigramaInner() {
           </button>
           </div>
           <p
-            className="min-w-0 max-w-xl break-words text-xs leading-relaxed text-slate-600"
+            className="min-w-0 max-w-xl break-words text-xs leading-relaxed text-texto-secundario"
             role="status"
             aria-live="polite"
           >
@@ -594,7 +594,7 @@ function OrganigramaInner() {
           </p>
         </div>
 
-        <p className="text-xs leading-relaxed text-slate-500">
+        <p className="text-xs leading-relaxed text-texto-muted">
           Guarda los colores con «Guardar cambios». El candado controla las
           tarjetas y la orientación. Las posiciones se conservan al recargar
           esta pestaña y las tarjetas se abren bloqueadas.
@@ -618,7 +618,7 @@ function OrganigramaInner() {
           maxZoom={2}
           proOptions={{ hideAttribution: true }}
         >
-          <Background gap={24} size={1} color="#dbe3ed" />
+          <Background gap={24} size={1} color="var(--color-borde)" />
           <MiniMap pannable zoomable />
           <Controls showInteractive={false} />
         </ReactFlow>

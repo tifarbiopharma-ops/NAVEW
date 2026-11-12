@@ -26,7 +26,7 @@ const generarUsername = (nombreCompleto) => {
 };
 
 const inputClasses =
-  'w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200';
+  'w-full rounded-3xl border border-borde bg-fondo px-4 py-3 text-principal outline-none transition focus:border-acento focus:ring-2 focus:ring-suave';
 
 const EditarUsuario = () => {
   const { id } = useParams();
@@ -345,8 +345,8 @@ const EditarUsuario = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 p-8">
-        <div className="mx-auto max-w-6xl rounded-3xl border border-slate-200 bg-white p-16 text-center text-slate-500">
+      <div className="min-h-screen bg-fondo p-8">
+        <div className="mx-auto max-w-6xl rounded-3xl border border-borde bg-superficie p-16 text-center text-texto-muted">
           Cargando usuario...
         </div>
       </div>
@@ -355,16 +355,16 @@ const EditarUsuario = () => {
 
   if (!usuario) {
     return (
-      <div className="min-h-screen bg-slate-50 p-8">
+      <div className="min-h-screen bg-fondo p-8">
         <ToastContainer />
 
-        <div className="mx-auto max-w-6xl rounded-3xl border border-slate-200 bg-white p-12 text-center">
+        <div className="mx-auto max-w-6xl rounded-3xl border border-borde bg-superficie p-12 text-center">
           <p>No se encontró el usuario seleccionado.</p>
 
           <button
             type="button"
             onClick={handleExit}
-            className="mt-6 rounded-3xl bg-[#17243D] px-6 py-3 text-white"
+            className="mt-6 rounded-3xl bg-principal px-6 py-3 text-inverso"
           >
             Volver
           </button>
@@ -378,25 +378,25 @@ const EditarUsuario = () => {
   // ==========================================
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-fondo text-principal">
       <ToastContainer />
 
       <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-6 space-y-2">
-          <p className="text-sm uppercase tracking-[0.22em] text-slate-500">
+          <p className="text-sm uppercase tracking-[0.22em] text-texto-muted">
             Administración de usuarios
           </p>
 
-          <h1 className="text-4xl font-semibold text-slate-950">
+          <h1 className="text-4xl font-semibold text-principal">
             Editar usuario
           </h1>
 
-          <p className="max-w-2xl text-slate-600">
+          <p className="max-w-2xl text-texto-secundario">
             Actualiza los datos del usuario seleccionado.
           </p>
         </div>
 
-        <div className="mb-8 rounded-4xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/50">
+        <div className="mb-8 rounded-4xl border border-borde bg-superficie p-6 shadow-sm shadow-borde/50">
           <form
             onSubmit={handleSubmit(onSubmit)}
             className="grid gap-6"
@@ -406,7 +406,7 @@ const EditarUsuario = () => {
               {/* NOMBRE */}
 
               <div className="flex flex-col">
-                <label className="mb-2 font-semibold text-slate-800">
+                <label className="mb-2 font-semibold text-principal">
                   Nombre *
                 </label>
 
@@ -420,7 +420,7 @@ const EditarUsuario = () => {
                 />
 
                 {errors.nombre && (
-                  <p className="mt-2 text-sm text-red-600">
+                  <p className="mt-2 text-sm text-error">
                     {errors.nombre.message}
                   </p>
                 )}
@@ -429,7 +429,7 @@ const EditarUsuario = () => {
               {/* CÉDULA */}
 
               <div className="flex flex-col">
-                <label className="mb-2 font-semibold text-slate-800">
+                <label className="mb-2 font-semibold text-principal">
                   Cédula *
                 </label>
 
@@ -445,7 +445,7 @@ const EditarUsuario = () => {
                 />
 
                 {errors.cedula && (
-                  <p className="mt-2 text-sm text-red-600">
+                  <p className="mt-2 text-sm text-error">
                     {errors.cedula.message}
                   </p>
                 )}
@@ -454,7 +454,7 @@ const EditarUsuario = () => {
               {/* USERNAME */}
 
               <div className="flex flex-col">
-                <label className="mb-2 font-semibold text-slate-800">
+                <label className="mb-2 font-semibold text-principal">
                   Nombre de usuario *
                 </label>
 
@@ -463,10 +463,10 @@ const EditarUsuario = () => {
                   placeholder="Se genera automáticamente"
                   value={usernameMostrado || ''}
                   readOnly
-                  className="rounded-3xl border border-slate-200 bg-slate-100 px-4 py-3 font-semibold text-[#17243D] outline-none placeholder:font-normal placeholder:text-slate-400"
+                  className="rounded-3xl border border-borde bg-superficie-muted px-4 py-3 font-semibold text-principal outline-none placeholder:font-normal placeholder:text-texto-muted"
                 />
 
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 text-xs text-texto-muted">
                   Se genera con la primera letra del primer nombre
                   y el primer apellido, en mayúsculas.
                 </p>
@@ -475,7 +475,7 @@ const EditarUsuario = () => {
               {/* CORREO OPCIONAL */}
 
               <div className="flex flex-col">
-                <label className="mb-2 font-semibold text-slate-800">
+                <label className="mb-2 font-semibold text-principal">
                   Correo electrónico (opcional)
                 </label>
 
@@ -489,7 +489,7 @@ const EditarUsuario = () => {
                 />
 
                 {errors.email && (
-                  <p className="mt-2 text-sm text-red-600">
+                  <p className="mt-2 text-sm text-error">
                     {errors.email.message}
                   </p>
                 )}
@@ -498,7 +498,7 @@ const EditarUsuario = () => {
               {/* ROL */}
 
               <div className="flex flex-col">
-                <label className="mb-2 font-semibold text-slate-800">
+                <label className="mb-2 font-semibold text-principal">
                   Rol *
                 </label>
 
@@ -537,7 +537,7 @@ const EditarUsuario = () => {
                 </select>
 
                 {errors.rol && (
-                  <p className="mt-2 text-sm text-red-600">
+                  <p className="mt-2 text-sm text-error">
                     {errors.rol.message}
                   </p>
                 )}
@@ -546,7 +546,7 @@ const EditarUsuario = () => {
               {/* CONTRASEÑA */}
 
               <div className="flex flex-col">
-                <label className="mb-2 font-semibold text-slate-800">
+                <label className="mb-2 font-semibold text-principal">
                   Contraseña (opcional)
                 </label>
 
@@ -571,7 +571,7 @@ const EditarUsuario = () => {
                         ? 'Ocultar contraseña'
                         : 'Mostrar contraseña'
                     }
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-900"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-texto-muted hover:text-principal"
                   >
                     {showPassword ? (
                       <svg
@@ -609,7 +609,7 @@ const EditarUsuario = () => {
                 </div>
 
                 {errors.password && (
-                  <p className="mt-2 text-sm text-red-600">
+                  <p className="mt-2 text-sm text-error">
                     {errors.password.message}
                   </p>
                 )}
@@ -618,7 +618,7 @@ const EditarUsuario = () => {
               {/* ESTADO */}
 
               <div className="flex flex-col">
-                <label className="mb-2 font-semibold text-slate-800">
+                <label className="mb-2 font-semibold text-principal">
                   Estado *
                 </label>
 
@@ -633,7 +633,7 @@ const EditarUsuario = () => {
                 </select>
 
                 {errors.estado && (
-                  <p className="mt-2 text-sm text-red-600">
+                  <p className="mt-2 text-sm text-error">
                     {errors.estado.message}
                   </p>
                 )}
@@ -647,7 +647,7 @@ const EditarUsuario = () => {
               <button
                 type="button"
                 onClick={handleExit}
-                className="rounded-3xl border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                className="rounded-3xl border border-borde-fuerte bg-superficie px-6 py-3 text-sm font-semibold text-texto-secundario transition hover:bg-fondo"
               >
                 Cancelar
               </button>
@@ -655,7 +655,7 @@ const EditarUsuario = () => {
               <button
                 type="submit"
                 disabled={enviando || isValidating}
-                className="rounded-3xl bg-[#17243D] px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-3xl bg-principal px-6 py-3 text-sm font-semibold text-inverso transition hover:bg-principal-hover disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {enviando
                   ? 'Actualizando...'

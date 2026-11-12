@@ -26,12 +26,12 @@ const ContextSidebar = ({ role, path, search, mobileMenuOpen, sidebarCollapsed, 
   const prefijoSeguimiento = esHistorico ? "historico" : "proceso";
 
   return (
-    <aside className={`z-40 w-36 shrink-0 border-r border-[#e5eaf0] bg-white px-2 py-5 transition-all duration-300 lg:static lg:block lg:w-48.25 lg:px-4 lg:py-8 ${
+    <aside className={`z-40 w-36 shrink-0 border-r border-borde bg-superficie px-2 py-5 transition-all duration-300 lg:static lg:block lg:w-48.25 lg:px-4 lg:py-8 ${
       mobileMenuOpen
         ? `fixed bottom-0 top-0 block ${sidebarCollapsed ? "left-16" : "left-[102px]"}`
         : `fixed bottom-0 top-0 hidden ${sidebarCollapsed ? "left-16" : "left-[102px]"} lg:static lg:block`
     }`}>
-      <p className="mb-6 px-2 text-[10px] font-bold uppercase tracking-[0.04em] text-[#718098]">
+      <p className="mb-6 px-2 text-[10px] font-bold uppercase tracking-[0.04em] text-texto-muted">
         {esProceso ? "Proceso" : esHistorico ? "Histórico" : "Solicitud"}
       </p>
       <nav className="space-y-2">
@@ -42,8 +42,8 @@ const ContextSidebar = ({ role, path, search, mobileMenuOpen, sidebarCollapsed, 
               onClick={onNavigate}
               className={`flex items-center gap-2 rounded-md px-2 py-2.5 text-[10px] font-bold transition lg:gap-3 lg:px-3 lg:py-3 lg:text-xs ${
                 path === `/dashboard/${prefijoSeguimiento}/transporte`
-                  ? "bg-[#e5effd] text-[#315b86]"
-                  : "text-[#4f5d70] hover:bg-slate-50"
+                  ? "bg-suave text-acento"
+                  : "text-texto-secundario hover:bg-fondo"
               }`}
             >
               <ClipboardList size={14} />
@@ -54,8 +54,8 @@ const ContextSidebar = ({ role, path, search, mobileMenuOpen, sidebarCollapsed, 
               onClick={onNavigate}
               className={`flex items-center gap-2 rounded-md px-2 py-2.5 text-[10px] font-bold transition lg:gap-3 lg:px-3 lg:py-3 lg:text-xs ${
                 path === `/dashboard/${prefijoSeguimiento}/paqueteria`
-                  ? "bg-[#e5effd] text-[#315b86]"
-                  : "text-[#4f5d70] hover:bg-slate-50"
+                  ? "bg-suave text-acento"
+                  : "text-texto-secundario hover:bg-fondo"
               }`}
             >
               <Package size={14} />
@@ -66,8 +66,8 @@ const ContextSidebar = ({ role, path, search, mobileMenuOpen, sidebarCollapsed, 
               onClick={onNavigate}
               className={`flex items-center gap-2 rounded-md px-2 py-2.5 text-[10px] font-bold transition lg:gap-3 lg:px-3 lg:py-3 lg:text-xs ${
                 path === `/dashboard/${prefijoSeguimiento}/externo`
-                  ? "bg-[#e5effd] text-[#315b86]"
-                  : "text-[#4f5d70] hover:bg-slate-50"
+                  ? "bg-suave text-acento"
+                  : "text-texto-secundario hover:bg-fondo"
               }`}
             >
               <Globe2 size={14} />
@@ -85,8 +85,8 @@ const ContextSidebar = ({ role, path, search, mobileMenuOpen, sidebarCollapsed, 
                 onClick={onNavigate}
                 className={`flex items-center gap-2 rounded-md px-2 py-2.5 text-[10px] font-bold transition lg:gap-3 lg:px-3 lg:py-3 lg:text-xs ${
                   esTransporte
-                    ? "bg-[#e5effd] text-[#315b86]"
-                    : "text-[#4f5d70] hover:bg-slate-50"
+                    ? "bg-suave text-acento"
+                    : "text-texto-secundario hover:bg-fondo"
                 }`}
               >
                 <ClipboardList size={14} />
@@ -100,8 +100,8 @@ const ContextSidebar = ({ role, path, search, mobileMenuOpen, sidebarCollapsed, 
               onClick={onNavigate}
               className={`flex items-center gap-2 rounded-md px-2 py-2.5 text-[10px] font-bold transition lg:gap-3 lg:px-3 lg:py-3 lg:text-xs ${
                 path === "/dashboard/paqueteria"
-                  ? "bg-[#e5effd] text-[#315b86]"
-                  : "text-[#4f5d70] hover:bg-slate-50"
+                  ? "bg-suave text-acento"
+                  : "text-texto-secundario hover:bg-fondo"
               }`}
             >
               <Package size={14} />
@@ -115,8 +115,8 @@ const ContextSidebar = ({ role, path, search, mobileMenuOpen, sidebarCollapsed, 
                 onClick={onNavigate}
                 className={`flex items-center gap-2 rounded-md px-2 py-2.5 text-[10px] font-bold transition lg:gap-3 lg:px-3 lg:py-3 lg:text-xs ${
                   path === "/dashboard/externo"
-                    ? "bg-[#e5effd] text-[#315b86]"
-                    : "text-[#4f5d70] hover:bg-slate-50"
+                    ? "bg-suave text-acento"
+                    : "text-texto-secundario hover:bg-fondo"
                 }`}
               >
                 <Globe2 size={14} />

@@ -1,0 +1,76 @@
+/* Paleta compartida por todas las pantallas y formularios de NAVEW.
+   Tailwind genera las utilidades bg-*, text-*, border-* y ring-* con estos nombres. */
+@theme {
+  --color-principal: #17243d;
+  --color-principal-hover: #223a5d;
+  --color-acento: #315b86;
+  --color-marca: #3970a8;
+  --color-suave: #e5effd;
+  --color-suave-hover: #cfe1f7;
+  --color-enfasis: #77a8d2;
+
+  --color-fondo: #f4f7fa;
+  --color-superficie: #ffffff;
+  --color-superficie-muted: #edf2f7;
+  --color-inverso: #ffffff;
+  --color-texto-secundario: #4f5d70;
+  --color-texto-muted: #5f7087;
+  --color-borde: #dce3ed;
+  --color-borde-suave: #e8edf3;
+  --color-borde-fuerte: #9ab2cc;
+  --color-borde-acento: #c7daef;
+
+  --color-nav-texto: #c0cde0;
+  --color-nav-muted: #aab8cf;
+  --color-nav-borde: #2b4162;
+
+  --color-exito: #047857;
+  --color-exito-fondo: #ecfdf5;
+  --color-exito-borde: #10b981;
+  --color-advertencia: #92400e;
+  --color-advertencia-fondo: #fffbeb;
+  --color-advertencia-borde: #f59e0b;
+  --color-error: #b91c1c;
+  --color-error-hover: #991b1b;
+  --color-error-fondo: #fef2f2;
+  --color-error-borde: #f87171;
+}
+
+@layer base {
+  body {
+    color: var(--color-principal);
+    background-color: var(--color-fondo);
+  }
+
+  input, select, textarea {
+    accent-color: var(--color-acento);
+  }
+}
+
+/* Mantener también los componentes de terceros dentro de la paleta. */
+:root:root {
+  --toastify-color-light: var(--color-superficie);
+  --toastify-text-color-light: var(--color-texto-secundario);
+  --toastify-color-info: var(--color-acento);
+  --toastify-color-success: var(--color-exito);
+  --toastify-color-warning: var(--color-advertencia);
+  --toastify-color-error: var(--color-error);
+  --toastify-color-progress-light: var(--color-acento);
+  --toastify-font-family: inherit;
+}
+
+.react-flow.react-flow {
+  --xy-background-color-default: var(--color-fondo);
+  --xy-background-pattern-dots-color-default: var(--color-borde-fuerte);
+  --xy-controls-button-background-color-default: var(--color-superficie);
+  --xy-controls-button-background-color-hover-default: var(--color-suave);
+  --xy-controls-button-color-default: var(--color-principal);
+  --xy-controls-button-color-hover-default: var(--color-acento);
+  --xy-controls-button-border-color-default: var(--color-borde);
+  --xy-minimap-background-color-default: var(--color-superficie);
+  --xy-minimap-mask-background-color-default: color-mix(in srgb, var(--color-fondo) 70%, transparent);
+  --xy-edge-stroke-default: var(--color-borde-fuerte);
+  --xy-edge-stroke-selected-default: var(--color-acento);
+  --xy-selection-background-color-default: color-mix(in srgb, var(--color-acento) 10%, transparent);
+  --xy-selection-border-default: 1px solid var(--color-acento);
+}

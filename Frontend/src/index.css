@@ -1,6 +1,7 @@
 /* Importaciones y variantes */
 @import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;900&family=Roboto:wght@400;700;900&display=swap');
 @import "tailwindcss";
+@import "./styles/paleta.css";
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* Fuente principal */
@@ -13,14 +14,14 @@ body {
   width: 8px;
 }
 .dashboard-scroll::-webkit-scrollbar-track {
-  background: #111;
+  background: var(--color-fondo);
 }
 .dashboard-scroll::-webkit-scrollbar-thumb {
-  background: #000;
+  background: var(--color-borde-fuerte);
   border-radius: 4px;
 }
 .dashboard-scroll::-webkit-scrollbar-thumb:hover {
-  background: #333;
+  background: var(--color-acento);
 }
 
 /* Scrollbar global */
@@ -28,14 +29,14 @@ html::-webkit-scrollbar {
   width: 10px;
 }
 html::-webkit-scrollbar-track {
-  background: #1a1a1a;
+  background: var(--color-fondo);
 }
 html::-webkit-scrollbar-thumb {
-  background-color: #000;
+  background-color: var(--color-borde-fuerte);
   border-radius: 6px;
 }
 html::-webkit-scrollbar-thumb:hover {
-  background-color: #333;
+  background-color: var(--color-acento);
 }
 
 /* Scrollbar personalizado */
@@ -43,11 +44,11 @@ html::-webkit-scrollbar-thumb:hover {
   width: 6px;
 }
 .custom-scroll::-webkit-scrollbar-thumb {
-  background-color: #37568f;
+  background-color: var(--color-borde-fuerte);
   border-radius: 10px;
 }
 .custom-scroll::-webkit-scrollbar-track {
-  background-color: #0b0b0b;
+  background-color: var(--color-fondo);
 }
 
 /* Animación reveal */
@@ -255,8 +256,8 @@ html::-webkit-scrollbar-thumb:hover {
   border-radius: 50%; /* rounded-full */
   
   /* Estilo del borde exterior (círculo no seleccionado) */
-  border: 1px solid #9ca3af; /* border-gray-400 */
-  background-color: white; /* bg-white */
+  border: 1px solid var(--color-borde-fuerte);
+  background-color: var(--color-superficie);
   
   /* Transición para un efecto suave */
   transition: all 0.15s ease-in-out;
@@ -266,14 +267,14 @@ html::-webkit-scrollbar-thumb:hover {
 /* 2. Estilos para el estado MARCADO (.checked) */
 .custom-radio-checkbox:checked {
   /* Borde del círculo exterior (de color principal) */
-  border-color: #17243D; /* checked:border-[#17243D] */
+  border-color: var(--color-principal);
   
   /* Usar un gradiente radial para crear el punto central sólido
      Esto simula el círculo interno negro con el borde blanco */
   background-image: radial-gradient(
     circle at center,
-    #17243D 0%, /* Color del punto interno */
-    #17243D 50%, /* Tamaño del punto interno */
+    var(--color-principal) 0%, /* Color del punto interno */
+    var(--color-principal) 50%, /* Tamaño del punto interno */
     transparent 50% /* Borde blanco (transparente que deja ver el fondo blanco) */
   );
   
@@ -285,5 +286,5 @@ html::-webkit-scrollbar-thumb:hover {
 /* 3. Estilos de Foco (focus:ring) */
 .custom-radio-checkbox:focus {
   outline: none;
-  box-shadow: 0 0 0 2px #f3f4f6, 0 0 0 4px #17243D; /* Simulación de focus:ring */
+  box-shadow: 0 0 0 2px var(--color-fondo), 0 0 0 4px var(--color-principal);
 }

@@ -30,10 +30,10 @@ const DEFAULT_VALUES = {
 // ==========================================
 
 const inputClasses =
-  'w-full rounded-xl border border-slate-200 bg-[#edf3fc] px-4 py-3.5 text-sm text-[#17243D] shadow-sm outline-none transition placeholder:text-slate-400 focus:border-[#3d5a80] focus:ring-4 focus:ring-[#3d5a80]/10';
+  'w-full rounded-xl border border-borde bg-fondo px-4 py-3.5 text-sm text-principal shadow-sm outline-none transition placeholder:text-texto-muted focus:border-acento focus:ring-4 focus:ring-acento/10';
 
 const submitButtonClasses =
-  'mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#3d5a80] px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#324b6b] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50';
+  'mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-principal px-6 py-3.5 text-sm font-semibold text-inverso shadow-sm transition hover:bg-principal-hover hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50';
 
 // ==========================================
 // COMPONENTE LOGIN
@@ -115,14 +115,14 @@ const Login = () => {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-white font-sans lg:h-screen lg:flex-row lg:overflow-hidden">
+    <div className="flex min-h-screen flex-col bg-superficie font-sans lg:h-screen lg:flex-row lg:overflow-hidden">
       <ToastContainer />
 
       {/* ==========================================
           PANEL IZQUIERDO - IMAGEN NAVEW
       ========================================== */}
 
-      <div className="relative hidden min-h-screen overflow-hidden bg-[#eef5fc] lg:block lg:w-[63%]">
+      <div className="relative hidden min-h-screen overflow-hidden bg-fondo lg:block lg:w-[63%]">
 
         <img
           src="/fondo-login.png"
@@ -132,13 +132,13 @@ const Login = () => {
 
         {/* CAPA SOBRE LA IMAGEN */}
 
-        <div className="absolute inset-0 bg-[#17243D]/10" />
+        <div className="absolute inset-0 bg-principal/10" />
 
         {/* FRASE INFERIOR */}
 
-        <div className="absolute bottom-10 left-10 max-w-sm text-white xl:bottom-12 xl:left-12">
+        <div className="absolute bottom-10 left-10 max-w-sm text-inverso xl:bottom-12 xl:left-12">
 
-          <p className="mb-2 text-[10px] uppercase tracking-[0.3em] text-white/70">
+          <p className="mb-2 text-[10px] uppercase tracking-[0.3em] text-inverso/70">
             NAVEW
           </p>
 
@@ -153,7 +153,7 @@ const Login = () => {
           PANEL DERECHO - LOGIN
       ========================================== */}
 
-      <div className="flex min-h-screen w-full flex-col bg-white lg:min-h-0 lg:w-[37%] lg:overflow-y-auto">
+      <div className="flex min-h-screen w-full flex-col bg-superficie lg:min-h-0 lg:w-[37%] lg:overflow-y-auto">
 
         {/* ======================================
             CONTENIDO CENTRAL
@@ -171,20 +171,20 @@ const Login = () => {
               <div
                 role="img"
                 aria-label="NAVEW"
-                className="inline-flex items-baseline text-[4.7rem] font-extrabold leading-none tracking-[-0.075em] text-[#17243D]"
+                className="inline-flex items-baseline text-[4.7rem] font-extrabold leading-none tracking-[-0.075em] text-principal"
               >
                 <span>NA</span>
-                <span className="text-[#3D7DBA]">VE</span>
+                <span className="text-marca">VE</span>
                 <span>W</span>
               </div>
             </div>
 
             <div className="mb-7 text-center">
-              <h1 className="text-3xl font-semibold tracking-tight text-[#17243D]">
+              <h1 className="text-3xl font-semibold tracking-tight text-principal">
                 Iniciar sesión
               </h1>
 
-              <p className="mt-2 text-sm text-slate-500">
+              <p className="mt-2 text-sm text-texto-muted">
                 Accede a tu cuenta para continuar
               </p>
 
@@ -209,7 +209,7 @@ const Login = () => {
 
                   <UserRound
                     size={18}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6e83a0]"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-texto-muted"
                   />
 
                   <input
@@ -230,7 +230,7 @@ const Login = () => {
                 </div>
 
                 {errors.username && (
-                  <p className="ml-1 mt-1.5 text-xs text-red-600">
+                  <p className="ml-1 mt-1.5 text-xs text-error">
                     {errors.username.message}
                   </p>
                 )}
@@ -247,7 +247,7 @@ const Login = () => {
 
                   <LockKeyhole
                     size={18}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6e83a0]"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-texto-muted"
                   />
 
                   <input
@@ -278,7 +278,7 @@ const Login = () => {
                         ? 'Ocultar contraseña'
                         : 'Mostrar contraseña'
                     }
-                    className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-lg p-2 text-[#64748b] transition hover:bg-slate-200 hover:text-[#17243D]"
+                    className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-lg p-2 text-texto-muted transition hover:bg-superficie-muted hover:text-principal"
                   >
                     {showPassword ? (
                       <Eye size={19} />
@@ -290,7 +290,7 @@ const Login = () => {
                 </div>
 
                 {errors.password && (
-                  <p className="ml-1 mt-1.5 text-xs text-red-600">
+                  <p className="ml-1 mt-1.5 text-xs text-error">
                     {errors.password.message}
                   </p>
                 )}

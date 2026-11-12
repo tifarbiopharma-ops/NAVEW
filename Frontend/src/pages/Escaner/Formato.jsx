@@ -1,12 +1,12 @@
 
 import { Printer } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import '../../Index.css';
+import '../../index.css';
 
 const FilaFormato = ({ etiqueta, valor }) => (
   <div className="grid grid-cols-[42%_58%] border-b border-black last:border-b-0">
-    <div className="border-r border-black px-2 py-2 text-[10px] font-bold uppercase text-slate-700">{etiqueta}</div>
-    <div className="min-w-0 break-words px-2 py-2 text-xs font-medium text-[#17243d]">{valor ?? '-'}</div>
+    <div className="border-r border-black px-2 py-2 text-[10px] font-bold uppercase text-texto-secundario">{etiqueta}</div>
+    <div className="min-w-0 break-words px-2 py-2 text-xs font-medium text-principal">{valor ?? '-'}</div>
   </div>
 );
 
@@ -71,7 +71,7 @@ const Formato = ({ token, envio, onClose }) => {
             </div>
           </div>
 
-          <p className="mt-4 text-[10px] text-slate-600">
+          <p className="mt-4 text-[10px] text-texto-secundario">
             Paquete 1 de 2
           </p>
         </section>
@@ -81,7 +81,7 @@ const Formato = ({ token, envio, onClose }) => {
         <button
           type="button"
           onClick={() => window.print()}
-          className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#17243d] px-4 py-2.5 text-sm font-semibold text-white"
+          className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-principal px-4 py-2.5 text-sm font-semibold text-inverso"
         >
           <Printer size={16} />
           Imprimir
@@ -90,7 +90,7 @@ const Formato = ({ token, envio, onClose }) => {
         <button
           type="button"
           onClick={() => onClose?.()}
-          className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700"
+          className="rounded-lg border border-borde-fuerte px-4 py-2.5 text-sm font-semibold text-texto-secundario"
         >
           Cerrar
         </button>

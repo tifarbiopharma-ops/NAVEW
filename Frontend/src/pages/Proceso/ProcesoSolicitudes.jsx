@@ -9,6 +9,7 @@ import { getAuthClaims } from "../../utils/authClaims";
 // Importación del escáner
 import Escanear from '../Escaner/Escanear';
 import SubirFactura from './SubirFactura';
+import DetalleSolicitud from './DetalleSolicitud';
 
 const API = import.meta.env.VITE_BACKEND_URL;
 
@@ -104,15 +105,21 @@ const estadoEtiqueta = (estado) => {
 };
 
 const estadoClase = (estado) => {
+  if (estado === 'Rechazado' || estado === 'Cancelado') {
+    return 'bg-error-fondo text-error';
+  }
+  if (String(estado).startsWith('Pendiente')) {
+    return 'bg-advertencia-fondo text-advertencia';
+  }
   if (estado === 'Entrada registrada') {
-    return 'bg-amber-50 text-amber-700';
+    return 'bg-advertencia-fondo text-advertencia';
   }
   if (estado === 'En camino') {
-    return 'bg-amber-50 text-amber-700';
+    return 'bg-advertencia-fondo text-advertencia';
   }
-  if (estado === 'Aprobado' || estado === 'Finalizado') return 'bg-emerald-50 text-emerald-700';
-  if (estado === 'Solicitado') return 'bg-blue-50 text-[#315b86]';
-  return 'bg-blue-50 text-[#315b86]';
+  if (estado === 'Aprobado' || estado === 'Finalizado') return 'bg-exito-fondo text-exito';
+  if (estado === 'Solicitado') return 'bg-suave text-acento';
+  return 'bg-suave text-acento';
 };
 
 // 🔧 CAMBIO 3: normalizarEstado capitaliza (Solamente primera letra mayúscula)
@@ -129,12 +136,10 @@ const ubicacionSolicitud = (item, modulo) => (
 const ProcesoSolicitudes = () => {
   const { modulo = 'transporte' } = useParams();
   const token = storeAuth((state) => state.token);
-  const perfilUsuario = storeAuth((state) => state.user || state.usuario);
 
   // Extracción segura de roles exactamente como indicaste
   const claims = token ? getAuthClaims(token) : null;
   const userRole = claims?.rol?.toLowerCase() || "";
-  const nombreUsuario = perfilUsuario?.nombre || claims?.nombre || "Usuario";
 
   const rolActual = String(userRole || '').trim().toLowerCase();
   const rolesSuperiores = [
@@ -311,15 +316,15 @@ const ProcesoSolicitudes = () => {
   return (
     <>
     <ToastContainer/>
-      <div className="min-h-full bg-[#f4f7fa] p-4 md:p-8">
+      <div className="min-h-full bg-fondo p-4 md:p-8">
         <div className="mx-auto max-w-6xl">
           <div className="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#718098]">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-texto-muted">
                 Proceso {isSupervisor && '• Modo Supervisor'}
               </p>
-              <h1 className="mt-2 text-2xl font-bold text-[#17243d] md:text-3xl">{config.title}</h1>
-              <p className="mt-1 text-sm text-slate-500">{config.subtitle}</p>
+              <h1 className="mt-2 text-2xl font-bold text-principal md:text-3xl">{config.title}</h1>
+              <p className="mt-1 text-sm text-texto-muted">{config.subtitle}</p>
             </div>
 
             {/* Botón Escanear QR para garita (supervisor y administrador) */}
@@ -327,7 +332,7 @@ const ProcesoSolicitudes = () => {
               <div>
                 <button
                   onClick={() => setIsScannerOpen(true)}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#17243d] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#223a5d]"
+                  className="inline-flex items-center gap-2 rounded-xl bg-principal px-4 py-2.5 text-sm font-semibold text-inverso shadow-sm transition hover:bg-principal-hover"
                 >
                   <ScanQrCode size={18} />
                   <span>Escanear QR</span>
@@ -336,7 +341,7 @@ const ProcesoSolicitudes = () => {
             )}
           </div>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+          <section className="rounded-2xl border border-borde bg-superficie p-5 shadow-sm md:p-6">
             {/* Botones de filtro: solo supervisor */}
             {mostrarFiltrosScope && (
               <div className="mb-5 flex flex-wrap gap-2.5">
@@ -344,8 +349,8 @@ const ProcesoSolicitudes = () => {
                   onClick={() => setScope('TODOS')}
                   className={`rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition-all ${
                     scope === 'TODOS'
-                      ? 'bg-[#17243d] text-white'
-                      : 'border border-slate-200 bg-blue-50/60 text-[#315b86] hover:bg-blue-100/70'
+                      ? 'bg-principal text-inverso'
+                      : 'border border-borde bg-suave/60 text-acento hover:bg-suave-hover/70'
                   }`}
                 >
                   Todas las Solicitudes
@@ -355,8 +360,8 @@ const ProcesoSolicitudes = () => {
                     onClick={() => setScope('MIS_SOLICITUDES')}
                     className={`rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition-all ${
                       scope === 'MIS_SOLICITUDES'
-                        ? 'bg-[#17243d] text-white'
-                        : 'border border-slate-200 bg-blue-50/60 text-[#315b86] hover:bg-blue-100/70'
+                        ? 'bg-principal text-inverso'
+                        : 'border border-borde bg-suave/60 text-acento hover:bg-suave-hover/70'
                     }`}
                   >
                     Mis Solicitudes
@@ -367,18 +372,18 @@ const ProcesoSolicitudes = () => {
 
             <div className="mt-2 flex flex-col gap-3 md:flex-row">
               <label className="relative flex-1">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-texto-muted" />
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Buscar por código o solicitante..."
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-[#315b86]"
+                  className="w-full rounded-lg border border-borde bg-fondo py-2.5 pl-9 pr-3 text-sm outline-none focus:border-acento"
                 />
               </label>
               <select
                 value={status}
                 onChange={(event) => setStatus(event.target.value)}
-                className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86] md:w-44"
+                className="rounded-lg border border-borde bg-fondo px-3 py-2.5 text-sm outline-none focus:border-acento md:w-44"
               >
                 {statuses.map((option) => (
                   <option key={option} value={option}>
@@ -389,60 +394,60 @@ const ProcesoSolicitudes = () => {
             </div>
 
             {loading ? (
-              <div className="flex items-center gap-2 py-12 text-sm text-slate-500">
+              <div className="flex items-center gap-2 py-12 text-sm text-texto-muted">
                 <LoaderCircle className="animate-spin" size={18} /> Cargando solicitudes...
               </div>
             ) : filteredRequests.length === 0 ? (
-              <div className="mt-4 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-10 text-center text-sm text-slate-500">
+              <div className="mt-4 rounded-lg border border-dashed border-borde bg-fondo p-10 text-center text-sm text-texto-muted">
                 {config.empty}
               </div>
             ) : (
               <>
               <div className="mt-4 md:hidden">
-                <div className="divide-y divide-slate-200 border-y border-slate-200">
+                <div className="divide-y divide-borde border-y border-borde">
                   {filteredRequests.map((item) => {
                     const isExpanded = expandedRequestId === item.id;
                     return (
-                      <div key={item.id} className="bg-white">
+                      <div key={item.id} className="bg-superficie">
                         <button
                           type="button"
                           onClick={() => setExpandedRequestId(isExpanded ? null : item.id)}
                           className="flex w-full items-center gap-3 px-2 py-3 text-left"
                           aria-expanded={isExpanded}
                         >
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#17243d] text-white">
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-principal text-inverso">
                             <ChevronDown size={15} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                           </span>
                           <span className="min-w-0 flex-1">
-                            <span className="flex items-center justify-between gap-2 text-[10px] text-slate-500">
+                            <span className="flex items-center justify-between gap-2 text-[10px] text-texto-muted">
                               <span className="font-semibold">Código</span>
                               <span className="font-semibold">Solicitante</span>
                             </span>
-                            <span className="mt-1 flex items-start justify-between gap-3 text-[11px] text-[#17243d]">
+                            <span className="mt-1 flex items-start justify-between gap-3 text-[11px] text-principal">
                               <span className="font-bold">{item.code}</span>
                               <span className="truncate text-right">{item.requester}</span>
                             </span>
                           </span>
                         </button>
                         {isExpanded && (
-                          <div className="grid gap-2 bg-slate-50 px-11 pb-3 pr-3 text-[11px] text-slate-600">
+                          <div className="grid gap-2 bg-fondo px-11 pb-3 pr-3 text-[11px] text-texto-secundario">
                             <div className="grid grid-cols-2 gap-3">
-                              <div><p className="text-[10px] font-semibold uppercase text-slate-400">{modulo === 'externo' ? 'Área / planta de visita' : 'Área / plantas'}</p><p>{item.area}</p><p>{ubicacionSolicitud(item, modulo)}</p></div>
-                              <div><p className="text-[10px] font-semibold uppercase text-slate-400">Fecha</p><p>{String(item.date || '').slice(0, 10)}</p></div>
+                              <div><p className="text-[10px] font-semibold uppercase text-texto-muted">{modulo === 'externo' ? 'Área / planta de visita' : 'Área / plantas'}</p><p>{item.area}</p><p>{ubicacionSolicitud(item, modulo)}</p></div>
+                              <div><p className="text-[10px] font-semibold uppercase text-texto-muted">Fecha</p><p>{String(item.date || '').slice(0, 10)}</p></div>
                             </div>
                             <div className="flex items-center justify-between gap-2">
-                              <div><p className="text-[10px] font-semibold uppercase text-slate-400">Estado</p><span className={`inline-flex rounded-full px-2.5 py-1 font-semibold ${estadoClase(item.status)}`}>{estadoEtiqueta(item.status)}</span></div>
+                              <div><p className="text-[10px] font-semibold uppercase text-texto-muted">Estado</p><span className={`inline-flex rounded-full px-2.5 py-1 font-semibold ${estadoClase(item.status)}`}>{estadoEtiqueta(item.status)}</span></div>
                               {!isSupervisor && (
                                 <div className="flex flex-wrap justify-end gap-1.5">
-                                  {isJefe && <button onClick={() => setSelectedRequest(item)} className="rounded-lg border border-slate-200 bg-white p-1.5 text-[#315b86]" title="Ver datos"><Eye size={15} /></button>}
+                                  {isJefe && <button onClick={() => setSelectedRequest(item)} className="rounded-lg border border-borde bg-superficie p-1.5 text-acento" title="Ver datos"><Eye size={15} /></button>}
                                   {(isJefe || userRole === 'administrador' || userRole === 'subgerentegeneral') && (modulo === 'transporte' || modulo === 'externo') && item.puedeAprobar && item.status === 'Solicitado' && (
                                     <>
-                                      <button onClick={() => handleApproval(item, 'Aprobado')} disabled={approvingId === item.id} className="rounded-lg bg-[#315b86] p-1.5 text-white disabled:opacity-50" title="Aprobar"><Check size={15} /></button>
-                                      <button onClick={() => handleApproval(item, 'Rechazado')} disabled={approvingId === item.id} className="rounded-lg border border-[#77a8d2] bg-[#e5effd] p-1.5 text-[#17243d] disabled:opacity-50" title="Rechazar"><XCircle size={15} /></button>
+                                      <button onClick={() => handleApproval(item, 'Aprobado')} disabled={approvingId === item.id} className="rounded-lg bg-acento p-1.5 text-inverso disabled:opacity-50" title="Aprobar"><Check size={15} /></button>
+                                      <button onClick={() => handleApproval(item, 'Rechazado')} disabled={approvingId === item.id} className="rounded-lg border border-enfasis bg-suave p-1.5 text-principal disabled:opacity-50" title="Rechazar"><XCircle size={15} /></button>
                                     </>
                                   )}
-                                  {!isJefe && item.qrToken && (modulo === 'paqueteria' || item.status === 'Aprobado') && <button onClick={() => setSelectedQr({ code: item.code, token: item.qrToken, companions: item.companions })} className="rounded-lg border border-slate-200 bg-white p-1.5 text-[#17243d]" title="Ver Código QR"><QrCode size={15} /></button>}
-                                  {puedeSubirFactura(item) && <button onClick={() => setFacturaPara(item)} className="rounded-lg bg-[#315b86] p-1.5 text-white" title="Subir factura"><Receipt size={15} /></button>}
+                                  {!isJefe && item.qrToken && (modulo === 'paqueteria' || item.status === 'Aprobado') && <button onClick={() => setSelectedQr({ code: item.code, token: item.qrToken, companions: item.companions })} className="rounded-lg border border-borde bg-superficie p-1.5 text-principal" title="Ver Código QR"><QrCode size={15} /></button>}
+                                  {puedeSubirFactura(item) && <button onClick={() => setFacturaPara(item)} className="rounded-lg bg-acento p-1.5 text-inverso" title="Subir factura"><Receipt size={15} /></button>}
                                 </div>
                               )}
                             </div>
@@ -455,7 +460,7 @@ const ProcesoSolicitudes = () => {
               </div>
               <div className="mt-4 hidden overflow-x-auto md:block">
                 <table className="min-w-full text-left text-xs">
-                  <thead className="border-y border-slate-200 bg-slate-50 text-[10px] uppercase text-slate-500">
+                  <thead className="border-y border-borde bg-fondo text-[10px] uppercase text-texto-muted">
                     <tr>
                       <th className="px-3 py-3">Código</th>
                       <th className="px-3 py-3">Solicitante</th>
@@ -467,14 +472,14 @@ const ProcesoSolicitudes = () => {
                   </thead>
                   <tbody>
                     {filteredRequests.map((item) => (
-                      <tr key={item.id} className="border-b border-slate-100 last:border-0">
-                        <td className="px-3 py-4 font-bold text-[#17243d]">{item.code}</td>
-                        <td className="px-3 py-4 text-slate-600">{item.requester}</td>
-                        <td className="px-3 py-4 text-slate-600">
+                      <tr key={item.id} className="border-b border-borde-suave last:border-0">
+                        <td className="px-3 py-4 font-bold text-principal">{item.code}</td>
+                        <td className="px-3 py-4 text-texto-secundario">{item.requester}</td>
+                        <td className="px-3 py-4 text-texto-secundario">
                           <div>{ubicacionSolicitud(item, modulo)}</div>
-                          <div className="mt-1 text-[10px] text-slate-400">{item.area}</div>
+                          <div className="mt-1 text-[10px] text-texto-muted">{item.area}</div>
                         </td>
-                        <td className="px-3 py-4 text-slate-600">{String(item.date || '').slice(0, 10)}</td>
+                        <td className="px-3 py-4 text-texto-secundario">{String(item.date || '').slice(0, 10)}</td>
                         <td className="px-3 py-4">
                           <span className={`rounded-full px-3 py-1 font-semibold ${estadoClase(item.status)}`}>
                             {estadoEtiqueta(item.status)}
@@ -486,7 +491,7 @@ const ProcesoSolicitudes = () => {
                             <div className="flex items-center justify-center gap-2">
                               {isJefe && <button
                                 onClick={() => setSelectedRequest(item)}
-                                className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 p-1.5 text-[#315b86] transition hover:bg-[#e5effd]"
+                                className="inline-flex items-center justify-center rounded-lg border border-borde bg-fondo p-1.5 text-acento transition hover:bg-suave"
                                 title="Ver datos"
                               >
                                 <Eye size={15} />
@@ -496,7 +501,7 @@ const ProcesoSolicitudes = () => {
                                   <button
                                     onClick={() => handleApproval(item, 'Aprobado')}
                                     disabled={approvingId === item.id}
-                                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#315b86] px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-[#223a5d] disabled:opacity-50"
+                                    className="inline-flex items-center gap-1.5 rounded-lg bg-acento px-2.5 py-1.5 text-xs font-semibold text-inverso transition hover:bg-principal-hover disabled:opacity-50"
                                     title="Aprobar"
                                   >
                                     <Check size={14} /> Aprobar
@@ -504,7 +509,7 @@ const ProcesoSolicitudes = () => {
                                   <button
                                     onClick={() => handleApproval(item, 'Rechazado')}
                                     disabled={approvingId === item.id}
-                                    className="inline-flex items-center gap-1.5 rounded-lg border border-[#77a8d2] bg-[#e5effd] px-2.5 py-1.5 text-xs font-semibold text-[#17243d] transition hover:bg-[#cfe1f7] disabled:opacity-50"
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-enfasis bg-suave px-2.5 py-1.5 text-xs font-semibold text-principal transition hover:bg-suave-hover disabled:opacity-50"
                                     title="Rechazar"
                                   >
                                     <XCircle size={14} /> Rechazar
@@ -514,7 +519,7 @@ const ProcesoSolicitudes = () => {
                               {!isJefe && item.qrToken && (modulo === 'paqueteria' || item.status === 'Aprobado') && (
                                 <button
                                   onClick={() => setSelectedQr({ code: item.code, token: item.qrToken, companions: item.companions })}
-                                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 font-semibold text-[#17243d] transition hover:bg-[#17243d] hover:text-white"
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-borde bg-fondo px-2.5 py-1.5 font-semibold text-principal transition hover:bg-principal hover:text-inverso"
                                   title="Ver Código QR"
                                 >
                                   <QrCode size={14} />
@@ -524,7 +529,7 @@ const ProcesoSolicitudes = () => {
                               {puedeSubirFactura(item) && (
                                 <button
                                   onClick={() => setFacturaPara(item)}
-                                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#315b86] px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-[#223a5d]"
+                                  className="inline-flex items-center gap-1.5 rounded-lg bg-acento px-2.5 py-1.5 text-xs font-semibold text-inverso transition hover:bg-principal-hover"
                                   title="Subir factura"
                                 >
                                   <Receipt size={14} /> Subir factura
@@ -545,17 +550,17 @@ const ProcesoSolicitudes = () => {
 
         {/* Modal Escanear QR */}
         {isScannerOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
-            <div className="relative w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-principal/50 p-4 backdrop-blur-sm">
+            <div className="relative w-full max-w-2xl rounded-2xl border border-borde bg-superficie p-6 shadow-xl">
               <button
                 onClick={() => setIsScannerOpen(false)}
-                className="absolute right-4 top-4 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                className="absolute right-4 top-4 rounded-lg p-1 text-texto-muted hover:bg-superficie-muted hover:text-texto-secundario"
               >
                 <X size={18} />
               </button>
 
-              <h3 className="mb-4 text-lg font-bold text-[#17243d]">Escanear Código QR</h3>
-              <div className="overflow-hidden rounded-xl bg-slate-50 p-2 border border-slate-100">
+              <h3 className="mb-4 text-lg font-bold text-principal">Escanear Código QR</h3>
+              <div className="overflow-hidden rounded-xl bg-fondo p-2 border border-borde-suave">
                 <Escanear tipo={modulo} onClose={handleScannerClose} />
               </div>
             </div>
@@ -575,75 +580,46 @@ const ProcesoSolicitudes = () => {
         )}
 
         {selectedRequest && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-            <div className="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-              <button
-                onClick={() => setSelectedRequest(null)}
-                className="absolute right-4 top-4 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                title="Cerrar"
-              >
-                <X size={18} />
-              </button>
-              <div className="mb-5 flex items-center gap-3">
-                <div className="rounded-xl bg-[#e5effd] p-2.5 text-[#315b86]"><Eye size={20} /></div>
-                <div>
-                  <h3 className="text-lg font-bold text-[#17243d]">Datos de la solicitud</h3>
-                  <p className="text-xs text-slate-500">{selectedRequest.code}</p>
-                </div>
-              </div>
-              <dl className="grid gap-3 text-sm sm:grid-cols-2">
-                <div><dt className="text-xs font-semibold text-slate-400">Persona que solicita</dt><dd className="font-medium text-slate-700">{selectedRequest.requester}</dd></div>
-                {modulo === 'externo' && <>
-                  <div><dt className="text-xs font-semibold text-slate-400">Proveedor / visitante</dt><dd className="font-medium text-slate-700">{selectedRequest.provider}</dd></div>
-                  <div><dt className="text-xs font-semibold text-slate-400">Empresa</dt><dd className="font-medium text-slate-700">{selectedRequest.company}</dd></div>
-                  <div><dt className="text-xs font-semibold text-slate-400">Cédula</dt><dd className="font-medium text-slate-700">{selectedRequest.identification}</dd></div>
-                  <div><dt className="text-xs font-semibold text-slate-400">Teléfono</dt><dd className="font-medium text-slate-700">{selectedRequest.phone}</dd></div>
-                </>}
-                <div><dt className="text-xs font-semibold text-slate-400">Estado</dt><dd className="font-medium text-slate-700">{estadoEtiqueta(selectedRequest.status)}</dd></div>
-                <div><dt className="text-xs font-semibold text-slate-400">Destino</dt><dd className="font-medium text-slate-700">{selectedRequest.destination}</dd></div>
-                <div><dt className="text-xs font-semibold text-slate-400">Tipo</dt><dd className="font-medium text-slate-700">{selectedRequest.area}</dd></div>
-                <div><dt className="text-xs font-semibold text-slate-400">Fecha</dt><dd className="font-medium text-slate-700">{String(selectedRequest.date || '').slice(0, 10)}</dd></div>
-                {modulo === 'externo' && <>
-                  <div><dt className="text-xs font-semibold text-slate-400">Hora de ingreso</dt><dd className="font-medium text-slate-700">{selectedRequest.entryTime}</dd></div>
-                  <div><dt className="text-xs font-semibold text-slate-400">Hora de salida</dt><dd className="font-medium text-slate-700">{selectedRequest.exitTime}</dd></div>
-                </>}
-                <div className="sm:col-span-2"><dt className="text-xs font-semibold text-slate-400">Motivo</dt><dd className="font-medium text-slate-700">{selectedRequest.reason || 'Sin motivo indicado'}</dd></div>
-              </dl>
-            </div>
-          </div>
+          <DetalleSolicitud
+            solicitud={selectedRequest}
+            modulo={modulo}
+            estadoTexto={estadoEtiqueta(selectedRequest.status)}
+            claseEstado={estadoClase(selectedRequest.status)}
+            onClose={() => setSelectedRequest(null)}
+          />
         )}
 
         {selectedQr && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-            <div className="relative w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-xl transition-all">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-principal/40 p-4 backdrop-blur-sm">
+            <div className="relative w-full max-w-sm rounded-2xl border border-borde bg-superficie p-6 shadow-xl transition-all">
               <button
                 onClick={() => setSelectedQr(null)}
-                className="absolute right-4 top-4 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                className="absolute right-4 top-4 rounded-lg p-1 text-texto-muted hover:bg-superficie-muted hover:text-texto-secundario"
               >
                 <X size={18} />
               </button>
 
               <div className="flex flex-col items-center text-center">
-                <div className="mb-2 rounded-xl bg-[#17243d] p-2.5 text-white">
+                <div className="mb-2 rounded-xl bg-principal p-2.5 text-inverso">
                   <QrCode size={20} />
                 </div>
-                <h3 className="text-lg font-bold text-[#17243d]">Código QR de Solicitud</h3>
-                <p className="text-xs font-semibold text-[#315b86]">{selectedQr.code}</p>
+                <h3 className="text-lg font-bold text-principal">Código QR de Solicitud</h3>
+                <p className="text-xs font-semibold text-acento">{selectedQr.code}</p>
                 {modulo === 'externo' && (
-                  <p className="mt-1 text-sm font-semibold text-[#17243d]">
+                  <p className="mt-1 text-sm font-semibold text-principal">
                     Acompañantes: {selectedQr.companions}
                   </p>
                 )}
 
-                <div className="my-5 rounded-xl border border-slate-100 bg-slate-50 p-4 shadow-inner">
+                <div className="my-5 rounded-xl border border-borde-suave bg-fondo p-4 shadow-inner">
                   <QRCodeSVG value={selectedQr.token} size={200} level="H" includeMargin />
                 </div>
 
-                <p className="max-w-xs break-all text-[11px] text-slate-400">{selectedQr.token}</p>
+                <p className="max-w-xs break-all text-[11px] text-texto-muted">{selectedQr.token}</p>
 
                 <button
                   onClick={() => setSelectedQr(null)}
-                  className="mt-5 w-full rounded-lg bg-[#17243d] py-2 text-sm font-semibold text-white transition hover:bg-[#223a5d]"
+                  className="mt-5 w-full rounded-lg bg-principal py-2 text-sm font-semibold text-inverso transition hover:bg-principal-hover"
                 >
                   Cerrar
                 </button>

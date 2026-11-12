@@ -18,10 +18,10 @@ export default function AccesoTalentoHumano({ token }) {
   if (!error) return null;
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-white p-6 font-sans">
+    <main className="flex min-h-screen items-center justify-center bg-superficie p-6 font-sans">
       <div className="max-w-md text-center">
-        <p role="alert" className="text-sm text-red-700">{error}</p>
-        <button type="button" className="mt-5 rounded-lg bg-[#0d3b4e] px-5 py-3 text-sm text-white"
+        <p role="alert" className="text-sm text-error">{error}</p>
+        <button type="button" className="mt-5 rounded-lg bg-principal px-5 py-3 text-sm text-inverso"
           onClick={() => { storeAuth.getState().logout(); window.location.replace('/login'); }}>
           Volver a iniciar sesión
         </button>

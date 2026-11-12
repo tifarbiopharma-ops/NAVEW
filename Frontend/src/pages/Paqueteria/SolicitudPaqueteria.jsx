@@ -178,74 +178,74 @@ const SolicitudPaqueteria = () => {
   ));
 
   return (
-    <div className="min-h-full bg-[#f4f7fa] p-4 md:p-6">
+    <div className="min-h-full bg-fondo p-4 md:p-6">
       <ToastContainer position="top-right" autoClose={3500} />
       <div className="mx-auto max-w-6xl space-y-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#17243d] md:text-3xl">Solicitud de Paquetería</h1>
-          <p className="mt-1 text-sm text-slate-500">Registra una nueva solicitud de traslado para otra planta.</p>
+          <h1 className="text-2xl font-bold text-principal md:text-3xl">Solicitud de Paquetería</h1>
+          <p className="mt-1 text-sm text-texto-muted">Registra una nueva solicitud de traslado para otra planta.</p>
         </div>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
+        <section className="rounded-2xl border border-borde bg-superficie p-5 shadow-sm md:p-7">
           <div className="mb-5 flex items-center gap-3">
-            <div className="rounded-xl bg-[#17243d] p-2 text-white"><Package size={18} /></div>
-            <h2 className="text-lg font-semibold text-[#17243d]">Datos de la solicitud</h2>
+            <div className="rounded-xl bg-principal p-2 text-inverso"><Package size={18} /></div>
+            <h2 className="text-lg font-semibold text-principal">Datos de la solicitud</h2>
           </div>
 
           {loading ? (
-            <div className="flex items-center gap-2 py-10 text-sm text-slate-500">
+            <div className="flex items-center gap-2 py-10 text-sm text-texto-muted">
               <LoaderCircle className="animate-spin" size={18} /> Cargando catálogos...
             </div>
           ) : (
             <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4 md:grid-cols-2">
               <label className="space-y-1.5">
-                <span className="text-xs font-semibold text-[#17243d]">Fecha de salida *</span>
-                <input type="date" {...register('fecha_salida', { required: 'La fecha de salida es obligatoria' })} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" />{errors.fecha_salida && <span className="text-xs text-red-600">{errors.fecha_salida.message}</span>}
+                <span className="text-xs font-semibold text-principal">Fecha de salida *</span>
+                <input type="date" {...register('fecha_salida', { required: 'La fecha de salida es obligatoria' })} className="w-full rounded-lg border border-borde bg-fondo px-3 py-2.5 text-sm outline-none focus:border-acento" />{errors.fecha_salida && <span className="text-xs text-error">{errors.fecha_salida.message}</span>}
               </label>
               <label className="space-y-1.5">
-                <span className="text-xs font-semibold text-[#17243d]">Hora de salida</span>
-                <input type="time" {...register('hora_entrega')} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" />
+                <span className="text-xs font-semibold text-principal">Hora de salida</span>
+                <input type="time" {...register('hora_entrega')} className="w-full rounded-lg border border-borde bg-fondo px-3 py-2.5 text-sm outline-none focus:border-acento" />
               </label>
               <label className="space-y-1.5">
-                <span className="text-xs font-semibold text-[#17243d]">Responsable *</span>
-                <input type="text" readOnly value={perfilUsuario?.nombre || catalogos.usuarioActual?.nombre || responsableActual?.nombre || 'Cargando responsable...'} className="w-full rounded-lg border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-[#17243d]" />
+                <span className="text-xs font-semibold text-principal">Responsable *</span>
+                <input type="text" readOnly value={perfilUsuario?.nombre || catalogos.usuarioActual?.nombre || responsableActual?.nombre || 'Cargando responsable...'} className="w-full rounded-lg border border-borde bg-superficie-muted px-3 py-2.5 text-sm text-principal" />
               </label>
               <label className="space-y-1.5">
-                <span className="text-xs font-semibold text-[#17243d]">
+                <span className="text-xs font-semibold text-principal">
                   Área de origen *
                 </span>
-                <input type="text" readOnly value={catalogos.areas.find((area) => String(area.id) === String(form.id_area_origen))?.nombre || ''} className="w-full rounded-lg border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-[#17243d]"/><input type="hidden" {...register('id_area_origen', {required: 'El área de origen es obligatoria',})}/>{errors.id_area_origen && (<span className="text-xs text-red-600">{errors.id_area_origen.message}</span>)}
+                <input type="text" readOnly value={catalogos.areas.find((area) => String(area.id) === String(form.id_area_origen))?.nombre || ''} className="w-full rounded-lg border border-borde bg-superficie-muted px-3 py-2.5 text-sm text-principal"/><input type="hidden" {...register('id_area_origen', {required: 'El área de origen es obligatoria',})}/>{errors.id_area_origen && (<span className="text-xs text-error">{errors.id_area_origen.message}</span>)}
               </label>
               <label className="space-y-1.5">
-                <span className="text-xs font-semibold text-[#17243d]">Planta de origen *</span>
-                <select {...register('id_planta_origen', { required: 'La planta de origen es obligatoria' })} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione una planta</option>{renderOptions(catalogos.plantas, form.id_planta_destino)}</select>{errors.id_planta_origen && <span className="text-xs text-red-600">{errors.id_planta_origen.message}</span>}
+                <span className="text-xs font-semibold text-principal">Planta de origen *</span>
+                <select {...register('id_planta_origen', { required: 'La planta de origen es obligatoria' })} className="w-full rounded-lg border border-borde bg-fondo px-3 py-2.5 text-sm outline-none focus:border-acento"><option value="">Seleccione una planta</option>{renderOptions(catalogos.plantas, form.id_planta_destino)}</select>{errors.id_planta_origen && <span className="text-xs text-error">{errors.id_planta_origen.message}</span>}
               </label>
               <label className="space-y-1.5">
-                <span className="text-xs font-semibold text-[#17243d]">Tipo de contenido *</span>
-                <input type="text" {...register('tipo_contenido', { required: 'El tipo de contenido es obligatorio', maxLength: 100, validate: (value) => value.trim() !== '' || 'El tipo de contenido es obligatorio' })} maxLength={100} placeholder="Ej. Documentos" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" />{errors.tipo_contenido && <span className="text-xs text-red-600">{errors.tipo_contenido.message}</span>}
+                <span className="text-xs font-semibold text-principal">Tipo de contenido *</span>
+                <input type="text" {...register('tipo_contenido', { required: 'El tipo de contenido es obligatorio', maxLength: 100, validate: (value) => value.trim() !== '' || 'El tipo de contenido es obligatorio' })} maxLength={100} placeholder="Ej. Documentos" className="w-full rounded-lg border border-borde bg-fondo px-3 py-2.5 text-sm outline-none focus:border-acento" />{errors.tipo_contenido && <span className="text-xs text-error">{errors.tipo_contenido.message}</span>}
               </label>
               <label className="space-y-1.5">
-                <span className="text-xs font-semibold text-[#17243d]">Destinatario *</span>
+                <span className="text-xs font-semibold text-principal">Destinatario *</span>
                 <select {...register('id_destinatario', { required: 'El destinatario es obligatorio', onChange: (event) => {
                   const destinatario = catalogos.colaboradores.find((item) => String(item.id) === event.target.value);
                   setValue('id_area_destino', destinatario?.areaId != null ? String(destinatario.areaId) : '',{ shouldValidate: true, shouldDirty: true });
-                  setValue('id_planta_destino',destinatario?.ubicacionId != null ? String(destinatario.ubicacionId) : '',{ shouldValidate: true, shouldDirty: true });} })} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione un destinatario</option>{renderOptions(catalogos.colaboradores, idColaborador)}</select>{errors.id_destinatario && <span className="text-xs text-red-600">{errors.id_destinatario.message}</span>}
+                  setValue('id_planta_destino',destinatario?.ubicacionId != null ? String(destinatario.ubicacionId) : '',{ shouldValidate: true, shouldDirty: true });} })} className="w-full rounded-lg border border-borde bg-fondo px-3 py-2.5 text-sm outline-none focus:border-acento"><option value="">Seleccione un destinatario</option>{renderOptions(catalogos.colaboradores, idColaborador)}</select>{errors.id_destinatario && <span className="text-xs text-error">{errors.id_destinatario.message}</span>}
               </label>
               <label className="space-y-1.5">
-                <span className="text-xs font-semibold text-[#17243d]">Área de destino *</span><input type="text"
-                  readOnly value={catalogos.areas.find((area) => String(area.id) === String(form.id_area_destino))?.nombre || ''} placeholder="Seleccione un destinatario" className="w-full rounded-lg border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-[#17243d] cursor-not-allowed"/><input type="hidden" {...register('id_area_destino', { required: 'El área de destino es obligatoria',})}/>{errors.id_area_destino && (<span className="text-xs text-red-600">{errors.id_area_destino.message}</span>)}
+                <span className="text-xs font-semibold text-principal">Área de destino *</span><input type="text"
+                  readOnly value={catalogos.areas.find((area) => String(area.id) === String(form.id_area_destino))?.nombre || ''} placeholder="Seleccione un destinatario" className="w-full rounded-lg border border-borde bg-superficie-muted px-3 py-2.5 text-sm text-principal cursor-not-allowed"/><input type="hidden" {...register('id_area_destino', { required: 'El área de destino es obligatoria',})}/>{errors.id_area_destino && (<span className="text-xs text-error">{errors.id_area_destino.message}</span>)}
               </label>
               <label className="space-y-1.5">
-                <span className="text-xs font-semibold text-[#17243d]">Planta de destino *</span>
-                <select {...register('id_planta_destino', { required: 'La planta de destino es obligatoria' })} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]"><option value="">Seleccione una planta</option>{renderOptions(catalogos.plantas, form.id_planta_origen)}</select>{errors.id_planta_destino && <span className="text-xs text-red-600">{errors.id_planta_destino.message}</span>}
+                <span className="text-xs font-semibold text-principal">Planta de destino *</span>
+                <select {...register('id_planta_destino', { required: 'La planta de destino es obligatoria' })} className="w-full rounded-lg border border-borde bg-fondo px-3 py-2.5 text-sm outline-none focus:border-acento"><option value="">Seleccione una planta</option>{renderOptions(catalogos.plantas, form.id_planta_origen)}</select>{errors.id_planta_destino && <span className="text-xs text-error">{errors.id_planta_destino.message}</span>}
               </label>
               <label className="space-y-1.5 md:col-span-2">
-                <span className="text-xs font-semibold text-[#17243d]">Comentario</span>
-                <textarea {...register('comentario')} rows={3} maxLength={1000} placeholder="Ingrese el detalle del envío (opcional)" className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#315b86]" />
+                <span className="text-xs font-semibold text-principal">Comentario</span>
+                <textarea {...register('comentario')} rows={3} maxLength={1000} placeholder="Ingrese el detalle del envío (opcional)" className="w-full resize-none rounded-lg border border-borde bg-fondo px-3 py-2.5 text-sm outline-none focus:border-acento" />
               </label>
 
               <div className="md:col-span-2">
-                <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-lg bg-[#17243d] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#223a5d] disabled:cursor-not-allowed disabled:opacity-60">
+                <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-lg bg-principal px-5 py-2.5 text-sm font-semibold text-inverso transition hover:bg-principal-hover disabled:cursor-not-allowed disabled:opacity-60">
                   {saving ? <LoaderCircle className="animate-spin" size={16} /> : <Send size={16} />}
                   {saving ? 'Guardando...' : 'Guardar solicitud'}
                 </button>

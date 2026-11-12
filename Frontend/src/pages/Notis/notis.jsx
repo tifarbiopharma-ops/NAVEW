@@ -117,16 +117,16 @@ const AvisarLlegada = ({ open, onClose, token }) => {
   );
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-principal/60 p-4 backdrop-blur-sm">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="titulo-aviso-llegada"
-        className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="w-full max-w-md overflow-hidden rounded-2xl bg-superficie shadow-2xl"
       >
-        <div className="flex items-center justify-between bg-[#142744] px-6 py-5 text-white">
+        <div className="flex items-center justify-between bg-principal px-6 py-5 text-inverso">
           <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-white/10 p-2.5">
+            <div className="rounded-xl bg-superficie/10 p-2.5">
               <Truck size={23} />
             </div>
 
@@ -138,7 +138,7 @@ const AvisarLlegada = ({ open, onClose, token }) => {
                 Avisar llegada
               </h2>
 
-              <p className="text-xs text-slate-300">
+              <p className="text-xs text-nav-texto">
                 Notificación de camión
               </p>
             </div>
@@ -149,21 +149,21 @@ const AvisarLlegada = ({ open, onClose, token }) => {
             onClick={onClose}
             disabled={enviando}
             aria-label="Cerrar modal"
-            className="rounded-lg p-2 transition hover:bg-white/10"
+            className="rounded-lg p-2 transition hover:bg-superficie/10"
           >
             <X size={20} />
           </button>
         </div>
 
         <div className="space-y-5 p-6">
-          <p className="text-sm leading-relaxed text-slate-600">
+          <p className="text-sm leading-relaxed text-texto-secundario">
             Confirma la planta donde se encuentra el camión.
             Si es diferente a tu ubicación asignada, puedes
             seleccionarla antes de enviar.
           </p>
 
           {cargando ? (
-            <div className="flex items-center justify-center gap-2 py-8 text-sm text-slate-500">
+            <div className="flex items-center justify-center gap-2 py-8 text-sm text-texto-muted">
               <Loader2 className="animate-spin" size={20} />
               Cargando plantas...
             </div>
@@ -171,7 +171,7 @@ const AvisarLlegada = ({ open, onClose, token }) => {
             <div className="space-y-2">
               <label
                 htmlFor="planta-llegada"
-                className="flex items-center gap-2 text-sm font-semibold text-[#17243d]"
+                className="flex items-center gap-2 text-sm font-semibold text-principal"
               >
                 <MapPin size={17} />
                 Planta de llegada
@@ -186,7 +186,7 @@ const AvisarLlegada = ({ open, onClose, token }) => {
                   setExito("");
                 }}
                 disabled={enviando}
-                className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800 outline-none transition focus:border-[#3970a8] focus:ring-2 focus:ring-blue-100"
+                className="w-full rounded-xl border border-borde-fuerte bg-fondo px-4 py-3 text-sm font-medium text-principal outline-none transition focus:border-marca focus:ring-2 focus:ring-suave"
               >
                 <option value="">
                   Selecciona una planta
@@ -205,12 +205,12 @@ const AvisarLlegada = ({ open, onClose, token }) => {
           )}
 
           {plantaSeleccionada && (
-            <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#285789]">
+            <div className="rounded-xl border border-borde-acento bg-suave p-4">
+              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-acento">
                 Vista previa
               </p>
 
-              <p className="text-sm leading-relaxed text-slate-700">
+              <p className="text-sm leading-relaxed text-texto-secundario">
                 🚛 Se informa que el camión ya se encuentra
                 en <strong>{plantaSeleccionada.nombre}</strong>.
               </p>
@@ -220,7 +220,7 @@ const AvisarLlegada = ({ open, onClose, token }) => {
           {error && (
             <p
               role="alert"
-              className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700"
+              className="rounded-xl bg-error-fondo px-4 py-3 text-sm text-error"
             >
               {error}
             </p>
@@ -229,19 +229,19 @@ const AvisarLlegada = ({ open, onClose, token }) => {
           {exito && (
             <div
               role="status"
-              className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700"
+              className="flex items-center gap-2 rounded-xl bg-exito-fondo px-4 py-3 text-sm font-medium text-exito"
             >
               <CheckCircle2 size={19} />
               {exito}
             </div>
           )}
 
-          <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
+          <div className="flex justify-end gap-3 border-t border-borde-suave pt-4">
             <button
               type="button"
               onClick={onClose}
               disabled={enviando}
-              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+              className="rounded-xl border border-borde px-4 py-2.5 text-sm font-semibold text-texto-secundario transition hover:bg-fondo"
             >
               Cerrar
             </button>
@@ -255,7 +255,7 @@ const AvisarLlegada = ({ open, onClose, token }) => {
                 !idUbicacion ||
                 Boolean(exito)
               }
-              className="flex items-center gap-2 rounded-xl bg-[#142744] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#285789] disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex items-center gap-2 rounded-xl bg-principal px-5 py-2.5 text-sm font-semibold text-inverso transition hover:bg-acento disabled:cursor-not-allowed disabled:opacity-50"
             >
               {enviando ? (
                 <Loader2

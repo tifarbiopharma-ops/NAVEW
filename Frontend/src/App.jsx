@@ -59,7 +59,7 @@ const DashboardHomeRedirect = () => {
   }
 
   return (
-    <div role="alert" className="p-6 text-red-600">
+    <div role="alert" className="p-6 text-error">
       No se pudo identificar un rol autorizado para tu usuario.
     </div>
   );
@@ -82,7 +82,7 @@ function App() {
           path="/organigrama/rrhh"
           element={
             <PrivateRouteWithRole allowedRoles={["talento humano"]}>
-              <main className="min-h-screen w-full bg-white p-2 sm:p-4">
+              <main className="min-h-screen w-full bg-superficie p-2 sm:p-4">
                 <Organigrama />
               </main>
             </PrivateRouteWithRole>
