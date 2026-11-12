@@ -320,10 +320,7 @@ const ProcesoSolicitudes = () => {
         <div className="mx-auto max-w-6xl">
           <div className="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-texto-muted">
-                Proceso {isSupervisor && '• Modo Supervisor'}
-              </p>
-              <h1 className="mt-2 text-2xl font-bold text-principal md:text-3xl">{config.title}</h1>
+              <h1 className="text-2xl font-bold text-principal md:text-3xl">{config.title}</h1>
               <p className="mt-1 text-sm text-texto-muted">{config.subtitle}</p>
             </div>
 

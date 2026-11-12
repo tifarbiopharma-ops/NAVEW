@@ -170,8 +170,7 @@ const HistoricoSolicitudes = () => {
       <div className="min-h-full bg-fondo p-4 md:p-8">
         <div className="mx-auto max-w-6xl">
           <div className="mb-5">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-texto-muted">Histórico</p>
-            <h1 className="mt-2 text-2xl font-bold text-principal md:text-3xl">{config.title}</h1>
+            <h1 className="text-2xl font-bold text-principal md:text-3xl">{config.title}</h1>
             <p className="mt-1 text-sm text-texto-muted">Consulta el historial de solicitudes completadas.</p>
           </div>
 

@@ -406,10 +406,6 @@ const CrearUsuarioPage = () => {
 
         <div className="space-y-4 mb-6">
           <div className="space-y-2">
-            <p className="text-sm uppercase tracking-[0.22em] text-texto-muted">
-              Administración de usuarios
-            </p>
-
             <h1 className="text-4xl font-semibold text-principal">
               Crear nuevo usuario
             </h1>

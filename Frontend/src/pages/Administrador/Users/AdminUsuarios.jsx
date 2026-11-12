@@ -78,7 +78,6 @@ const AdminUsuarios = () => {
       <div className="w-full min-w-0 max-w-[1600px] mx-auto px-3 py-6 sm:px-5 lg:px-6">
         <div className="space-y-6 mb-6">
           <div className="space-y-3">
-            <p className="text-sm uppercase tracking-[0.22em] text-texto-muted">Panel administrativo</p>
             <div className="space-y-2">
               <h1 className="text-4xl font-semibold text-principal">Gestión de usuarios</h1>
               <p className="max-w-2xl text-texto-secundario">Visualiza, filtra y administra todos los usuarios del sistema en un solo lugar.</p>

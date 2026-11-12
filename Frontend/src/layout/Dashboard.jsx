@@ -3,9 +3,9 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import storeAuth from "../context/storeAuth";
 import useFetch from "../hooks/useFetch";
 import { getAuthClaims } from "../utils/authClaims";
-import { ChevronRight, ClipboardList, History, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Users, Workflow, X } from "lucide-react";
+import { etiquetaRolUsuario } from "../utils/etiquetasRol";
+import { ChevronRight, ClipboardList, History, LogOut, Menu, PanelLeftClose, PanelLeftOpen, UserRound, Users, Workflow, X } from "lucide-react";
 import ContextSidebar from "./ContextSidebar";
-import TopBar from "./TopBar";
 import { Truck } from "lucide-react";
 import AvisarLlegada from "../pages/Notis/notis";
 
@@ -44,16 +44,6 @@ const Dashboard = () => {
   const esSupervisor = userRole === "supervisor";
   const [modalLlegadaAbierto, setModalLlegadaAbierto] = useState(false);
   
-
-  const tituloSeccion = urlActual.startsWith("/dashboard/admin")
-    ? "Administración"
-    : urlActual.startsWith("/dashboard/proceso")
-      ? "Proceso"
-    : urlActual.startsWith("/dashboard/historico")
-      ? "Histórico"
-    : urlActual.startsWith("/dashboard/transporte")
-      ? "Solicitud"
-      : "Panel principal";
 
   // Cargar perfil del usuario de forma segura
   useEffect(() => {
@@ -108,14 +98,6 @@ const Dashboard = () => {
     return () => window.removeEventListener("resize", handleViewportChange);
   }, []);
 
-  function getHDImage(url) {
-    if (!url) return url;
-    if (url.includes("googleusercontent.com") || url.includes("gstatic.com")) {
-      return url.replace(/=s\d+/, "=s1024");
-    }
-    return url;
-  }
-
   // Carga de fuente externa
   useEffect(() => {
     const link = document.createElement("link");
@@ -150,13 +132,16 @@ const Dashboard = () => {
 
       {/* SIDEBAR */}
       <aside
+        aria-label="Menú principal"
         className={`fixed md:relative z-50 transition-all duration-300 ease-in-out bg-principal flex flex-col h-full
           ${mobileMenuOpen ? "left-0" : "-left-full"} md:left-0 
           ${isCollapsed ? "w-16 md:w-20" : "w-[102px] md:w-50.5"}`}
       >
         <div className="flex h-full flex-col px-1 py-3 md:px-3 md:py-6">
-          <div className={`mb-4 px-1 md:mb-8 md:px-3 ${isCollapsed ? "text-center" : ""}`}>
-            <div className="text-[11px] font-black tracking-tight text-inverso md:text-xl">NA<span className="text-enfasis">VE</span>W</div>
+          <div className={`mb-4 px-1 md:mb-6 md:px-3 ${isCollapsed ? "text-center" : ""}`}>
+            <div role="img" aria-label="NAVEW" className="text-[11px] font-black tracking-tight text-inverso md:text-xl">
+              {isCollapsed ? 'N' : <>NA<span className="text-enfasis">VE</span>W</>}
+            </div>
             {!isCollapsed && <p className="mt-0.5 text-[5px] font-medium tracking-[0.08em] text-nav-muted md:mt-1 md:text-[9px]">Farbiopharma</p>}
           </div>
 
@@ -171,22 +156,19 @@ const Dashboard = () => {
             {isCollapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
           </button>
 
-          {/* Perfil Usuario */}
-          <div className={`mb-3 flex items-center transition-all ${isCollapsed ? "justify-center" : "px-0.5 md:mb-6 md:px-2"}`}>
-            <img
-              src={getHDImage(perfilUsuario?.avatarUsuario) || "/usuarioSinfoto.jpg"}
-              alt="Avatar"
-              className="h-5 w-5 rounded-full border border-borde-acento object-cover shadow-sm md:h-10 md:w-10 md:border-2"
-            />
-            {!isCollapsed && (
-              <div className="ml-1 min-w-0 overflow-hidden md:ml-3">
-                <p className="truncate text-[7px] font-bold text-inverso md:text-xs">{nombreUsuario}</p>
-                <p className="text-[6px] capitalize text-nav-muted md:text-[10px]">{userRole || "usuario"}</p>
+          {!isCollapsed && (
+            <div aria-label="Perfil del usuario" className="mb-4 flex min-w-0 flex-col items-start gap-2 px-1 md:mb-5 md:flex-row md:gap-2.5">
+              <div aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-nav-borde bg-principal-hover text-nav-texto md:h-9 md:w-9">
+                <UserRound size={20} strokeWidth={1.8} />
               </div>
-            )}
-          </div>
+              <div className="min-w-0 flex-1">
+                <p className="whitespace-normal text-[11px] font-semibold leading-relaxed text-inverso [overflow-wrap:anywhere] md:text-xs">{nombreUsuario}</p>
+                <p className="mt-1 whitespace-normal text-[10px] leading-relaxed text-nav-muted [overflow-wrap:anywhere]">{etiquetaRolUsuario(userRole)}</p>
+              </div>
+            </div>
+          )}
 
-          <hr className="mb-3 border-nav-borde md:mb-6" />
+          <hr className="mb-4 border-nav-borde md:mb-5" />
 
           {/* Navegación */}
           <nav className="flex-1 overflow-y-auto">
@@ -197,6 +179,8 @@ const Dashboard = () => {
                 <>
                   <li>
                     <Link
+                      aria-label="Solicitud"
+                      title={isCollapsed ? 'Solicitud' : undefined}
                       to={ esSupervisor ? "/dashboard/paqueteria" : "/dashboard/transporte"}
                       onClick={handleMenuItemClick}
                       className={navItemClass(urlActual.startsWith("/dashboard/transporte"))}
@@ -208,6 +192,8 @@ const Dashboard = () => {
                   </li>
                   <li>
                     <Link
+                      aria-label="Proceso"
+                      title={isCollapsed ? 'Proceso' : undefined}
                       to="/dashboard/proceso/transporte"
                       onClick={handleMenuItemClick}
                       className={navItemClass(urlActual.startsWith("/dashboard/proceso"))}
@@ -219,6 +205,8 @@ const Dashboard = () => {
                   </li>
                   <li>
                     <Link
+                      aria-label="Histórico"
+                      title={isCollapsed ? 'Histórico' : undefined}
                       to="/dashboard/historico/transporte"
                       onClick={handleMenuItemClick}
                       className={navItemClass(urlActual.startsWith("/dashboard/historico"))}
@@ -235,6 +223,8 @@ const Dashboard = () => {
                 <li>
                   <button
                     type="button"
+                    aria-label="Avisar llegada"
+                    title={isCollapsed ? 'Avisar llegada' : undefined}
                     onClick={() => {
                       handleMenuItemClick();
                       setModalLlegadaAbierto(true);
@@ -254,9 +244,11 @@ const Dashboard = () => {
               {/* Menú Administrador */}
               {esAdministrador && (
                 <>
-                  <p className={`mb-2 mt-4 text-[10px] font-bold uppercase text-nav-muted ${isCollapsed ? "text-center" : "px-2"}`}>Admin</p>
+                  {!isCollapsed && <p className="mb-2 mt-4 px-2 text-[10px] font-bold uppercase text-nav-muted">Admin</p>}
                   <li>
                     <Link
+                      aria-label="Usuarios"
+                      title={isCollapsed ? 'Usuarios' : undefined}
                       to="/dashboard/admin/usuarios"
                       onClick={handleMenuItemClick}
                         className={navItemClass(urlActual === "/dashboard/admin/usuarios")}
@@ -267,6 +259,8 @@ const Dashboard = () => {
                   </li>
                   <li>
                     <Link
+                      aria-label="Organigrama"
+                      title={isCollapsed ? 'Organigrama' : undefined}
                       to="/dashboard/admin/organigrama"
                       onClick={handleMenuItemClick}
                       className={navItemClass(urlActual === "/dashboard/admin/organigrama")}
@@ -285,6 +279,8 @@ const Dashboard = () => {
           <div className="mt-auto pt-3 md:pt-4">
             <button
               onClick={handleLogout}
+              aria-label="Cerrar sesión"
+              title={isCollapsed ? 'Cerrar sesión' : undefined}
               className={`flex w-full items-center gap-1 rounded-md px-1 py-2 text-[9px] text-nav-texto transition hover:bg-error-hover hover:text-inverso md:gap-3 md:px-3 md:py-3 md:text-sm [&>svg]:h-3 [&>svg]:w-3 md:[&>svg]:h-[18px] md:[&>svg]:w-[18px] ${isCollapsed ? "justify-center" : ""}`}
             >
               <LogOut size={18} />
@@ -304,8 +300,7 @@ const Dashboard = () => {
       />
 
       {/* CONTENIDO PRINCIPAL */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar title={tituloSeccion} userName={nombreUsuario} />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <main className="min-h-0 flex-1 overflow-y-auto bg-fondo"><Outlet /></main>
       </div>
 

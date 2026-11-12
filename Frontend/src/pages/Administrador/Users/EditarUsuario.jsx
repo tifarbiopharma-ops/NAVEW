@@ -383,10 +383,6 @@ const EditarUsuario = () => {
 
       <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-6 space-y-2">
-          <p className="text-sm uppercase tracking-[0.22em] text-texto-muted">
-            Administración de usuarios
-          </p>
-
           <h1 className="text-4xl font-semibold text-principal">
             Editar usuario
           </h1>

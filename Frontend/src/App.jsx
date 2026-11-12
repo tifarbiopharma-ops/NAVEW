@@ -173,7 +173,7 @@ function App() {
             path="admin/organigrama"
             element={
               <PrivateRouteWithRole allowedRoles={["administrador"]}>
-                <div style={{ width: "100%", height: "calc(100vh - 64px)" }}>
+                <div className="h-full w-full">
                   <Organigrama />
                 </div>
               </PrivateRouteWithRole>

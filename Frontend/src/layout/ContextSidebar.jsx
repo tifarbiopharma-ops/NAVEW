@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ClipboardList, Globe2, Package, QrCode } from "lucide-react";
+import { ClipboardList, Globe2, Package } from "lucide-react";
 
 const ContextSidebar = ({ role, path, search, mobileMenuOpen, sidebarCollapsed, onNavigate }) => {
   const rolActual = String(role || "").trim().toLowerCase();
@@ -20,7 +20,6 @@ const ContextSidebar = ({ role, path, search, mobileMenuOpen, sidebarCollapsed, 
   if (!mostrarSolicitudes) return null;
 
   const esTransporte = path === "/dashboard/transporte" && !search.includes("view=aprobadas");
-  const esValidarQr = path === "/dashboard/transporte/validar";
   const esProceso = path.startsWith("/dashboard/proceso/");
   const esHistorico = path.startsWith("/dashboard/historico/");
   const prefijoSeguimiento = esHistorico ? "historico" : "proceso";
@@ -31,10 +30,7 @@ const ContextSidebar = ({ role, path, search, mobileMenuOpen, sidebarCollapsed, 
         ? `fixed bottom-0 top-0 block ${sidebarCollapsed ? "left-16" : "left-[102px]"}`
         : `fixed bottom-0 top-0 hidden ${sidebarCollapsed ? "left-16" : "left-[102px]"} lg:static lg:block`
     }`}>
-      <p className="mb-6 px-2 text-[10px] font-bold uppercase tracking-[0.04em] text-texto-muted">
-        {esProceso ? "Proceso" : esHistorico ? "Histórico" : "Solicitud"}
-      </p>
-      <nav className="space-y-2">
+      <nav aria-label="Módulos de solicitudes" className="space-y-2">
         {(esProceso || esHistorico) && (
           <>
             <Link
