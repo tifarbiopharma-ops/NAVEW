@@ -578,18 +578,18 @@ const onSubmit = async (formData) => {
                 <button
                   type="submit"
                   disabled={isGenerating}
+                  aria-busy={isGenerating}
                   className="inline-flex items-center gap-2 rounded-md bg-[#17243d] px-5 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#223a5d] disabled:opacity-60"
                 >
-                  {isGenerating ? (
+                  <span className="inline-flex shrink-0" aria-hidden="true" translate="no">
                     <LoaderCircle
-                      className="animate-spin"
+                      className={isGenerating ? 'animate-spin' : 'hidden'}
                       size={16}
                     />
-                  ) : (
-                    <CheckCircle2 size={16} />
-                  )}
+                    <CheckCircle2 className={isGenerating ? 'hidden' : ''} size={16} />
+                  </span>
 
-                  Guardar solicitud
+                  <span>Guardar solicitud</span>
                 </button>
               </div>
             </form>
