@@ -7,8 +7,6 @@ import { estadoEnvioEnBase, mostrarEstadoEnvio } from '../utils/estadosEnvio.js'
 import { estadoAccesoEnBase, mostrarEstadoAcceso } from '../utils/estadosAcceso.js';
 import { notificarLlegadaPedido } from '../telegram/telegramService.js';
 
-const MINUTOS_COOLDOWN = 5; // 5 minutos anti-duplicado (mismo escaneo)
-const intentosRecientes = new Map(); // idPaquete:tipoEscaneo -> timestamp
 
 const auditar = async (helper, datos) => {
   try {
@@ -236,12 +234,16 @@ const verificarQRPaquetería = async (req, res) => {
   try {
     if (!req.user?.id) return res.status(401).json({ msg: 'Autenticación requerida' });
     const { token_qr } = req.body;
+    await connection.beginTransaction();
+    enTransaccion = true;
     const [rows] = await connection.query(
       `SELECT
         e.ID_Paquete,
         e.Estado_Actual,
         e.QR_Salida,
         e.QR_Llegada,
+        TIMESTAMPDIFF(SECOND, CAST(e.QR_Salida AS DATETIME), NOW()) AS segundosDesdeSalida,
+        DATE_FORMAT(CAST(e.QR_Salida AS DATETIME), '%d/%m/%Y %H:%i:%s') AS primerEscaneo,
         e.Fecha_Salida AS fecha_salida,
         e.Hora_Entrega AS hora_entrega,
         e.Tipo_Contenido AS tipo_contenido,
@@ -274,7 +276,7 @@ const verificarQRPaquetería = async (req, res) => {
       INNER JOIN Colaboradores dest
         ON dest.ID_COLABORADOR = e.ID_Destinatario
 
-      WHERE e.QR_Token = ?`,
+      WHERE e.QR_Token = ? FOR UPDATE`,
       [token_qr]
     );
 
@@ -293,41 +295,26 @@ const verificarQRPaquetería = async (req, res) => {
     }
 
     const esPrimerEscaneo = !envio.QR_Salida;
-    const tipoEscaneo = esPrimerEscaneo ? 'SALIDA' : 'LLEGADA';
-
-    // 🕒 Cooldown anti-duplicado SOLO contra el mismo intento reciente
-    // (no bloquea salida → llegada, aunque pase 1 segundo entre ellas)
-    const claveIntento = `${envio.ID_Paquete}:${tipoEscaneo}`;
-    const ahora = Date.now();
-    const ultimoIntento = intentosRecientes.get(claveIntento);
-
-    if (ultimoIntento && ahora - ultimoIntento < MINUTOS_COOLDOWN * 60 * 1000) {
-      const restantesMin = Math.ceil(
-        (MINUTOS_COOLDOWN * 60 * 1000 - (ahora - ultimoIntento)) / 1000 / 60
-      );
-      return res.status(429).json({
-        msg: `Escaneo duplicado detectado. Espera ${restantesMin} minuto(s) antes de reintentar.`,
-        cooldown: true,
-        minutosRestantes: restantesMin,
-      });
-    }
-
-    // Registrar el intento ANTES de procesar (para bloquear rebotes)
-    intentosRecientes.set(claveIntento, ahora);
-
-    // 🧹 Limpieza ocasional para no crecer infinitamente
-    if (intentosRecientes.size > 500) {
-      const limite = ahora - MINUTOS_COOLDOWN * 60 * 1000;
-      for (const [key, ts] of intentosRecientes.entries()) {
-        if (ts < limite) intentosRecientes.delete(key);
+    // Validacion persistente: no depende de la memoria ni del reloj del navegador.
+    if (!esPrimerEscaneo) {
+      if (envio.segundosDesdeSalida == null || !Number.isFinite(Number(envio.segundosDesdeSalida))) {
+        return res.status(409).json({ msg: 'No se pudo verificar la hora de salida del paquete. Solicita su revision.' });
+      }
+      const transcurridos = Math.max(0, Number(envio.segundosDesdeSalida));
+      if (transcurridos < 300) {
+        const restantes = Math.ceil(300 - transcurridos);
+        res.set('Retry-After', String(restantes));
+        return res.status(429).json({
+          codigo: 'QR_ESPERA_MINIMA',
+          msg: 'Deben transcurrir al menos 5 minutos desde el escaneo de salida para registrar la llegada.',
+          primerEscaneo: envio.primerEscaneo, segundosTranscurridos: transcurridos,
+          segundosRestantes: restantes, esperaMinimaSegundos: 300,
+        });
       }
     }
 
     const campoActualizar = esPrimerEscaneo ? 'QR_Salida' : 'QR_Llegada';
     const nuevoEstado = esPrimerEscaneo ? 'En camino' : 'Finalizado';
-
-    await connection.beginTransaction();
-    enTransaccion = true;
 
     const [resultado] = await connection.query(
       `UPDATE Envios_Paqueteria
@@ -338,12 +325,10 @@ const verificarQRPaquetería = async (req, res) => {
 
     if (!resultado.affectedRows) {
       await connection.rollback(); enTransaccion = false;
-      intentosRecientes.delete(claveIntento);
       return res.status(409).json({ msg: 'El escaneo ya fue registrado, intenta nuevamente' });
     }
     await connection.commit();
     enTransaccion = false;
-    intentosRecientes.delete(claveIntento);
     await auditar(registrarReporteEnvio, {
       usuarioId: req.user.id, usuarioNombre: req.user.nombre,
       accion: esPrimerEscaneo ? 'SALIDA_QR' : 'LLEGADA_QR', idPaquete: envio.ID_Paquete,
@@ -381,10 +366,10 @@ const verificarQRPaquetería = async (req, res) => {
       envio: { ...envio, Estado_Actual: nuevoEstado },
     });
   } catch (error) {
-    if (enTransaccion) await connection.rollback();
-    if (typeof claveIntento !== 'undefined') intentosRecientes.delete(claveIntento);
+
     return res.status(500).json({ msg: 'Error al verificar QR' });
   } finally {
+    if (enTransaccion) await connection.rollback();
     connection.release();
   }
 };

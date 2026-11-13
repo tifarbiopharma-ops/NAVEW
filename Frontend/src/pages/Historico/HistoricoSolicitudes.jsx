@@ -64,6 +64,7 @@ const normalizeRequest = (item, modulo) => {
       requester: item.responsable_nombre || item.nombre_solicitante || 'Sin responsable',
       requesterId: item.ID_Usuario || item.ID_Solicitante || item.ID_Responsable || item.id,
       area: item.area_destino_nombre || 'Paquetería',
+      recorridoAreas: `${item.area_origen_nombre || 'Sin área de origen'} → ${item.area_destino_nombre || 'Sin área de destino'}`,
       origin: item.planta_origen_nombre || 'Sin origen',
       destination: item.planta_destino_nombre || 'Sin destino',
       date: item.Fecha_Salida,
@@ -255,7 +256,7 @@ const HistoricoSolicitudes = () => {
                         </button>
                         {isExpanded && (
                           <div className="grid grid-cols-2 gap-3 bg-fondo px-11 pb-3 pr-3 text-[11px] text-texto-secundario">
-                            <div><p className="text-[10px] font-semibold uppercase text-texto-muted">{modulo === 'externo' ? 'Área / planta de visita' : 'Área / plantas'}</p><p>{item.area}</p><p>{ubicacionSolicitud(item, modulo)}</p></div>
+                            <div><p className="text-[10px] font-semibold uppercase text-texto-muted">{modulo === 'externo' ? 'Área / planta de visita' : 'Área / plantas'}</p><p>{item.recorridoAreas || item.area}</p><p>{ubicacionSolicitud(item, modulo)}</p></div>
                             <div><p className="text-[10px] font-semibold uppercase text-texto-muted">Fecha</p><p>{String(item.date || '').slice(0, 10)}</p></div>
                             <div><p className="text-[10px] font-semibold uppercase text-texto-muted">Estado</p><span className="inline-flex rounded-full bg-exito-fondo px-2.5 py-1 font-semibold text-exito">Finalizado</span></div>
                             {mostrarFacturas && item.tieneFactura && (
@@ -291,7 +292,7 @@ const HistoricoSolicitudes = () => {
                         <td className="px-3 py-4 text-texto-secundario">{item.requester}</td>
                         <td className="px-3 py-4 text-texto-secundario">
                           <div>{ubicacionSolicitud(item, modulo)}</div>
-                          <div className="mt-1 text-[10px] text-texto-muted">{item.area}</div>
+                          <div className="mt-1 text-[10px] text-texto-muted">{item.recorridoAreas || item.area}</div>
                         </td>
                         <td className="px-3 py-4 text-texto-secundario">{String(item.date || '').slice(0, 10)}</td>
                         <td className="px-3 py-4">

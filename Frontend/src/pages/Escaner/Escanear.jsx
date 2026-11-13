@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
-import { Camera, CheckCircle2, AlertCircle, RefreshCw, XCircle } from 'lucide-react';
+import { Camera, CheckCircle2, AlertCircle, RefreshCw, XCircle, Clock3 } from 'lucide-react';
 import { BrowserQRCodeReader } from '@zxing/library';
 import storeAuth from '../../context/storeAuth';
-import Formato from './Formato';
 import { ToastContainer } from 'react-toastify';
 
 const API = import.meta.env.VITE_BACKEND_URL;
@@ -17,7 +16,6 @@ const Escanear = ({ isOpen = true, onClose, onSuccess, tipo = 'paqueteria' }) =>
   const [message, setMessage] = useState(null);
   const [devices, setDevices] = useState([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
-  const [formatoSalida, setFormatoSalida] = useState(null);
   const [aprobado, setAprobado] = useState(false);
   const [resultadoTipo, setResultadoTipo] = useState(null);
   const [qrFinalizado, setQrFinalizado] = useState(false);
@@ -31,6 +29,7 @@ const Escanear = ({ isOpen = true, onClose, onSuccess, tipo = 'paqueteria' }) =>
   const [errorKm, setErrorKm] = useState('');
   const [salidaRegistrada, setSalidaRegistrada] = useState(false);
   const [acompanantes, setAcompanantes] = useState(null);
+  const [esperaQr, setEsperaQr] = useState(null);
 
   const videoRef = useRef(null);
   const codeReaderRef = useRef(null);
@@ -149,6 +148,10 @@ const Escanear = ({ isOpen = true, onClose, onSuccess, tipo = 'paqueteria' }) =>
       });
 
       const data = await response.json();
+      if (!response.ok && data.codigo === 'QR_ESPERA_MINIMA') {
+        setEsperaQr(data);
+        return;
+      }
       if (!response.ok) throw new Error(data.msg || 'Código QR inválido o no encontrado');
 
       datosResultado = data;
@@ -197,7 +200,8 @@ const Escanear = ({ isOpen = true, onClose, onSuccess, tipo = 'paqueteria' }) =>
         setSalidaRegistrada(true);
         setMessage(null);
       } else if (mensajeResultado?.type === 'success' && tipo === 'paqueteria' && datosResultado?.escaneos === 1) {
-        setFormatoSalida({ token: code, data: datosResultado });
+        setSalidaRegistrada(true);
+        setMessage(null);
       } else if (mensajeResultado?.type === 'success' && datosResultado?.escaneos === 2) {
         setResultadoTipo(tipo);
         setAprobado(true);
@@ -311,6 +315,25 @@ const Escanear = ({ isOpen = true, onClose, onSuccess, tipo = 'paqueteria' }) =>
     );
   }
 
+  if (esperaQr) {
+    const duracion = (segundos) => {
+      const minutos = Math.floor(segundos / 60);
+      const resto = Math.floor(segundos % 60);
+      return [minutos > 0 ? `${minutos} min` : '', `${resto} s`].filter(Boolean).join(' ');
+    };
+    return (
+      <div role="status" className="flex min-h-[360px] flex-col items-center justify-center rounded-xl bg-superficie px-6 py-8 text-center">
+        <div className="flex h-32 w-32 items-center justify-center rounded-full border-[7px] border-advertencia-borde text-advertencia"><Clock3 size={80} strokeWidth={1.7} aria-hidden="true" /></div>
+        <h2 className="mt-6 text-2xl font-bold text-principal">Espera antes de registrar la llegada</h2>
+        <p className="mt-3 max-w-md text-sm leading-relaxed text-texto-secundario">El QR de salida fue escaneado hace <strong>{duracion(esperaQr.segundosTranscurridos)}</strong>. Deben transcurrir al menos <strong>5 minutos</strong> entre la salida y la llegada.</p>
+        <p className="mt-4 rounded-lg border border-borde bg-fondo px-4 py-3 text-sm text-principal">Primer escaneo: <strong>{esperaQr.primerEscaneo}</strong></p>
+        <p className="mt-3 text-sm font-semibold text-advertencia">Al realizar este intento faltaban {duracion(esperaQr.segundosRestantes)}.</p>
+        <p className="mt-2 text-xs text-texto-muted">La llegada no se registró. La hora del primer escaneo se conserva.</p>
+        <button type="button" onClick={() => onClose?.()} className="mt-6 rounded-lg bg-principal px-6 py-2.5 text-sm font-semibold text-inverso hover:bg-principal-hover">Cerrar</button>
+      </div>
+    );
+  }
+
   if (salidaRegistrada) {
   const esExterno = tipo === 'externo';
   return (
@@ -373,16 +396,6 @@ const Escanear = ({ isOpen = true, onClose, onSuccess, tipo = 'paqueteria' }) =>
     );
   }
 
-  if (formatoSalida) {
-    return (
-      <Formato
-        token={formatoSalida.token}
-        envio={formatoSalida.data.envio || formatoSalida.data}
-        onClose={onClose}
-      />
-    );
-  }
-
   if (aprobado) {
     return (
       <div className="flex min-h-[360px] w-full flex-col items-center justify-center rounded-xl bg-superficie px-6 text-center">
@@ -390,11 +403,11 @@ const Escanear = ({ isOpen = true, onClose, onSuccess, tipo = 'paqueteria' }) =>
           <CheckCircle2 size={112} strokeWidth={2.2} />
         </div>
         <h2 className="mt-7 text-3xl font-bold text-exito">
-          {resultadoTipo === 'paqueteria' ? '¡Aprobado!' : 'Llegada Registrada'}
+          {resultadoTipo === 'paqueteria' ? 'Entrega Registrada' : 'Llegada Registrada'}
         </h2>
         <p className="mt-2 text-sm text-texto-muted">
           {resultadoTipo === 'paqueteria'
-            ? 'El envío ha sido registrado exitosamente.'
+            ? 'El envío quedó finalizado correctamente.'
             : resultadoTipo === 'pendiente-factura'
               ? 'El solicitante debe subir la factura desde Proceso para finalizar el traslado.'
               : 'El traslado fue finalizado correctamente.'}

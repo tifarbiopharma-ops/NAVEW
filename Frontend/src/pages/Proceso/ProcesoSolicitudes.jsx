@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { LoaderCircle, Search, QrCode, X, ScanQrCode, Eye, Check, XCircle, ChevronDown, Receipt } from 'lucide-react';
+import { LoaderCircle, Search, QrCode, X, ScanQrCode, Eye, Check, XCircle, ChevronDown, Receipt, Printer, Truck } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast, ToastContainer } from 'react-toastify';
 import { useParams } from 'react-router-dom';
@@ -10,6 +10,8 @@ import { getAuthClaims } from "../../utils/authClaims";
 import Escanear from '../Escaner/Escanear';
 import SubirFactura from './SubirFactura';
 import DetalleSolicitud from './DetalleSolicitud';
+import EtiquetaPaqueteria from '../Escaner/EtiquetaPaqueteria';
+import ConductorAsignado from '../Escaner/ConductorAsignado';
 
 const API = import.meta.env.VITE_BACKEND_URL;
 
@@ -62,13 +64,22 @@ const normalizeRequest = (item, module) => {
       requester: item.responsable_nombre || item.nombre_solicitante || 'Sin responsable',
       requesterId: item.ID_Responsable,
       area: item.area_destino_nombre || 'Paquetería',
+      recorridoAreas: `${item.area_origen_nombre || 'Sin área de origen'} → ${item.area_destino_nombre || 'Sin área de destino'}`,
       origin: item.planta_origen_nombre || 'Sin origen',
       destination: item.planta_destino_nombre || 'Sin destino',
       date: item.Fecha_Salida,
       reason: item.Comentario || item.comentario || item.Motivo || item.motivo || 'Sin motivo indicado',
       status: normalizarEstado(item.Estado_Actual),
       puedeAprobar: Boolean(Number(item.puedeAprobar)),
-      qrToken: item.qrToken || item.QR_Token || item.Token_QR || item.ID_Paquete,
+      qrToken: item.qrToken || item.QR_Token || item.Token_QR || `PAQUETERIA|${item.ID_Paquete}`,
+      datosEtiqueta: {
+        id_paquete: item.ID_Paquete, tipo_contenido: item.Tipo_Contenido,
+        responsable_origen: item.responsable_nombre, responsable_destino: item.destinatario_nombre,
+        lugar_origen: item.planta_origen_nombre, lugar_destino: item.planta_destino_nombre,
+        departamento_destino: item.area_destino_nombre,
+        fecha_salida: item.Fecha_Salida, hora_entrega: item.Hora_Entrega,
+      },
+      conductorNombre: item.conductor_nombre || '',
     };
   }
 
@@ -185,12 +196,16 @@ const ProcesoSolicitudes = () => {
   const [scope, setScope] = useState('TODOS'); // 'TODOS' | 'MIS_SOLICITUDES'
   const [loading, setLoading] = useState(true);
   const [selectedQr, setSelectedQr] = useState(null);
+  const [etiquetaPara, setEtiquetaPara] = useState(null);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [approvingId, setApprovingId] = useState(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [facturaPara, setFacturaPara] = useState(null);
   const [expandedRequestId, setExpandedRequestId] = useState(null);
   const [miPerfil, setMiPerfil] = useState(null);
+  const [paquetesSeleccionados, setPaquetesSeleccionados] = useState([]);
+  const [asignandoConductor, setAsignandoConductor] = useState(false);
+  const puedeAsignarConductor = isSupervisor && modulo === 'paqueteria';
 
   useEffect(() => {
     if (!token) { setMiPerfil(null); return; }
@@ -211,6 +226,7 @@ const ProcesoSolicitudes = () => {
   const loadRequests = async () => {
     if (!token) return;
     setLoading(true);
+    setPaquetesSeleccionados([]);
     try {
       const response = await fetch(`${API}${config.endpoint}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -262,10 +278,10 @@ const ProcesoSolicitudes = () => {
   }, [token, modulo, config.endpoint, config.responseKey]);
 
   const visibleRequests = useMemo(
-    () => requests.filter((item) => item.status !== 'Finalizado'),
-    [requests]
+    () => requests.filter((item) => puedeAsignarConductor || item.status !== 'Finalizado'),
+    [requests, puedeAsignarConductor]
   );
-  const statuses = useMemo(() => ['TODOS', ...new Set(visibleRequests.map((item) => item.status).filter(Boolean))], [visibleRequests]);
+  const statuses = useMemo(() => puedeAsignarConductor ? ['TODOS', 'Solicitado', 'En camino', 'Finalizado'] : ['TODOS', ...new Set(visibleRequests.map((item) => item.status).filter(Boolean))], [visibleRequests, puedeAsignarConductor]);
 
   const currentUserId = miPerfil?.idColaborador ?? miPerfil?.ID_COLABORADOR ?? null;
 
@@ -312,6 +328,10 @@ const ProcesoSolicitudes = () => {
       soloTodas,
       soloMis,
     ]);
+
+  const seleccionables = filteredRequests.filter((item) => item.status === 'En camino');
+  const seleccion = puedeAsignarConductor ? seleccionables.filter((item) => paquetesSeleccionados.includes(item.id)) : [];
+  const alternarPaquete = (id) => setPaquetesSeleccionados((actual) => actual.includes(id) ? actual.filter((valor) => valor !== id) : [...actual, id]);
 
   return (
     <>
@@ -372,14 +392,15 @@ const ProcesoSolicitudes = () => {
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-texto-muted" />
                 <input
                   value={query}
-                  onChange={(event) => setQuery(event.target.value)}
+                  onChange={(event) => { setQuery(event.target.value); setPaquetesSeleccionados([]); }}
                   placeholder="Buscar por código o solicitante..."
                   className="w-full rounded-lg border border-borde bg-fondo py-2.5 pl-9 pr-3 text-sm outline-none focus:border-acento"
                 />
               </label>
               <select
                 value={status}
-                onChange={(event) => setStatus(event.target.value)}
+                onChange={(event) => { setStatus(event.target.value); setPaquetesSeleccionados([]); }}
+                aria-label="Filtrar por estado"
                 className="rounded-lg border border-borde bg-fondo px-3 py-2.5 text-sm outline-none focus:border-acento md:w-44"
               >
                 {statuses.map((option) => (
@@ -388,7 +409,9 @@ const ProcesoSolicitudes = () => {
                   </option>
                 ))}
               </select>
+              {puedeAsignarConductor && <button type="button" onClick={() => setAsignandoConductor(true)} disabled={seleccion.length === 0 || seleccion.length > 100 || loading} title="Asignar conductor" aria-label="Asignar conductor a los paquetes seleccionados" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-advertencia-borde bg-advertencia-borde px-4 text-principal transition hover:brightness-95 disabled:opacity-40"><Truck size={20} aria-hidden="true" /></button>}
             </div>
+            {puedeAsignarConductor && seleccion.length > 0 && <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg bg-advertencia-fondo px-3 py-2 text-xs text-advertencia"><span>{seleccion.length} paquete(s) seleccionado(s)</span><button type="button" onClick={() => setPaquetesSeleccionados(seleccionables.map((p) => p.id))} className="min-h-9 font-semibold underline">Seleccionar todos los En camino de este listado</button><button type="button" onClick={() => setPaquetesSeleccionados([])} className="min-h-9 underline">Limpiar selección</button>{seleccion.length > 100 && <span role="alert">Asigna como máximo 100 paquetes por operación.</span>}</div>}
 
             {loading ? (
               <div className="flex items-center gap-2 py-12 text-sm text-texto-muted">
@@ -406,6 +429,7 @@ const ProcesoSolicitudes = () => {
                     const isExpanded = expandedRequestId === item.id;
                     return (
                       <div key={item.id} className="bg-superficie">
+                        {puedeAsignarConductor && item.status === 'En camino' && <label className="flex min-h-11 items-center gap-2 px-3 text-xs text-principal"><input type="checkbox" checked={paquetesSeleccionados.includes(item.id)} onChange={() => alternarPaquete(item.id)} /> Seleccionar {item.code}</label>}
                         <button
                           type="button"
                           onClick={() => setExpandedRequestId(isExpanded ? null : item.id)}
@@ -429,12 +453,13 @@ const ProcesoSolicitudes = () => {
                         {isExpanded && (
                           <div className="grid gap-2 bg-fondo px-11 pb-3 pr-3 text-[11px] text-texto-secundario">
                             <div className="grid grid-cols-2 gap-3">
-                              <div><p className="text-[10px] font-semibold uppercase text-texto-muted">{modulo === 'externo' ? 'Área / planta de visita' : 'Área / plantas'}</p><p>{item.area}</p><p>{ubicacionSolicitud(item, modulo)}</p></div>
+                              <div><p className="text-[10px] font-semibold uppercase text-texto-muted">{modulo === 'externo' ? 'Área / planta de visita' : 'Área / plantas'}</p><p>{item.recorridoAreas || item.area}</p><p>{ubicacionSolicitud(item, modulo)}</p></div>
                               <div><p className="text-[10px] font-semibold uppercase text-texto-muted">Fecha</p><p>{String(item.date || '').slice(0, 10)}</p></div>
+                              {modulo === 'paqueteria' && item.conductorNombre && <div className="col-span-2 text-acento">Conductor: {item.conductorNombre}</div>}
                             </div>
                             <div className="flex items-center justify-between gap-2">
                               <div><p className="text-[10px] font-semibold uppercase text-texto-muted">Estado</p><span className={`inline-flex rounded-full px-2.5 py-1 font-semibold ${estadoClase(item.status)}`}>{estadoEtiqueta(item.status)}</span></div>
-                              {!isSupervisor && (
+                              {(!isSupervisor || modulo === 'paqueteria') && (
                                 <div className="flex flex-wrap justify-end gap-1.5">
                                   {isJefe && <button onClick={() => setSelectedRequest(item)} className="rounded-lg border border-borde bg-superficie p-1.5 text-acento" title="Ver datos"><Eye size={15} /></button>}
                                   {(isJefe || userRole === 'administrador' || userRole === 'subgerentegeneral') && (modulo === 'transporte' || modulo === 'externo') && item.puedeAprobar && item.status === 'Solicitado' && (
@@ -443,7 +468,12 @@ const ProcesoSolicitudes = () => {
                                       <button onClick={() => handleApproval(item, 'Rechazado')} disabled={approvingId === item.id} className="rounded-lg border border-error-borde bg-error-fondo p-1.5 text-error transition-colors hover:bg-error hover:text-inverso focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error focus-visible:ring-offset-2 disabled:opacity-50" title="Rechazar"><XCircle size={15} /></button>
                                     </>
                                   )}
-                                  {!isJefe && item.qrToken && (modulo === 'paqueteria' || item.status === 'Aprobado') && <button onClick={() => setSelectedQr({ code: item.code, token: item.qrToken, companions: item.companions })} className="rounded-lg border border-borde bg-superficie p-1.5 text-principal" title="Ver Código QR"><QrCode size={15} /></button>}
+                                  {modulo === 'paqueteria' && item.qrToken && (
+                                    <button type="button" onClick={() => setEtiquetaPara(item)} className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-borde bg-fondo px-2.5 py-1.5 text-xs font-semibold text-principal transition hover:bg-principal hover:text-inverso" title="Imprimir etiqueta">
+                                      <Printer size={14} aria-hidden="true" /> Imprimir etiqueta
+                                    </button>
+                                  )}
+                                  {!isSupervisor && !isJefe && item.qrToken && (modulo === 'paqueteria' || item.status === 'Aprobado') && <button onClick={() => setSelectedQr({ code: item.code, token: item.qrToken, companions: item.companions })} className="rounded-lg border border-borde bg-superficie p-1.5 text-principal" title="Ver Código QR"><QrCode size={15} /></button>}
                                   {puedeSubirFactura(item) && <button onClick={() => setFacturaPara(item)} className="rounded-lg bg-acento p-1.5 text-inverso" title="Subir factura"><Receipt size={15} /></button>}
                                 </div>
                               )}
@@ -459,22 +489,25 @@ const ProcesoSolicitudes = () => {
                 <table className="min-w-full text-left text-xs">
                   <thead className="border-y border-borde bg-fondo text-[10px] uppercase text-texto-muted">
                     <tr>
+                      {puedeAsignarConductor && <th className="px-3 py-3"><span className="sr-only">Seleccionar paquetes En camino</span></th>}
                       <th className="px-3 py-3">Código</th>
                       <th className="px-3 py-3">Solicitante</th>
                       <th className="px-3 py-3">Área / Destino</th>
                       <th className="px-3 py-3">Fecha</th>
                       <th className="px-3 py-3">Estado</th>
-                      {!isSupervisor && <th className="px-3 py-3 text-center">Acciones</th>}
+                      {(!isSupervisor || modulo === 'paqueteria') && <th className="px-3 py-3 text-center">Acciones</th>}
                     </tr>
                   </thead>
                   <tbody>
                     {filteredRequests.map((item) => (
                       <tr key={item.id} className="border-b border-borde-suave last:border-0">
+                        {puedeAsignarConductor && <td className="px-3 py-4">{item.status === 'En camino' && <input type="checkbox" aria-label={`Seleccionar ${item.code}`} checked={paquetesSeleccionados.includes(item.id)} onChange={() => alternarPaquete(item.id)} className="h-4 w-4 accent-acento" />}</td>}
                         <td className="px-3 py-4 font-bold text-principal">{item.code}</td>
                         <td className="px-3 py-4 text-texto-secundario">{item.requester}</td>
                         <td className="px-3 py-4 text-texto-secundario">
                           <div>{ubicacionSolicitud(item, modulo)}</div>
-                          <div className="mt-1 text-[10px] text-texto-muted">{item.area}</div>
+                          <div className="mt-1 text-[10px] text-texto-muted">{item.recorridoAreas || item.area}</div>
+                          {modulo === 'paqueteria' && item.conductorNombre && <div className="mt-1 text-xs text-acento">Conductor: {item.conductorNombre}</div>}
                         </td>
                         <td className="px-3 py-4 text-texto-secundario">{String(item.date || '').slice(0, 10)}</td>
                         <td className="px-3 py-4">
@@ -483,7 +516,7 @@ const ProcesoSolicitudes = () => {
                           </span>
                         </td>
 
-                        {!isSupervisor && (
+                        {(!isSupervisor || modulo === 'paqueteria') && (
                           <td className="px-3 py-4 text-center">
                             <div className="flex items-center justify-center gap-2">
                               {isJefe && <button
@@ -513,7 +546,12 @@ const ProcesoSolicitudes = () => {
                                   </button>
                                 </>
                               )}
-                              {!isJefe && item.qrToken && (modulo === 'paqueteria' || item.status === 'Aprobado') && (
+                              {modulo === 'paqueteria' && item.qrToken && (
+                                    <button type="button" onClick={() => setEtiquetaPara(item)} className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-borde bg-fondo px-2.5 py-1.5 text-xs font-semibold text-principal transition hover:bg-principal hover:text-inverso" title="Imprimir etiqueta">
+                                      <Printer size={14} aria-hidden="true" /> Imprimir etiqueta
+                                    </button>
+                                  )}
+                                  {!isSupervisor && !isJefe && item.qrToken && (modulo === 'paqueteria' || item.status === 'Aprobado') && (
                                 <button
                                   onClick={() => setSelectedQr({ code: item.code, token: item.qrToken, companions: item.companions })}
                                   className="inline-flex items-center gap-1.5 rounded-lg border border-borde bg-fondo px-2.5 py-1.5 font-semibold text-principal transition hover:bg-principal hover:text-inverso"
@@ -585,6 +623,9 @@ const ProcesoSolicitudes = () => {
             onClose={() => setSelectedRequest(null)}
           />
         )}
+
+        {etiquetaPara && <EtiquetaPaqueteria token={etiquetaPara.qrToken} envio={etiquetaPara.datosEtiqueta} onClose={() => setEtiquetaPara(null)} />}
+        {asignandoConductor && seleccion.length > 0 && <ConductorAsignado paquetes={seleccion} token={token} onClose={() => setAsignandoConductor(false)} onAsignado={(mensaje) => { setAsignandoConductor(false); toast.success(mensaje); loadRequests(); }} />}
 
         {selectedQr && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-principal/40 p-4 backdrop-blur-sm">

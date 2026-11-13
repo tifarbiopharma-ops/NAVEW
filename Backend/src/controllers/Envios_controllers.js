@@ -375,11 +375,13 @@ const obtenerEnviosPaqueteria = async (req, res) => {
         e.*,
         resp.NOMBRE AS responsable_nombre,
         dest.NOMBRE AS destinatario_nombre,
+        conductor.NOMBRE AS conductor_nombre,
         po.DESCRIPCION AS planta_origen_nombre,
         pd.DESCRIPCION AS planta_destino_nombre,
         area_origen.AREA AS area_origen_nombre,
         area_destino.AREA AS area_destino_nombre
       FROM Envios_Paqueteria e
+      LEFT JOIN Colaboradores conductor ON conductor.ID_COLABORADOR = e.ID_Conductor
       INNER JOIN Colaboradores resp
         ON resp.ID_COLABORADOR = e.ID_Responsable
       INNER JOIN Colaboradores dest
